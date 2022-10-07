@@ -12,6 +12,7 @@ using Polynomials
 using LinearAlgebra
 using Random
 using SpecialFunctions
+using Plots
 
 # Not used
 # using MAT
@@ -138,9 +139,43 @@ function transformation(covariance_matrix)
 
 end
 
+function system_dynamics(x, T_a, system_flag, neural_flag)
+
+    if system_flag == "population_growth"
+
+        # System properties
+        m1 = 0.50
+        m2 = 0.95
+        m3 = 0.50
+
+        # Define if system is Neural Network
+        if neural_flag == true
+            print("Complete code for Neural Network Systems ....")
+        end
+
+        # Dynamics definion
+        F_a = [0 m3; m1 m2]
+        x_next_step = F_a*x
+
+        # Modified hyperspace (see Eq. 17: http://dx.doi.org/10.1145/3302504.3311805)
+        y = T_a*x_next_step
+
+        return y
+
+    end
+
+end
+
+# Function vertices: plot hypercube posterior
+function hypercube_posterior()
+
+    print("hi")
+
+end
+
 
 # Transition probability, T(q | x, a), based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
-function probability_distribution(jj::Int, hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
+function probability_distribution(jj::Int, x, hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
 
     # Identify current hypercube
     hypercube_j = hypercubes[jj]
@@ -151,30 +186,46 @@ function probability_distribution(jj::Int, hypercubes, covariance_matrix, system
     # Test if proper matrix
     proper_test = Matrix(1.0I, system_dimension, system_dimension) - T_a*covariance_matrix*transpose(T_a)
     proper_threshold = 1e-9
-    proper_elements_above_zero = length(proper_test[proper_test .> proper_threshold])
+    proper_elements_test = length(proper_test[proper_test .> proper_threshold])
 
-    if proper_elements_above_zero > 0
+    if proper_elements_test > 0
         print("\n", "Error: this is not a proper matrix, violation of Proposition 1 in http://dx.doi.org/10.1145/3302504.3311805")
     end
 
     # Define y variable: altered hyperspace
-    y = 
+    y = system_dynamics(x, T_a, system_flag, neural_flag)
 
     # Product of erf functions to obtain probability
     m = system_dimension
     T = 1/(2^m)
 
+    vector = []
     for tt = 1:m
         v_l = hypercube_j[tt][1]
         v_u = hypercube_j[tt][2]
-        print("\n", v_l)
-        print("\n", v_u)
+        vec_current = [v_l, v_u]
+        vector = push!(vector, vec_current)
+        # vector[tt] = [v_l, v_u]
+        # y_i = y[tt]
+
+        # erf_func_lo = (y_i - v_l) / sqrt(2) 
+        # erf_func_up = (y_i - v_u) / sqrt(2) 
+
+        # # erf 
+
+        # erf_test = erf(erf_func_lo)
+
+        # T = T * (erf_func_lo - erf_func_up)
     end
+    # print(vector)
+
+    print("\n", vector)
+    # plot(vector_1, vector_2)
+
+    # print("n", T)
 
 
     return 0
-
-    # print("\n", T)
 
 
 end
@@ -222,7 +273,9 @@ function barrier_bellman_sos(system_dimension, partitions_eps, state_space, syst
     for jj = 1:number_of_hypercubes
         
         # Compute transition probability
-        transition_probabilities = probability_distribution(jj, hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
+        transition_probabilities = probability_distribution(jj, x, hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
+
+        # return transition_probabilities
 
         return 0
 
@@ -469,10 +522,16 @@ system_flag = "population_growth"
 neural_flag = false
 
 # Optimize controller
-@time certificate = barrier_bellman_sos(system_dimension,
-                                        partitions_eps,
-                                        state_space,
-                                        system_flag,
-                                        neural_flag)
-                                                
+@time X = barrier_bellman_sos(system_dimension,
+                                 partitions_eps,
+                                 state_space,
+                                 system_flag,
+                                 neural_flag)
+
+
+# Plot hypercube
+# pyplot()
+
+# plot!(rand(10))
+# plot!(rand(10))
 
