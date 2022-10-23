@@ -2,7 +2,7 @@
 # Rayan Mazouz, University of Colorado Boulder, Aerospace Engineering Sciences
 
 # Initialization Statement
-print("\n Computing Piecewise Barriers based on Bellman Operator")
+print("\n Computing Piecewise Barriers based on Bellman Equation")
 
 # Import packages
 using SumOfSquares
@@ -12,6 +12,8 @@ using Polynomials
 using LinearAlgebra
 using Random
 using SpecialFunctions
+using PyCall
+using NLopt
 using Plots
 
 # Not used
@@ -72,6 +74,19 @@ end
 
 # Function: partition a space
 function partition_space(state_space, partitions_eps)
+
+    # py"""
+    # def sumMyArgs (i, j):
+    #     return i+j
+    # def getNElement (n):
+    #     a = [0,1,2,3,4,5,6,7,8,9]
+    #     return a[n]
+    # """
+
+    # a = py"sumMyArgs"(3,4)          # 7
+    # b = py"sumMyArgs"([3,4],[5,6])  # [8,10]
+
+    # pyimport(utilities)
 
     hypercubes = [[[-3, 0], [0, 3]],
                   [[0, 3], [0, 3]],
@@ -151,6 +166,7 @@ function system_dynamics(x, T_a, system_flag, neural_flag)
         # Define if system is Neural Network
         if neural_flag == true
             print("Complete code for Neural Network Systems ....")
+            return 0
         end
 
         # Dynamics definion
@@ -167,18 +183,14 @@ function system_dynamics(x, T_a, system_flag, neural_flag)
 end
 
 # Function vertices: plot hypercube posterior
-function hypercube_posterior()
+function hypercube_posterior(hypercubes, probability_distribution)
 
     print("hi")
 
 end
 
-
 # Transition probability, T(q | x, a), based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
-function probability_distribution(jj::Int, x, hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
-
-    # Identify current hypercube
-    hypercube_j = hypercubes[jj]
+function probability_distribution(hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
 
     # Initiate transformation function
     T_a = transformation(covariance_matrix)
@@ -190,45 +202,87 @@ function probability_distribution(jj::Int, x, hypercubes, covariance_matrix, sys
 
     if proper_elements_test > 0
         print("\n", "Error: this is not a proper matrix, violation of Proposition 1 in http://dx.doi.org/10.1145/3302504.3311805")
+        return 0
     end
+
+    # Gradient descent on log-concave function: 
+    model_gradient = Model(NLopt.Optimizer)
+    set_optimizer_attribute(model_gradient, "algorithm", :LD_MMA)
 
     # Define y variable: altered hyperspace
-    y = system_dynamics(x, T_a, system_flag, neural_flag)
+    @variable(model_gradient, x_gradient[1:system_dimension])
+    y = system_dynamics(x_gradient, T_a, system_flag, neural_flag)
 
+    # Loop for f(y, q), Proposition 3, http://dx.doi.org/10.1145/3302504.3311805
     # Product of erf functions to obtain probability
+    P_vector = []
+    vector_erf_vars = []
     m = system_dimension
-    T = 1/(2^m)
+    hyper = length(hypercubes)
 
-    vector = []
-    for tt = 1:m
-        v_l = hypercube_j[tt][1]
-        v_u = hypercube_j[tt][2]
-        vec_current = [v_l, v_u]
-        vector = push!(vector, vec_current)
-        # vector[tt] = [v_l, v_u]
-        # y_i = y[tt]
+    for qq = 1:hyper
 
-        # erf_func_lo = (y_i - v_l) / sqrt(2) 
-        # erf_func_up = (y_i - v_u) / sqrt(2) 
+        # Identify current hypercube
+        hypercube_j = hypercubes[qq]
 
-        # # erf 
+        for tt = 1:m
 
-        # erf_test = erf(erf_func_lo)
+            # Hypercube bounds
+            v_l = hypercube_j[tt][1]
+            v_u = hypercube_j[tt][2]
 
-        # T = T * (erf_func_lo - erf_func_up)
+            # Add constraints to original hypercube dimensions
+            @constraint(model_gradient, x_gradient[tt] >= v_l)
+            @constraint(model_gradient, x_gradient[tt] <= v_u)
+
+            # Set start value at the middle of the hypercube
+            set_start_value(x_gradient[tt], 1/2 * (v_l + v_u))
+
+            # Error function range
+            y_i = y[tt]
+            erf_func_lo = (y_i - v_l) / sqrt(2) 
+            erf_func_up = (y_i - v_u) / sqrt(2) 
+
+            vector_erf_vars = push!(vector_erf_vars, [erf_func_lo, erf_func_up])
+        
+        end
+
+        # Objective function to be minimized
+        @NLobjective(model_gradient, Min, (1/(2^m))*prod(erf(vector_erf_vars[i][1] - vector_erf_vars[i][2]) for i in 1:m))
+
+        # Optimize for minimum
+        JuMP.optimize!(model_gradient)
+        P_min = JuMP.objective_value(model_gradient)
+
+        # Objective function to be maximized
+        @NLobjective(model_gradient, Max, (1/(2^m))*prod(erf(vector_erf_vars[i][1] - vector_erf_vars[i][2]) for i in 1:m))
+
+        # Optimize for maximum
+        JuMP.optimize!(model_gradient)
+        P_max = JuMP.objective_value(model_gradient)
+
+        # Store in vector
+        P_vector = push!(P_vector, [P_min, P_max])
+
     end
-    # print(vector)
 
-    print("\n", vector)
-    # plot(vector_1, vector_2)
-
-    # print("n", T)
-
+    print("\n", P_vector)
 
     return 0
 
 
 end
+
+
+# Total Law Expectation construction
+function total_law_of_expectation()
+
+
+
+
+end
+
+
 
 
 
@@ -273,7 +327,9 @@ function barrier_bellman_sos(system_dimension, partitions_eps, state_space, syst
     for jj = 1:number_of_hypercubes
         
         # Compute transition probability
-        transition_probabilities = probability_distribution(jj, x, hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
+        transition_probabilities = probability_distribution(hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
+
+        total_expectation = total_law_of_expectation()
 
         # return transition_probabilities
 
