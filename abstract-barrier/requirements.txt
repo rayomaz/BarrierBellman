@@ -1,9 +1,0 @@
-matplotlib
-seaborn
-numpy
-scipy
-torch
-tqdm
-bound_propagation
-cvxpy
-mosek==9.3.21
