@@ -5,7 +5,7 @@
 """
 
 # Optimization function
-function barrier_bellman_sos(system_dimension, partitions_eps, state_space)
+function barrier_bellman_sos(system_dimension, state_space, state_partitions, initial_state_partition)
 
     # Using Mosek as the SDP solver
     model = SOSModel(optimizer_with_attributes(Mosek.Optimizer,
@@ -24,14 +24,13 @@ function barrier_bellman_sos(system_dimension, partitions_eps, state_space)
     # Create global CROWN bounds variables
     @polyvar y[1:system_dimension]
 
-    # Hypercubes
-    hypercubes = partition_space(state_space, partitions_eps)
-    number_of_hypercubes = length(hypercubes)
+    # Hyperspace
+    number_state_hypercubes = Int(length(state_partitions)) 
 
     # Create optimization variables
-    # @variable(model, A[1:(system_dimension*number_of_hypercubes)])
-    # @variable(model, b[1:number_of_hypercubes])
-    # @variable(model, beta[1:number_of_hypercubes])
+    @variable(model, A[1:(system_dimension*number_state_hypercubes)])
+    @variable(model, b[1:number_state_hypercubes])
+    @variable(model, beta[1:number_state_hypercubes])
 
 #     # Specify Covariance Matrix (Gaussian)
 #     covariance_matrix = random_covariance_matrix(system_dimension) 

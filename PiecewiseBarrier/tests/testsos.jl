@@ -14,7 +14,7 @@ using DelimitedFiles
 # Optimization flags
 barrier_degree_input = 2
 decision_η_flag = true
-σ_noise = 0.01
+σ_noise = 0.1
 initial_state_partition = Int(3)
 
 # State partitions

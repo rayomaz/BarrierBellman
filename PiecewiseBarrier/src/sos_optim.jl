@@ -178,7 +178,7 @@ function optimization(state_space,
             
             # Dummy system
             for zz = 1:system_dimension
-                exp_evaluated = subs(exp_evaluated, x[zz] => 0.75*x[1] + z[zz])
+                exp_evaluated = subs(exp_evaluated, x[zz] => 0.5*x[1]^2 + z[zz])
             end
 
             # Extract noise term
@@ -212,8 +212,10 @@ function optimization(state_space,
     set_silent(model)
     optimize!(model)
 
-#     # Lagrange values
-#     # print(value(lag_vars_unsafe_upper[1,1]), " " , value(lag_vars_unsafe_upper[1,2]), " " , value(lag_vars_unsafe_upper[1,3]))
+    # Lagrange values
+    # print(value(lag_vars_initial[1]), " ", value(lag_vars_initial[2]), " ", value(lag_vars_initial[3]))
+    # return 0,0
+    # print(value(lag_vars_unsafe_upper[1,1]), " " , value(lag_vars_unsafe_upper[1,2]), " " , value(lag_vars_unsafe_upper[1,3]))
 
     certificate = barrier_certificate(barrier_monomial, c)
     print("\n", certificate, "\n")
