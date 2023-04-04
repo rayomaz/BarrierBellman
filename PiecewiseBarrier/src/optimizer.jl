@@ -4,40 +4,34 @@
 
 """
 
-function add_it_up(x)
+# Optimization function
+function barrier_bellman_sos(system_dimension, partitions_eps, state_space)
 
-    return x +x 
-end
+    # Using Mosek as the SDP solver
+    model = SOSModel(optimizer_with_attributes(Mosek.Optimizer,
+                                                "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
+                                                "MSK_IPAR_OPTIMIZER" => 0,
+                                                "MSK_IPAR_BI_CLEAN_OPTIMIZER" => 0,
+                                                "MSK_IPAR_NUM_THREADS" => 16,
+                                                "MSK_IPAR_PRESOLVE_USE" => 0))
 
+    # Create state space variables
+    @polyvar x[1:system_dimension]
 
-# # Control hypercube optimization 
-# function barrier_bellman_sos(system_dimension, partitions_eps, state_space, system_flag, neural_flag)
+    # Create noise variable
+    @polyvar z
 
-#     # Using Mosek as the SDP solver
-#     model = SOSModel(optimizer_with_attributes(Mosek.Optimizer,
-#                                                 "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
-#                                                 "MSK_IPAR_OPTIMIZER" => 0,
-#                                                 "MSK_IPAR_BI_CLEAN_OPTIMIZER" => 0,
-#                                                 "MSK_IPAR_NUM_THREADS" => 16,
-#                                                 "MSK_IPAR_PRESOLVE_USE" => 0))
+    # Create global CROWN bounds variables
+    @polyvar y[1:system_dimension]
 
-#     # Create state space variables
-#     @polyvar x[1:system_dimension]
+    # Hypercubes
+    hypercubes = partition_space(state_space, partitions_eps)
+    number_of_hypercubes = length(hypercubes)
 
-#     # Create noise variable
-#     @polyvar z
-
-#     # Create global CROWN bounds variables
-#     @polyvar y[1:system_dimension]
-
-#     # Hypercubes
-#     hypercubes = partition_space(state_space, partitions_eps)
-#     number_of_hypercubes = length(hypercubes)
-
-#     # Create optimization variables
-#     @variable(model, A[1:(system_dimension*number_of_hypercubes)])
-#     @variable(model, b[1:number_of_hypercubes])
-#     @variable(model, beta[1:number_of_hypercubes])
+    # Create optimization variables
+    # @variable(model, A[1:(system_dimension*number_of_hypercubes)])
+    # @variable(model, b[1:number_of_hypercubes])
+    # @variable(model, beta[1:number_of_hypercubes])
 
 #     # Specify Covariance Matrix (Gaussian)
 #     covariance_matrix = random_covariance_matrix(system_dimension) 
@@ -292,4 +286,4 @@ end
     # # Return certificate
     # return certificate
 
-# end
+end

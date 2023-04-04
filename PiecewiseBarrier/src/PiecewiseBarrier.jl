@@ -11,7 +11,9 @@ using LinearAlgebra
 using GLPK
 using Optim
 
+include(joinpath(@__DIR__,"functions.jl"))
+
 include(joinpath(@__DIR__,"optimizer.jl"))
-export add_it_up #barrier_bellman_sos
+export barrier_bellman_sos
 
 end # module PiecewiseBarrier

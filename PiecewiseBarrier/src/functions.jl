@@ -64,3 +64,20 @@ function barrier_construct(system_dimension, A, b, x) #::DynamicPolynomials.Poly
 
     return barrier_linear
 end
+
+# Generate state space from bounds
+function state_space_generation(state_partitions)
+
+    # Identify lower bound
+    lower_bound = split(state_partitions[1])
+    lower_bound = minimum(parse.(Float64, lower_bound))
+
+    # Identify current bound
+    upper_bound = split(state_partitions[end])
+    upper_bound = maximum(parse.(Float64, upper_bound))
+
+    state_space = [lower_bound, upper_bound]
+
+    return state_space
+
+end
