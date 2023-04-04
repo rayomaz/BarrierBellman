@@ -4,15 +4,25 @@
 
 """
 
+# Create Control Barrier Polynomial
+function barrier_polynomial(c::Vector{VariableRef}, barrier_monomial::MonomialVector{true})::DynamicPolynomials.Polynomial{true, AffExpr}
+    barrier_poly = 0
+    for cc in 1:Integer(length(barrier_monomial))
+        barrier_poly += c[cc] * barrier_monomial[cc]
+    end
+    return barrier_poly
+end
+
 # Create SOS polynomial function
-function sos_polynomial(k::Vector{VariableRef}, var::Array{PolyVar{true},1}, k_count::Int64, lagrange_degree::Int64)::DynamicPolynomials.Polynomial{true, AffExpr}
-    sos_polynomial::MonomialVector{true}  = monomials(var, 0:lagrange_degree)
+function sos_polynomial(vars, x, lagrange_degree::Int64)::DynamicPolynomials.Polynomial{true, AffExpr}
+    sos_polynomial::MonomialVector{true}  = monomials(x, 0:lagrange_degree)
+
     sos_poly_t = 0
     for sos in 1:Integer(length(sos_polynomial))
-        sos_poly_t += k[sos + k_count*length(sos_polynomial)] * sos_polynomial[sos]
+        sos_poly_t += vars[sos] * sos_polynomial[sos]
     end
 
-    return sos_poly_t
+    return sos_poly_t::DynamicPolynomials.Polynomial{true, AffExpr}
     
 end
 
@@ -28,31 +38,32 @@ function add_constraint_to_model(model::Model, expression)
     @constraint(model, expression >= 0)
 end
 
+# Compute the final barrier certificate
+# function barrier_certificate(system_dimension, A, b, x)
+
+#     # Control Barrier Certificate
+#     barrier_certificate = value(b)
+#     for ii = 1:system_dimension
+#         barrier_certificate += value(A[ii])*x[ii]
+#     end
+
+#     return barrier_certificate
+
+# end
 
 # Compute the final barrier certificate
-function barrier_certificate(system_dimension, A, b, x)
+function barrier_certificate(barrier_monomial, c)
 
     # Control Barrier Certificate
-    barrier_certificate = value(b)
-    for ii = 1:system_dimension
-        barrier_certificate += value(A[ii])*x[ii]
+    barrier_certificate = 0
+    for cc in 1:Integer(length(barrier_monomial))
+        barrier_certificate += value(c[cc]) * barrier_monomial[cc]
     end
 
     return barrier_certificate
 
 end
 
-# Function: partition a space
-function partition_space(state_space, partitions_eps)
-
-    hypercubes = [[[-3, 0], [0, 3]],
-                  [[0, 3], [0, 3]],
-                  [[0, 3], [0, -3]],
-                  [[-3, 0], [-3, 0]]]
-
-    return hypercubes
-
-end
 
 # Create Linear Barrier Function
 function barrier_construct(system_dimension, A, b, x) #::DynamicPolynomials.Polynomial{true, AffExpr}
