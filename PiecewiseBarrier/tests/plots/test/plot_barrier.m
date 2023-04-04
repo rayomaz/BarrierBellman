@@ -1,4 +1,4 @@
-% Plot barrier function for thermostat GP model
+% Plot barrier function
 
 clc; clear; close all;
 
