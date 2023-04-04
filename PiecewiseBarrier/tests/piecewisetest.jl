@@ -16,8 +16,8 @@ system_flag = "population_growth"
 neural_flag = false
 
 # Optimize controller
-@time X = barrier_bellman_sos(system_dimension,
-                                 partitions_eps,
-                                 state_space,
-                                 system_flag,
-                                 neural_flag)
+# @time X = barrier_bellman_sos(system_dimension,
+#                                  partitions_eps,
+#                                  state_space,
+#                                  system_flag,
+#                                  neural_flag)
