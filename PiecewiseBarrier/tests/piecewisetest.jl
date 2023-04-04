@@ -21,3 +21,6 @@ neural_flag = false
 #                                  state_space,
 #                                  system_flag,
 #                                  neural_flag)
+# barrier_bellman_sos(system_dimension, partitions_eps, state_space, system_flag, neural_flag)
+
+add_it_up(5)

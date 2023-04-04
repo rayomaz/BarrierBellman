@@ -4,74 +4,80 @@
 
 """
 
-# Control hypercube optimization 
-function barrier_bellman_sos(system_dimension, partitions_eps, state_space, system_flag, neural_flag)
+function add_it_up(x)
 
-    # Using Mosek as the SDP solver
-    model = SOSModel(optimizer_with_attributes(Mosek.Optimizer,
-                                                "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
-                                                "MSK_IPAR_OPTIMIZER" => 0,
-                                                "MSK_IPAR_BI_CLEAN_OPTIMIZER" => 0,
-                                                "MSK_IPAR_NUM_THREADS" => 16,
-                                                "MSK_IPAR_PRESOLVE_USE" => 0))
+    return x +x 
+end
 
-    # Create state space variables
-    @polyvar x[1:system_dimension]
 
-    # Create noise variable
-    @polyvar z
+# # Control hypercube optimization 
+# function barrier_bellman_sos(system_dimension, partitions_eps, state_space, system_flag, neural_flag)
 
-    # Create global CROWN bounds variables
-    @polyvar y[1:system_dimension]
+#     # Using Mosek as the SDP solver
+#     model = SOSModel(optimizer_with_attributes(Mosek.Optimizer,
+#                                                 "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
+#                                                 "MSK_IPAR_OPTIMIZER" => 0,
+#                                                 "MSK_IPAR_BI_CLEAN_OPTIMIZER" => 0,
+#                                                 "MSK_IPAR_NUM_THREADS" => 16,
+#                                                 "MSK_IPAR_PRESOLVE_USE" => 0))
 
-    # Hypercubes
-    hypercubes = partition_space(state_space, partitions_eps)
-    number_of_hypercubes = length(hypercubes)
+#     # Create state space variables
+#     @polyvar x[1:system_dimension]
 
-    # Create optimization variables
-    @variable(model, A[1:(system_dimension*number_of_hypercubes)])
-    @variable(model, b[1:number_of_hypercubes])
-    @variable(model, beta[1:number_of_hypercubes])
+#     # Create noise variable
+#     @polyvar z
 
-    # Specify Covariance Matrix (Gaussian)
-    covariance_matrix = random_covariance_matrix(system_dimension) 
+#     # Create global CROWN bounds variables
+#     @polyvar y[1:system_dimension]
 
-    # Specify initial state
-    x_init::Array{Float64, 2} = zeros(1, system_dimension)
+#     # Hypercubes
+#     hypercubes = partition_space(state_space, partitions_eps)
+#     number_of_hypercubes = length(hypercubes)
 
-    # Barrier function
-    alpha::Float64 = 1
+#     # Create optimization variables
+#     @variable(model, A[1:(system_dimension*number_of_hypercubes)])
+#     @variable(model, b[1:number_of_hypercubes])
+#     @variable(model, beta[1:number_of_hypercubes])
 
-    for jj = 1:number_of_hypercubes
+#     # Specify Covariance Matrix (Gaussian)
+#     covariance_matrix = random_covariance_matrix(system_dimension) 
+
+#     # Specify initial state
+#     x_init::Array{Float64, 2} = zeros(1, system_dimension)
+
+#     # Barrier function
+#     alpha::Float64 = 1
+
+#     for jj = 1:number_of_hypercubes
         
-        # Compute transition probability
-        transition_probabilities = probability_distribution(hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
+#         # Compute transition probability
+#         transition_probabilities = probability_distribution(hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
 
-        total_expectation = total_law_of_expectation()
+#         total_expectation = total_law_of_expectation()
 
-        # return transition_probabilities
+#         # return transition_probabilities
 
-        return 0
+#         return 0
 
-        # Construct partition barrier
-        A_j = A[(1+system_dimension*(jj-1):(system_dimension*jj))]
-        b_j = b[jj]
-        BARRIER_j = barrier_construct(system_dimension, A_j, b_j, x)
+#         # Construct partition barrier
+#         A_j = A[(1+system_dimension*(jj-1):(system_dimension*jj))]
+#         b_j = b[jj]
+#         BARRIER_j = barrier_construct(system_dimension, A_j, b_j, x)
 
-        # Constraint nonnegative
-        add_constraint_to_model(model, BARRIER_j)
+#         # Constraint nonnegative
+#         add_constraint_to_model(model, BARRIER_j)
 
-        # Decision variables
-        beta_j = beta[jj]
-        @constraint(model, beta_j >= 1e-6)
+#         # Decision variables
+#         beta_j = beta[jj]
+#         @constraint(model, beta_j >= 1e-6)
 
-        if jj == hypercube_initial 
-            @variable(model, eta)
-            @constraint(model, eta >= 1e-6)
-            @constraint(model, eta <= (1 - 1e-6))
-        end
+#         if jj == hypercube_initial 
+#             @variable(model, eta)
+#             @constraint(model, eta >= 1e-6)
+#             @constraint(model, eta <= (1 - 1e-6))
+#         end
 
-    end
+#     end
 
     # # Specify degree Lagrangian polynomials and decision variables
     # lagrange_degree::Int64 = 2
@@ -286,4 +292,4 @@ function barrier_bellman_sos(system_dimension, partitions_eps, state_space, syst
     # # Return certificate
     # return certificate
 
-end
+# end
