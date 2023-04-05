@@ -39,7 +39,7 @@ system = "test"
 if system == "test":
     dimension = int(1)
     state_space = np.array([[-1.0, 1.0]])
-    epsilon_state = 0.20
+    epsilon_state = 0.01
 
 # Create hyperspaces
 state_hypercubes = create_hyperspace(state_space, epsilon_state)
