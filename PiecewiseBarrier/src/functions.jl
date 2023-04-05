@@ -39,17 +39,17 @@ function add_constraint_to_model(model::Model, expression)
 end
 
 # Compute the final barrier certificate
-# function barrier_certificate(system_dimension, A, b, x)
+function piecewise_barrier_certificate(system_dimension, A, b, x)
 
-#     # Control Barrier Certificate
-#     barrier_certificate = value(b)
-#     for ii = 1:system_dimension
-#         barrier_certificate += value(A[ii])*x[ii]
-#     end
+    # Control Barrier Certificate
+    barrier_certificate = value(b)
+    for ii = 1:system_dimension
+        barrier_certificate += value(A[ii])*x[ii]
+    end
 
-#     return barrier_certificate
+    return barrier_certificate
 
-# end
+end
 
 # Compute the final barrier certificate
 function barrier_certificate(barrier_monomial, c)
@@ -63,7 +63,6 @@ function barrier_certificate(barrier_monomial, c)
     return barrier_certificate
 
 end
-
 
 # Create Linear Barrier Function
 function barrier_construct(system_dimension, A, b, x) #::DynamicPolynomials.Polynomial{true, AffExpr}

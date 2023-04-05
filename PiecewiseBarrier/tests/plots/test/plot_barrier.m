@@ -14,10 +14,15 @@ function plot_barrier_2D()
     % Bounds on polynomial kernel
     f = 1.0000007651953218*x1.^2 - 1.7197334168473105e-11*x1 - ...
         9.088427152842553e-10;
+
+    f2 = 0.2200384646464848*ones(1, length(x1));
+
     eta = 0.04;
 
     plot(x1, f, 'LineWidth', 3)
     hold on
+    plot(x1, f2, 'LineWidth', 3)
+
     xline(-0.2,'k--','LineWidth',2);
     xline(+0.2,'k--','LineWidth',2);
     xline(-1.0,'r--','LineWidth',2);
@@ -33,8 +38,11 @@ function plot_barrier_2D()
     xlabel('x');
     ylabel('B(x)');
     grid on
-    ylim([-.1, 1.5])
+    ylim([-.1, 2.5])
     xlim([-1.25, 1.25])
+    labels = {'\color{blue} SOS B(x)'};
+    legend(labels, 'Location', 'NorthWest', 'FontSize', 8, ...
+    'TextColor', 'black');
 
 end
 

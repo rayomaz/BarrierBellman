@@ -18,51 +18,154 @@ function barrier_bellman_sos(system_dimension, state_space, state_partitions, in
     # Create state space variables
     @polyvar x[1:system_dimension]
 
-    # Create noise variable
-    @polyvar z
-
-    # Create global CROWN bounds variables
-    @polyvar y[1:system_dimension]
+    # Numerical precision
+    ϵ = 1e-6
 
     # Hyperspace
     number_state_hypercubes = Int(length(state_partitions)) 
 
+    # Create probability decision variables eta
+    @variable(model, η)
+    @constraint(model, η >= ϵ )
+
+    # Create barrier polynomial and specify degree Lagrangian polynomials
+    lagrange_degree = 2
+    length_per_lagrange_func::Int64 = length_polynomial(x::Array{PolyVar{true},1}, lagrange_degree::Int64)
+
     # Create optimization variables
     @variable(model, A[1:(system_dimension*number_state_hypercubes)])
     @variable(model, b[1:number_state_hypercubes])
-    @variable(model, beta[1:number_state_hypercubes])
+    @variable(model, β[1:number_state_hypercubes])
 
-#     # Specify Covariance Matrix (Gaussian)
-#     covariance_matrix = random_covariance_matrix(system_dimension) 
+    # One initial condition and unsafe conditions
+    @variable(model, lag_vars_initial[1:system_dimension, 1:length_per_lagrange_func])
+    @variable(model, lag_vars_unsafe_lower[1:number_state_hypercubes, 1:system_dimension, 1:length_per_lagrange_func])
+    @variable(model, lag_vars_unsafe_upper[1:number_state_hypercubes, 1:system_dimension, 1:length_per_lagrange_func])
 
-#     # Specify initial state
-#     x_init::Array{Float64, 2} = zeros(1, system_dimension)
 
-#     # Barrier function
-#     alpha::Float64 = 1
+    for jj ∈ eachindex(state_partitions)
 
-#     for jj = 1:number_of_hypercubes
+        # Construct partition barrier
+        A_j = A[(1+system_dimension*(jj-1):(system_dimension*jj))]
+        BARRIER_j = barrier_construct(system_dimension, A_j, b[jj], x)
+
+        """ Barrier condition: initial
+            * B(x) >= 0
+        """
+        # Non-negative in ℜ^n
+        add_constraint_to_model(model, BARRIER_j)
+
+
+        """ Barrier condition: initial
+            * B(x) <= η
+        """
+        if jj == initial_state_partition
+
+            initial_state = 0.0
+
+            for ii = 1:system_dimension
+
+                # Extract initial
+                initial_condition_state_partition = split(state_partitions[initial_state_partition])
+                initial_condition_state_partition = parse.(Float64, initial_condition_state_partition)
+                if system_dimension > 1
+                    initial_condition_state_partition = reshape(initial_condition_state_partition, (system_dimension, system_dimension))
+                end
+
+                # Lagragian multiplier
+                lag_poly_initial::DynamicPolynomials.Polynomial{true, AffExpr} = sos_polynomial(lag_vars_initial[ii,:], x[ii], lagrange_degree::Int64)
+                add_constraint_to_model(model, lag_poly_initial)
         
-#         # Compute transition probability
-#         transition_probabilities = probability_distribution(hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
+                # Extract lower and upper bound
+                lower_state = initial_condition_state_partition[1, ii]
+                upper_state = initial_condition_state_partition[2, ii]
+        
+                # Specify initial range
+                initial_state += lag_poly_initial * (upper_state - x[ii]) * (x[ii] - lower_state)
+        
+            end
 
+            # Add constraint to model
+            _barrier_initial = -BARRIER_j + η - initial_state
+            add_constraint_to_model(model, _barrier_initial)
+            
+        end
+    
+        # """ Barrier unsafe region conditions
+        #     * B(x) >= 1
+        # """
+
+        # for ii = 1:system_dimension
+
+        #     lag_poly_i_lower::DynamicPolynomials.Polynomial{true, AffExpr} =  sos_polynomial(lag_vars_unsafe_lower[jj, ii, :], x[ii], lagrange_degree::Int64)
+        #     lag_poly_i_upper::DynamicPolynomials.Polynomial{true, AffExpr} =  sos_polynomial(lag_vars_unsafe_upper[jj, ii, :], x[ii], lagrange_degree::Int64)
+
+        #     add_constraint_to_model(model, lag_poly_i_lower)
+        #     add_constraint_to_model(model, lag_poly_i_upper)
+
+        #     # State space ranges
+        #     if system_dimension == 1
+        #         x_i_lower = state_space[1, ii]
+        #         x_i_upper = state_space[2, ii]
+        #     else
+        #         x_i_lower = state_space[ii][1]
+        #         x_i_upper = state_space[ii][2]
+        #     end
+
+        #     # Specify constraints for initial and unsafe set
+        #     _barrier_unsafe_lower = BARRIER_j - lag_poly_i_lower * (x_i_lower - x[ii]) - 1
+        #     _barrier_unsafe_upper = BARRIER_j - lag_poly_i_upper * (x[ii] - x_i_upper) - 1
+
+        #     # Add constraints to model
+        #     add_constraint_to_model(model, lag_poly_i_lower)
+        #     add_constraint_to_model(model, lag_poly_i_upper)
+        #     add_constraint_to_model(model, _barrier_unsafe_lower)
+        #     add_constraint_to_model(model, _barrier_unsafe_upper)
+
+        # end
+
+
+        martingale = false
+
+        if martingale == true
+
+            # Decision variables
+            β_j = β[jj]
+            @constraint(model, β_j >= 1e-6)
+
+        end
+
+        # Define optimization objective
+        time_horizon = 1
+        if martingale == true
+            @objective(model, Min, η + sum(β)*time_horizon)
+        else
+            @objective(model, Min, η)
+        end
+        print("Objective made\n")
+
+        # Optimize model
+        optimize!(model)
+
+        # Barrier certificate
+        certificate = piecewise_barrier_certificate(system_dimension, A_j, b[jj], x)
+
+        print("\n", certificate, "\n")
+
+        # # Return certificate
+        # return certificate
+
+    end
+
+
+            # Compute transition probability
+        # transition_probabilities = probability_distribution(hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
 #         total_expectation = total_law_of_expectation()
 
 #         # return transition_probabilities
 
-#         return 0
-
-#         # Construct partition barrier
-#         A_j = A[(1+system_dimension*(jj-1):(system_dimension*jj))]
-#         b_j = b[jj]
-#         BARRIER_j = barrier_construct(system_dimension, A_j, b_j, x)
-
-#         # Constraint nonnegative
-#         add_constraint_to_model(model, BARRIER_j)
-
-#         # Decision variables
-#         beta_j = beta[jj]
-#         @constraint(model, beta_j >= 1e-6)
+#     # Specify Covariance Matrix (Gaussian)
+#     covariance_matrix = random_covariance_matrix(system_dimension) 
 
 #         if jj == hypercube_initial 
 #             @variable(model, eta)
@@ -70,70 +173,6 @@ function barrier_bellman_sos(system_dimension, state_space, state_partitions, in
 #             @constraint(model, eta <= (1 - 1e-6))
 #         end
 
-#     end
-
-    # # Specify degree Lagrangian polynomials and decision variables
-    # lagrange_degree::Int64 = 2
-    # lagrange_monomial::MonomialVector{true} = monomials(x, 0:lagrange_degree)
-    # number_decision_vars = system_dimension*length(lagrange_monomial)
-    # @variable(model, l[1:number_decision_vars])
-
-    # # Constraint initial set and unsafe set
-    # barrier_constraints_unsafe_initial = system_dimension
-
-    # for ii = 1:barrier_constraints_unsafe_initial
-
-    #     # Barrier unsafe region conditions
-    #     if ii == 1
-
-    #         # Generate sos polynomial
-    #         count_lag = 0
-
-    #         # Create Lagrangian
-    #         lag_poly_i::DynamicPolynomials.Polynomial{true, AffExpr} =  sos_polynomial(l::Vector{VariableRef}, x::Array{PolyVar{true},1}, count_lag::Int64, lagrange_degree::Int64)
-    #         add_constraint_to_model(model, lag_poly_i)
-
-    #         # Specify set
-    #         x_initial_radius = 2.0
-    #         x_initial_sums = x_initial_radius
-    #         for jj = 1:length(x)
-    #             x_initial_sums += (x[jj] - x_init[jj])^2
-    #         end
-
-    #         # Constraint unsafe set
-    #         _barrier_unsafe = BARRIER - lag_poly_i * x_initial_sums
-
-    #         # Add constraint to model
-    #         add_constraint_to_model(model, _barrier_unsafe)
-     
-    #     end
-
-    #     # Barrier initial condition f(eta)
-    #     if ii == barrier_constraints_unsafe_initial
-
-    #         # Generate sos polynomial
-    #         count_lag = 1
-
-    #         # Create Lagrangian
-    #         lag_poly_j::DynamicPolynomials.Polynomial{true, AffExpr} =  sos_polynomial(l::Vector{VariableRef}, x::Array{PolyVar{true},1}, count_lag::Int64, lagrange_degree::Int64)
-    #         add_constraint_to_model(model, lag_poly_j)
-
-    #         # Specify set
-    #         x_initial_radius = 1.5
-    #         x_initial_sums = x_initial_radius
-    #         for jj = 1:length(x)
-    #             x_initial_sums += -(x[jj] )^2
-    #         end
-
-    #         # Constraint eta
-    #         _barrier_initial = - BARRIER + eta - lag_poly_j * x_initial_sums
-
-    #         # Add constraint to model
-    #         add_constraint_to_model(model, _barrier_initial)
-
-    #     end
-
-    # end
 
     # # Expectation constraint
     # # Variables g and h for Lagrange multipliers
@@ -268,21 +307,6 @@ function barrier_bellman_sos(system_dimension, state_space, state_partitions, in
     # print("Constraints made\n")
 
 
-    # # Define optimization objective
-    # time_horizon = 1
-    # @objective(model, Min, eta + beta*time_horizon)
-    # print("Objective made\n")
 
-    # # Optimize model
-    # optimize!(model)
-
-    # # Barrier certificate
-    # certificate = barrier_certificate(system_dimension, A, b, x)
-
-    # # Print probability values
-    # println("Solution: [eta = $(value(eta)), beta = $(value(beta)), total = $(value(eta) + value(beta)) ]")
-
-    # # Return certificate
-    # return certificate
 
 end
