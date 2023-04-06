@@ -7,8 +7,6 @@
 # Sum of squares optimization function
 function sos_barrier(state_space,
                      state_partitions,
-                     σ_noise,
-                     barrier_degree_input,
                      initial_state_partition)                               
 
     # System Specifications
@@ -25,19 +23,14 @@ function sos_barrier(state_space,
     # Create state space variables
     @polyvar x[1:system_dimension]
 
-    # Numerical precision
-    ϵ = 1e-6
-
     # Hyperspace
     number_state_hypercubes = Int(length(state_partitions))   
 
     # Create probability decision variables eta
     @variable(model, η)
-    @constraint(model, η >= ϵ )
+    @constraint(model, η >= ϵ)
 
     # Create barrier polynomial and specify degree Lagrangian polynomials
-    barrier_degree::Int64 = barrier_degree_input
-    lagrange_degree = 2
     length_per_lagrange_func::Int64 = length_polynomial(x::Array{PolyVar{true},1}, lagrange_degree::Int64)
 
     # Create barrier candidate
@@ -175,7 +168,7 @@ function sos_barrier(state_space,
             
             # Dummy system
             for zz = 1:system_dimension
-                exp_evaluated = subs(exp_evaluated, x[zz] => 0.5*x[1] + z[zz])
+                exp_evaluated = subs(exp_evaluated, x[zz] => 0.95*x[1] + z[zz])
             end
 
             # Extract noise term
@@ -216,15 +209,26 @@ function sos_barrier(state_space,
 
     # Barrier certificate
     certificate = sos_barrier_certificate(barrier_monomial, c)
-    print("\n", certificate, "\n")
 
-    # Optimal values
-    eta = value(η)
-    if martingale == true
-        β_values = value.(β_parts_var)
-        return certificate, eta, β_values
-    else
-        return certificate, eta, 0
-    end
+    # Run barrier certificate validation tests
+    nonnegative_barrier(certificate, state_space, system_dimension)
+    unsafe_barrier(certificate, state_space, system_dimension)
+
+    # Print barrier
+    print("\n", "B(x) = ", certificate, "\n")
+
+    # Print optimal values
+    β_values = value.(β_parts_var)
+    max_β = maximum(β_values)
+    println("Solution: [η = $(value(η)), β = $(value(max_β)), Ps = $(0) ]")
+
+    # # Return optimal values
+    # eta = value(η)
+    # if martingale == true
+    #     β_values = value.(β_parts_var)
+    #     return certificate, eta, β_values
+    # else
+    #     return certificate, eta, 0
+    # end
 
 end

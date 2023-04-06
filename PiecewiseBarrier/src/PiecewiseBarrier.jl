@@ -12,10 +12,16 @@ using GLPK
 using Optim
 using JuMP
 import JuMP.@variable
+using LaTeXStrings
+
+# Include @__DIR__
+include(joinpath(@__DIR__,"constants.jl"))
 
 include(joinpath(@__DIR__,"utility.jl"))
 
 include(joinpath(@__DIR__,"expectation.jl"))
+
+include(joinpath(@__DIR__,"validate.jl"))
 
 include(joinpath(@__DIR__,"sumofsquares.jl"))
 export sos_barrier
