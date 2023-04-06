@@ -4,6 +4,14 @@
 
 """
 
+# ACCUMULATION OF BUGS FOUND:
+# 1. number_constraints_per_loop should be system_dimension + 1 (so that the last element is not overwritten)
+# 2. η + sum(β_parts_var)*time_horizon is not the correct objective (should rather be the maximum over β_parts_var)
+# 3. Incorrect barrier in expectation (j, not i)
+#
+
+
+
 # Optimization function
 function piecewise_barrier(system_dimension, state_space, state_partitions, initial_state_partition)
 
@@ -35,7 +43,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
     # Create optimization variables
     @variable(model, A[1:number_state_hypercubes, 1:system_dimension])
     @variable(model, b[1:number_state_hypercubes])
-    @variable(model, β_parts_var[1:number_state_hypercubes])
+    @variable(model, ϵ <= β_parts_var[1:number_state_hypercubes] <= 1 - ϵ)
 
     # One initial condition and unsafe conditions
     @variable(model, lag_vars_initial[1:system_dimension, 1:length_per_lagrange_func])
@@ -52,14 +60,9 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
     for jj in eachindex(state_partitions)
 
         # Construct partition barrier
-        BARRIER_j = barrier_construct(system_dimension, A[jj, :], b[jj], x)
+        Bⱼ = barrier_construct(system_dimension, A[jj, :], b[jj], x)
 
-        """ Barrier condition: initial
-            * B(x) >= 0
-        """
-        # Non-negative in ℜ^n
-        add_constraint_to_model(model, BARRIER_j)
-
+        nonnegativity_constraint!(model, Bⱼ)
 
         """ Barrier condition: initial
             * B(x) <= η
@@ -79,7 +82,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
 
                 # Lagragian multiplier
                 lag_poly_initial = sos_polynomial(lag_vars_initial[ii,:], x[ii], lagrange_degree)
-                add_constraint_to_model(model, lag_poly_initial)
+                @constraint(model, lag_poly_initial >= 0)
         
                 # Extract lower and upper bound
                 lower_state = initial_condition_state_partition[1, ii]
@@ -91,8 +94,8 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
             end
 
             # Add constraint to model
-            _barrier_initial = -BARRIER_j + η - initial_state
-            add_constraint_to_model(model, _barrier_initial)
+            _barrier_initial = -Bⱼ + η - initial_state
+            @constraint(model, _barrier_initial >= 0)
             
         end
 
@@ -101,15 +104,8 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
         """
 
         if martingale == true
-
-            # Optimization variables beta
-            for states in 1:number_state_hypercubes
-                @constraint(model, β_parts_var[states] >= ϵ)
-                @constraint(model, β_parts_var[states] <= (1 - ϵ))
-            end
-
             # Specify constraints per loop
-            number_constraints_per_loop = system_dimension
+            number_constraints_per_loop = system_dimension + 1
 
             # Create constraints for X (Partition), μ (Mean Dynamics) and σ (Noise Variable)
             for state in eachindex(state_partitions)
@@ -122,7 +118,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
                 end
 
                 # Setup constraints array
-                constraints = Array{DynamicPolynomials.Polynomial{true, AffExpr}}(undef, Integer(1), number_constraints_per_loop)
+                constraints = Vector{DynamicPolynomials.Polynomial{true, AffExpr}}(undef, number_constraints_per_loop)
 
                 # Semi-algebraic sets
                 hCubeSOS_X = 0
@@ -135,7 +131,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
                     x_k_upper::Float64 = current_state_partition[2, kk]
 
                     # Generate Lagragian for partition bounds
-                    lag_poly_X = sos_polynomial(lag_vars_X[state, kk, :], x[kk], lagrange_degree::Int64)
+                    lag_poly_X = sos_polynomial(lag_vars_X[state, kk, :], x[kk], lagrange_degree)
                     constraints[Integer(1), kk] = lag_poly_X
 
                     # Generate SOS polynomials for bounds
@@ -147,7 +143,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
                 @polyvar z[1:system_dimension]
 
                 # Compute expectation
-                _e_barrier = BARRIER_j
+                _e_barrier = Bⱼ
                 exp_evaluated = _e_barrier
                 
                 # Dummy system
@@ -164,10 +160,10 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
                 exp_current = exp_poly + noise
 
                 # Constraint for hypercube
-                martingale_condition_multivariate = - exp_current + BARRIER_j + β_parts_var[state] - hCubeSOS_X
+                martingale_condition_multivariate = - exp_current + Bⱼ + β_parts_var[state] - hCubeSOS_X
 
                 # Constraint for hypercube
-                constraints[Integer(1), number_constraints_per_loop] = martingale_condition_multivariate
+                constraints[number_constraints_per_loop] = martingale_condition_multivariate
 
                 # Add constraints to model
                 @constraint(model, constraints .>= 0)
@@ -177,7 +173,6 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
         end
 
     end
-
 
     # Define optimization objective
     time_horizon = 1
@@ -193,14 +188,30 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
 
     # Barrier certificate
     for jj = 1:number_state_hypercubes
-        A_j = A[(1+system_dimension*(jj-1):(system_dimension*jj))]
-        certificate = piecewise_barrier_certificate(system_dimension, A_j, b[jj], x)
+        certificate = piecewise_barrier_certificate(system_dimension, A[jj, :], b[jj], x)
         println(certificate)
     end
 
     println("")
     println(solution_summary(model))
 end
+
+function nonnegativity_constraint!(model, barrier)
+    """ Barrier condition: nonnegativity
+    * B(x) >= 0
+    """
+    # Non-negative in ℜ^n
+    @constraint(model, barrier >= 0)
+end
+
+function initial_constraint!(model, barrier, η)
+
+end
+
+function expectation_constraint!(model, barrier, β)
+
+end
+
             # Compute transition probability
         # transition_probabilities = probability_distribution(hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
 #         total_expectation = total_law_of_expectation()
