@@ -8,7 +8,8 @@
 # 1. number_constraints_per_loop should be system_dimension + 1 (so that the last element is not overwritten)
 # 2. η + sum(β_parts_var)*time_horizon is not the correct objective (should rather be the maximum over β_parts_var)
 # 3. Incorrect barrier in expectation (j, not i)
-#
+# 4. A martingale constraint per pair (i, j) not per j.
+# 5. Missing unsafe set constraint B(x) >= 1 for all x in Xᵤ
 
 
 
@@ -16,12 +17,13 @@
 function piecewise_barrier(system_dimension, state_space, state_partitions, initial_state_partition)
 
     # Using Mosek as the SDP solver
-    model = SOSModel(optimizer_with_attributes(Mosek.Optimizer,
-                                                "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
-                                                "MSK_IPAR_OPTIMIZER" => 0,
-                                                "MSK_IPAR_BI_CLEAN_OPTIMIZER" => 0,
-                                                "MSK_IPAR_NUM_THREADS" => 16,
-                                                "MSK_IPAR_PRESOLVE_USE" => 0))
+    optimizer = optimizer_with_attributes(Mosek.Optimizer,
+        "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
+        "MSK_IPAR_OPTIMIZER" => 0,
+        "MSK_IPAR_BI_CLEAN_OPTIMIZER" => 0,
+        "MSK_IPAR_NUM_THREADS" => 16,
+        "MSK_IPAR_PRESOLVE_USE" => 0)
+    model = SOSModel(optimizer)
 
     # Create state space variables
     @polyvar x[1:system_dimension]
@@ -53,6 +55,8 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
 
         nonnegativity_constraint!(model, Bⱼ)
 
+        #! No unsafe set constraint
+
         if jj == initial_state_partition
             initial_constraint!(model, Bⱼ, x, region, η, lagrange_degree)
         end
@@ -66,6 +70,8 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
     # Define optimization objective
     time_horizon = 1
     if martingale
+        #! The objective ought to be @objective(model, Min, η + max(β_parts_var) * time_horizon).
+        #! Can be implemented using more constraints.
         @objective(model, Min, η + sum(β_parts_var)*time_horizon)
     else
         @objective(model, Min, η)
@@ -89,7 +95,7 @@ function nonnegativity_constraint!(model, barrier)
     """ Barrier condition: nonnegativity
     * B(x) >= 0
     """
-    # Non-negative in ℜ^n
+    # Non-negative in ℝⁿ 
     @constraint(model, barrier >= 0)
 end
 
@@ -108,8 +114,6 @@ function initial_constraint!(model, barrier, x, region, η, lagrange_degree)
         monos = monomials(xi, 0:lagrange_degree)
         lag_poly_initial = @variable(model, variable_type=SOSPoly(monos))
 
-        # Extract lower and upper bound
-
         # Specify initial range
         initial_state += lag_poly_initial * dim_set
     end
@@ -121,7 +125,7 @@ end
 
 function expectation_constraint!(model, barrier, x, β_parts_var, state_partitions)
     """ Barrier martingale condition
-        * E[B(f(x,u))] <= B(x) + β
+    * E[B(f(x,u))] <= B(x) + β
     """
 
     # Create constraints for X (Partition), μ (Mean Dynamics) and σ (Noise Variable)
@@ -162,16 +166,15 @@ function expectation_constraint!(model, barrier, x, β_parts_var, state_partitio
         end
 
         # Extract noise term
-        barrier_degree = Int(1)
         σ_noise = 0.01
-        exp_poly, noise = expectation_noise(exp_evaluated, barrier_degree, σ_noise, z)
-
-        # Full expectation term
-        exp_current = exp_poly + noise
+        exp = expectation_noise(exp_evaluated, σ_noise, z)
 
         # Constraint for hypercube
-        martingale_condition_multivariate = -exp_current + barrier + β_parts_var[state] - hCubeSOS_X
+        martingale_condition_multivariate = -exp + barrier + β_parts_var[state] - hCubeSOS_X
         @constraint(model, martingale_condition_multivariate >= 0)
+
+        #! There should only be one martingale constraint for each j, not for each pair (i, j)
+        #! In the expectation, the barrier Bᵢ should be used.
     end
 end
 

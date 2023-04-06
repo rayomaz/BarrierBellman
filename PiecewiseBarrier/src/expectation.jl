@@ -5,9 +5,8 @@
 """
 
 # Function to compute the expecation and noise element
-function expectation_noise(exp_evaluated::DynamicPolynomials.Polynomial{true, AffExpr}, barrier_degree::Int64, standard_deviation::Float64, zs::Vector{PolyVar{true}})
-    exp_poly::DynamicPolynomials.Polynomial{true, AffExpr} = 0
-    noise::DynamicPolynomials.Polynomial{true, AffExpr} = 0
+function expectation_noise(exp_evaluated::DynamicPolynomials.Polynomial{true, AffExpr}, standard_deviation::Float64, zs::Vector{PolyVar{true}})
+    exp::DynamicPolynomials.Polynomial{true, AffExpr} = 0
 
     for term in terms(exp_evaluated)
         z_degs = [MultivariatePolynomials.degree(term, z) for z in zs]
@@ -15,7 +14,7 @@ function expectation_noise(exp_evaluated::DynamicPolynomials.Polynomial{true, Af
         z_occurs = sum(z_degs) > 0
 
         if z_occurs == false
-            exp_poly = exp_poly + term
+            exp += term
         end
 
         if z_occurs == true
@@ -26,12 +25,12 @@ function expectation_noise(exp_evaluated::DynamicPolynomials.Polynomial{true, Af
                 exp_z = prod([expected_univariate_noise(z_deg, standard_deviation) for z_deg in z_degs])
 
                 noise_exp = coeff * exp_z
-                noise = noise + noise_exp
+                exp += noise_exp
             end
         end
     end
 
-    return exp_poly, noise
+    return exp
 end
 
 function expected_univariate_noise(z_deg, standard_deviation)
