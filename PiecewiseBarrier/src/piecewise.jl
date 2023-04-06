@@ -8,8 +8,9 @@
 # 1. number_constraints_per_loop should be system_dimension + 1 (so that the last element is not overwritten)
 # 2. η + sum(β_parts_var)*time_horizon is not the correct objective (should rather be the maximum over β_parts_var)
 # 3. Incorrect barrier in expectation (j, not i)
-# 4. A martingale constraint per pair (i, j) not per j.
+# 4. A martingale constraint per pair (i, j) not per j
 # 5. Missing unsafe set constraint B(x) >= 1 for all x in Xᵤ
+# 6. Lacking indexing in dynamics
 
 
 
@@ -162,7 +163,7 @@ function expectation_constraint!(model, barrier, x, β_parts_var, state_partitio
         
         # Dummy system
         for zz in 1:system_dimension
-            exp_evaluated = subs(exp_evaluated, x[zz] => 0.5*x[1]^2 + z[zz])
+            exp_evaluated = subs(exp_evaluated, x[zz] => 0.5*x[zz]^2 + z[zz])
         end
 
         # Extract noise term
