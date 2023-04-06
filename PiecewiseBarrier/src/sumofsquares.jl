@@ -5,30 +5,27 @@
 """
 
 # Sum of squares optimization function
-function sos_barrier(state_space,
+function sos_barrier(system_dimension, state_space,
                      state_partitions,
                      initial_state_partition)                               
 
-    # System Specifications
-    system_dimension = Int(1)
-
     # Using Mosek as the SDP solver
-    model = SOSModel(optimizer_with_attributes(Mosek.Optimizer,
-                                               "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
-                                               "MSK_IPAR_OPTIMIZER" => 0,
-                                               "MSK_IPAR_BI_CLEAN_OPTIMIZER" => 0,
-                                               "MSK_IPAR_NUM_THREADS" => 16,
-                                               "MSK_IPAR_PRESOLVE_USE" => 0))
+    optimizer = optimizer_with_attributes(Mosek.Optimizer,
+        "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
+        "MSK_IPAR_OPTIMIZER" => 0,
+        "MSK_IPAR_BI_CLEAN_OPTIMIZER" => 0,
+        "MSK_IPAR_NUM_THREADS" => 16,
+        "MSK_IPAR_PRESOLVE_USE" => 0)
+    model = SOSModel(optimizer)
     
     # Create state space variables
     @polyvar x[1:system_dimension]
 
     # Hyperspace
-    number_state_hypercubes = Int(length(state_partitions))   
+    number_state_hypercubes = length(state_partitions)
 
     # Create probability decision variables eta
-    @variable(model, η)
-    @constraint(model, η >= ϵ)
+    @variable(model, η >= ϵ)
 
     # Create barrier polynomial and specify degree Lagrangian polynomials
     length_per_lagrange_func::Int64 = length_polynomial(x::Array{PolyVar{true},1}, lagrange_degree::Int64)
@@ -49,11 +46,7 @@ function sos_barrier(state_space,
     """ Barrier condition: initial
         * B(x) <= η
     """
-    initial_condition_state_partition = split(state_partitions[initial_state_partition])
-    initial_condition_state_partition = parse.(Float64, initial_condition_state_partition)
-    if system_dimension > 1
-        initial_condition_state_partition = reshape(initial_condition_state_partition, (system_dimension, system_dimension))
-    end
+    initial_condition_state_partition = state_partitions[initial_state_partition]
 
     for ii = 1:system_dimension
 
@@ -62,8 +55,8 @@ function sos_barrier(state_space,
         add_constraint_to_model(model, lag_poly_initial)
 
         # Extract lower and upper bound
-        lower_state = initial_condition_state_partition[1, ii]
-        upper_state = initial_condition_state_partition[2, ii]
+        lower_state = low(initial_condition_state_partition, ii)
+        upper_state = high(initial_condition_state_partition, ii)
 
         # Specify initial range
         initial_state = lag_poly_initial * (upper_state - x[ii]) * (x[ii] - lower_state)
@@ -87,17 +80,12 @@ function sos_barrier(state_space,
         add_constraint_to_model(model, lag_poly_i_upper)
 
         # State space ranges
-        if system_dimension == 1
-            x_i_lower = state_space[1, ii]
-            x_i_upper = state_space[2, ii]
-        else
-            x_i_lower = state_space[ii][1]
-            x_i_upper = state_space[ii][2]
-        end
+        x_i_lower = state_space[1][ii]
+        x_i_upper = state_space[2][ii]
 
         # Specify constraints for initial and unsafe set
-        _barrier_unsafe_lower = BARRIER - lag_poly_i_lower * (x_i_lower - x[ii]) - 1
-        _barrier_unsafe_upper = BARRIER - lag_poly_i_upper * (x[ii] - x_i_upper) - 1
+        _barrier_unsafe_lower = BARRIER - lag_poly_i_lower * (x_i_lower - x[ii]) - 1.0
+        _barrier_unsafe_upper = BARRIER - lag_poly_i_upper * (x[ii] - x_i_upper) - 1.0
 
         # Add constraints to model
         add_constraint_to_model(model, lag_poly_i_lower)
@@ -131,11 +119,7 @@ function sos_barrier(state_space,
         for state ∈ eachindex(state_partitions)
 
             # Current state partition
-            current_state_partition = split(state_partitions[state])
-            current_state_partition = parse.(Float64, current_state_partition)
-            if system_dimension > 1
-                current_state_partition = reshape(current_state_partition, (system_dimension, system_dimension))
-            end
+            current_state_partition = state_partitions[state]
 
             # Setup constraints array
             constraints = Array{DynamicPolynomials.Polynomial{true, AffExpr}}(undef, Integer(1), number_constraints_per_loop)
@@ -147,8 +131,8 @@ function sos_barrier(state_space,
             for kk = 1:system_dimension
 
                 # Partition bounds
-                x_k_lower::Float64 = current_state_partition[1, kk]
-                x_k_upper::Float64 = current_state_partition[2, kk]
+                x_k_lower::Float64 = low(current_state_partition, kk)
+                x_k_upper::Float64 = high(current_state_partition, kk)
 
                 # Generate Lagragian for partition bounds
                 lag_poly_X = sos_polynomial(lag_vars_X[state, kk, :], x[kk], lagrange_degree::Int64)
@@ -163,22 +147,19 @@ function sos_barrier(state_space,
             @polyvar z[1:system_dimension]
 
             # Compute expectation
-            _e_barrier::DynamicPolynomials.Polynomial{true, AffExpr} = BARRIER
-            exp_evaluated::DynamicPolynomials.Polynomial{true, AffExpr} = _e_barrier
+            _e_barrier = BARRIER
+            exp_evaluated = _e_barrier
             
             # Dummy system
             for zz = 1:system_dimension
-                exp_evaluated = subs(exp_evaluated, x[zz] => 0.95*x[1] + z[zz])
+                exp_evaluated = subs(exp_evaluated, x[zz] => 0.95*x[zz] + z[zz])
             end
 
             # Extract noise term
-            exp_poly, noise = expectation_noise(exp_evaluated, barrier_degree::Int64, σ_noise, z::Vector{PolyVar{true}})
-
-            # Full expectation term
-            exp_current = exp_poly + noise
+            exp = expectation_noise(exp_evaluated, σ_noise, z)
 
             # Constraint for hypercube
-            martingale_condition_multivariate = - exp_current + BARRIER + β_parts_var[state] - hCubeSOS_X
+            martingale_condition_multivariate = -exp + BARRIER + β_parts_var[state] - hCubeSOS_X
 
             # Constraint for hypercube
             constraints[Integer(1), number_constraints_per_loop] = martingale_condition_multivariate
@@ -199,7 +180,6 @@ function sos_barrier(state_space,
     end
 
     # Optimize model
-    set_silent(model)
     optimize!(model)
 
     # Lagrange values
