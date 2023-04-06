@@ -3,7 +3,6 @@ module PiecewiseBarrier
 using SumOfSquares
 using DynamicPolynomials
 using MosekTools
-using MAT
 using Polynomials
 using StatsBase
 using Combinatorics
@@ -14,7 +13,6 @@ using JuMP
 import JuMP.@variable
 using LaTeXStrings
 
-# Include @__DIR__
 include("constants.jl")
 
 include("utility.jl")

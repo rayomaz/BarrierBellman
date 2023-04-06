@@ -22,18 +22,18 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
     ϵ = 1e-6
 
     # Hyperspace
-    number_state_hypercubes = Int(length(state_partitions)) 
+    number_state_hypercubes = length(state_partitions)
 
     # Create probability decision variables eta
     @variable(model, η)
-    @constraint(model, η >= ϵ )
+    @constraint(model, η >= ϵ)
 
     # Create barrier polynomial and specify degree Lagrangian polynomials
     lagrange_degree = 2
-    length_per_lagrange_func::Int64 = length_polynomial(x::Array{PolyVar{true},1}, lagrange_degree::Int64)
+    length_per_lagrange_func = length_polynomial(x, lagrange_degree)
 
     # Create optimization variables
-    @variable(model, A[1:(system_dimension*number_state_hypercubes)])
+    @variable(model, A[1:number_state_hypercubes, 1:system_dimension])
     @variable(model, b[1:number_state_hypercubes])
     @variable(model, β_parts_var[1:number_state_hypercubes])
 
@@ -49,11 +49,10 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
     
     martingale = true
 
-    for jj ∈ eachindex(state_partitions)
+    for jj in eachindex(state_partitions)
 
         # Construct partition barrier
-        A_j = A[(1+system_dimension*(jj-1):(system_dimension*jj))]
-        BARRIER_j = barrier_construct(system_dimension, A_j, b[jj], x)
+        BARRIER_j = barrier_construct(system_dimension, A[jj, :], b[jj], x)
 
         """ Barrier condition: initial
             * B(x) >= 0
@@ -69,7 +68,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
 
             initial_state = 0.0
 
-            for ii = 1:system_dimension
+            for ii in 1:system_dimension
 
                 # Extract initial
                 initial_condition_state_partition = split(state_partitions[initial_state_partition])
@@ -79,7 +78,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
                 end
 
                 # Lagragian multiplier
-                lag_poly_initial::DynamicPolynomials.Polynomial{true, AffExpr} = sos_polynomial(lag_vars_initial[ii,:], x[ii], lagrange_degree::Int64)
+                lag_poly_initial = sos_polynomial(lag_vars_initial[ii,:], x[ii], lagrange_degree)
                 add_constraint_to_model(model, lag_poly_initial)
         
                 # Extract lower and upper bound
@@ -104,7 +103,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
         if martingale == true
 
             # Optimization variables beta
-            for states = 1:number_state_hypercubes
+            for states in 1:number_state_hypercubes
                 @constraint(model, β_parts_var[states] >= ϵ)
                 @constraint(model, β_parts_var[states] <= (1 - ϵ))
             end
@@ -113,7 +112,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
             number_constraints_per_loop = system_dimension
 
             # Create constraints for X (Partition), μ (Mean Dynamics) and σ (Noise Variable)
-            for state ∈ eachindex(state_partitions)
+            for state in eachindex(state_partitions)
 
                 # Current state partition
                 current_state_partition = split(state_partitions[state])
@@ -148,8 +147,8 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
                 @polyvar z[1:system_dimension]
 
                 # Compute expectation
-                _e_barrier::DynamicPolynomials.Polynomial{true, AffExpr} = BARRIER_j
-                exp_evaluated::DynamicPolynomials.Polynomial{true, AffExpr} = _e_barrier
+                _e_barrier = BARRIER_j
+                exp_evaluated = _e_barrier
                 
                 # Dummy system
                 for zz = 1:system_dimension
@@ -159,7 +158,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
                 # Extract noise term
                 barrier_degree = Int(1)
                 σ_noise = 0.01
-                exp_poly, noise = expectation_noise(exp_evaluated, barrier_degree::Int64, σ_noise, z::Vector{PolyVar{true}})
+                exp_poly, noise = expectation_noise(exp_evaluated, barrier_degree, σ_noise, z)
 
                 # Full expectation term
                 exp_current = exp_poly + noise
@@ -182,12 +181,12 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
 
     # Define optimization objective
     time_horizon = 1
-    if martingale == true
+    if martingale
         @objective(model, Min, η + sum(β_parts_var)*time_horizon)
     else
         @objective(model, Min, η)
     end
-    print("Objective made\n")
+    println("Objective made")
 
     # Optimize model
     optimize!(model)
@@ -196,9 +195,11 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
     for jj = 1:number_state_hypercubes
         A_j = A[(1+system_dimension*(jj-1):(system_dimension*jj))]
         certificate = piecewise_barrier_certificate(system_dimension, A_j, b[jj], x)
-        print("\n", certificate, "\n")
+        println(certificate)
     end
 
+    println("")
+    println(solution_summary(model))
 end
             # Compute transition probability
         # transition_probabilities = probability_distribution(hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)
