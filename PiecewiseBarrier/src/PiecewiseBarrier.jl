@@ -16,6 +16,7 @@ using LaTeXStrings
 include("constants.jl")
 
 include("utility.jl")
+export state_space_generation
 
 include("expectation.jl")
 

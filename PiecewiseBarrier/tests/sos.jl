@@ -7,7 +7,7 @@
 """
 
 # Stochastic Barrier Verification for Thermostat Gaussian Process
-using Revise
+using Revise, BenchmarkTools
 
 using PiecewiseBarrier
 using DelimitedFiles
@@ -17,7 +17,7 @@ initial_state_partition = Int(3)
 
 # State partitions
 state_partitions = readdlm("partitions/test/state_partitions.txt", ',')
-state_space = PiecewiseBarrier.state_space_generation(state_partitions)
+state_space = state_space_generation(state_partitions)
 
 # Optimization
 # certificate, eta, beta = 
