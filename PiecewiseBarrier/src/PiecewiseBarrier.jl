@@ -13,14 +13,14 @@ using Optim
 using JuMP
 import JuMP.@variable
 
-include(joinpath(@__DIR__,"functions.jl"))
+include(joinpath(@__DIR__,"utility.jl"))
 
 include(joinpath(@__DIR__,"expectation.jl"))
 
-include(joinpath(@__DIR__,"sos_optim.jl"))
-export optimization
+include(joinpath(@__DIR__,"sumofsquares.jl"))
+export sos_barrier
 
-include(joinpath(@__DIR__,"optimizer.jl"))
-export barrier_bellman_sos
+include(joinpath(@__DIR__,"piecewise.jl"))
+export piecewise_barrier
 
 end # module PiecewiseBarrier

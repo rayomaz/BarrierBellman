@@ -1,11 +1,11 @@
-""" Barrier optimization function
+""" Piecewise barrier function construction
 
     © Rayan Mazouz
 
 """
 
 # Optimization function
-function barrier_bellman_sos(system_dimension, state_space, state_partitions, initial_state_partition)
+function piecewise_barrier(system_dimension, state_space, state_partitions, initial_state_partition)
 
     # Using Mosek as the SDP solver
     model = SOSModel(optimizer_with_attributes(Mosek.Optimizer,

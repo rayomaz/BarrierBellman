@@ -1,16 +1,15 @@
-""" Functions: SOS barrier formulation
+""" SOS barrier function construction
 
     © Rayan Mazouz
 
 """
 
 # Sum of squares optimization function
-function optimization(state_space,
-                      state_partitions,
-                      σ_noise,
-                      barrier_degree_input,
-                      decision_η_flag,
-                      initial_state_partition)                               
+function sos_barrier(state_space,
+                     state_partitions,
+                     σ_noise,
+                     barrier_degree_input,
+                     initial_state_partition)                               
 
     # System Specifications
     system_dimension = Int(1)
@@ -25,7 +24,6 @@ function optimization(state_space,
     
     # Create state space variables
     @polyvar x[1:system_dimension]
-
 
     # Numerical precision
     ϵ = 1e-6
@@ -69,7 +67,6 @@ function optimization(state_space,
         # Lagragian multiplier
         lag_poly_initial::DynamicPolynomials.Polynomial{true, AffExpr} = sos_polynomial(lag_vars_initial[ii,:], x[ii], lagrange_degree::Int64)
         add_constraint_to_model(model, lag_poly_initial)
-        # add_constraint_to_model(model, -lag_poly_initial + 1)
 
         # Extract lower and upper bound
         lower_state = initial_condition_state_partition[1, ii]
@@ -114,6 +111,7 @@ function optimization(state_space,
         add_constraint_to_model(model, lag_poly_i_upper)
         add_constraint_to_model(model, _barrier_unsafe_lower)
         add_constraint_to_model(model, _barrier_unsafe_upper)
+
     end
 
     """ Barrier martingale condition
@@ -135,7 +133,6 @@ function optimization(state_space,
 
         # Specify constraints per loop
         number_constraints_per_loop = system_dimension
-
 
         # Create constraints for X (Partition), μ (Mean Dynamics) and σ (Noise Variable)
         for state ∈ eachindex(state_partitions)
@@ -178,7 +175,7 @@ function optimization(state_space,
             
             # Dummy system
             for zz = 1:system_dimension
-                exp_evaluated = subs(exp_evaluated, x[zz] => 0.5*x[1]^2 + z[zz])
+                exp_evaluated = subs(exp_evaluated, x[zz] => 0.5*x[1] + z[zz])
             end
 
             # Extract noise term
@@ -217,15 +214,17 @@ function optimization(state_space,
     # return 0,0
     # print(value(lag_vars_unsafe_upper[1,1]), " " , value(lag_vars_unsafe_upper[1,2]), " " , value(lag_vars_unsafe_upper[1,3]))
 
-    certificate = barrier_certificate(barrier_monomial, c)
+    # Barrier certificate
+    certificate = sos_barrier_certificate(barrier_monomial, c)
     print("\n", certificate, "\n")
 
     # Optimal values
     eta = value(η)
     if martingale == true
         β_values = value.(β_parts_var)
-        return eta, β_values
+        return certificate, eta, β_values
     else
-        return eta, 0
+        return certificate, eta, 0
     end
+
 end

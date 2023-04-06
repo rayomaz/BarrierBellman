@@ -52,7 +52,7 @@ function piecewise_barrier_certificate(system_dimension, A, b, x)
 end
 
 # Compute the final barrier certificate
-function barrier_certificate(barrier_monomial, c)
+function sos_barrier_certificate(barrier_monomial, c)
 
     # Control Barrier Certificate
     barrier_certificate = 0

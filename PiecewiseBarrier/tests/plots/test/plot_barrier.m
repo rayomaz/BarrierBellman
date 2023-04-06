@@ -2,18 +2,27 @@
 
 clc; clear; close all;
 
-plot_barrier_2D()
-find_minimum()
+x1 = linspace(-5, -3, 100);
 
-print('barrier.pdf', '-dpdf', '-r300');
+f = -2.346269384198334e-8*x1.^2  + 3.4653598287616256e-8*x1 + 1.0000000074791708;
+
+plot(x1, f, 'LineWidth', 3)
+
+
+% plot_barrier_2D()
+% find_minimum()
+
+% print('barrier.pdf', '-dpdf', '-r300');
 
 function plot_barrier_2D()
 
     x1 = linspace(-1, 1, 100);
 
     % Bounds on polynomial kernel
-    f = 1.0000007651953218*x1.^2 - 1.7197334168473105e-11*x1 - ...
-        9.088427152842553e-10;
+%     f = 1.0000007651953218*x1.^2 - 1.7197334168473105e-11*x1 - ...
+%         9.088427152842553e-10;
+
+    
 
     x_11 = linspace(-1, -0.6, 100);
     x_12 = linspace(-0.6, -0.2, 100);
