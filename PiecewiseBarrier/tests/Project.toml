@@ -1,6 +1,7 @@
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+LazySets = "b4f0291d-fe17-52bc-9479-3d1a343d9043"
 MAT = "23992714-dd62-5051-b70f-ba57cb901cac"
 MosekTools = "1ec41992-ff65-5c91-ac43-2df89e9693a4"
 PiecewiseBarrier = "a06fe262-dd7d-4c83-aa2f-7afdb1a09a89"

@@ -62,21 +62,16 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
             initial_state = 0.0
 
             for ii in 1:system_dimension
-
                 # Extract initial
-                initial_condition_state_partition = split(state_partitions[initial_state_partition])
-                initial_condition_state_partition = parse.(Float64, initial_condition_state_partition)
-                if system_dimension > 1
-                    initial_condition_state_partition = reshape(initial_condition_state_partition, (system_dimension, system_dimension))
-                end
+                initial_condition_state_partition = state_partitions[initial_state_partition]
 
                 # Lagragian multiplier
                 monos = monomials(x[ii], 0:lagrange_degree)
                 lag_poly_initial = @variable(model, variable_type=SOSPoly(monos))
         
                 # Extract lower and upper bound
-                lower_state = initial_condition_state_partition[1, ii]
-                upper_state = initial_condition_state_partition[2, ii]
+                lower_state = low(initial_condition_state_partition, ii)
+                upper_state = high(initial_condition_state_partition, ii)
         
                 # Specify initial range
                 initial_state += lag_poly_initial * (upper_state - x[ii]) * (x[ii] - lower_state)
@@ -98,21 +93,17 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
             for state in eachindex(state_partitions)
 
                 # Current state partition
-                current_state_partition = split(state_partitions[state])
-                current_state_partition = parse.(Float64, current_state_partition)
-                if system_dimension > 1
-                    current_state_partition = reshape(current_state_partition, (system_dimension, system_dimension))
-                end
+                current_state_partition = state_partitions[state]
 
                 # Semi-algebraic sets
                 hCubeSOS_X = 0
 
                 # Loop over state dimensions
-                for kk = 1:system_dimension
+                for kk in 1:system_dimension
 
                     # Partition bounds
-                    x_k_lower::Float64 = current_state_partition[1, kk]
-                    x_k_upper::Float64 = current_state_partition[2, kk]
+                    x_k_lower = low(current_state_partition, kk)
+                    x_k_upper = high(current_state_partition, kk)
 
                     # Generate Lagragian for partition bounds
                     monos = monomials(x[kk], 0:lagrange_degree)
@@ -131,7 +122,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
                 exp_evaluated = _e_barrier
                 
                 # Dummy system
-                for zz = 1:system_dimension
+                for zz in 1:system_dimension
                     exp_evaluated = subs(exp_evaluated, x[zz] => 0.5*x[1]^2 + z[zz])
                 end
 

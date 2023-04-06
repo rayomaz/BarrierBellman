@@ -4,6 +4,7 @@ using SumOfSquares
 using DynamicPolynomials
 using MosekTools
 using Polynomials
+using LazySets
 using StatsBase
 using Combinatorics
 using LinearAlgebra

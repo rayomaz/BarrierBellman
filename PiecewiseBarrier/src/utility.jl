@@ -79,12 +79,12 @@ end
 function state_space_generation(state_partitions)
 
     # Identify lower bound
-    lower_bound = split(state_partitions[1])
-    lower_bound = minimum(parse.(Float64, lower_bound))
+    lower_bound = low.(state_partitions)
+    lower_bound = minimum(lower_bound)
 
     # Identify current bound
-    upper_bound = split(state_partitions[end])
-    upper_bound = maximum(parse.(Float64, upper_bound))
+    upper_bound = high.(state_partitions)
+    upper_bound = maximum(upper_bound)
 
     state_space = [lower_bound, upper_bound]
 
