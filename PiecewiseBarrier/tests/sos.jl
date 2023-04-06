@@ -8,6 +8,7 @@
 
 # Stochastic Barrier Verification for Thermostat Gaussian Process
 using Revise
+
 using PiecewiseBarrier
 using DelimitedFiles
 
@@ -20,7 +21,7 @@ state_space = PiecewiseBarrier.state_space_generation(state_partitions)
 
 # Optimization
 # certificate, eta, beta = 
-sos_barrier(state_space, state_partitions, initial_state_partition)
+@time sos_barrier(state_space, state_partitions, initial_state_partition)
 
 
 

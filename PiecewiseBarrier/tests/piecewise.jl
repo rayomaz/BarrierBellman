@@ -4,11 +4,11 @@
 
 """
 
-cd(@__DIR__)
-
 # Import packages
 using Revise
+
 using PiecewiseBarrier
+using DelimitedFiles
 
 # State partitions
 system_dimension = 1
@@ -20,4 +20,4 @@ state_space = PiecewiseBarrier.state_space_generation(state_partitions)
 initial_state_partition = Int(3)
 
 # Optimize
-@time barrier_bellman_sos(system_dimension, state_space, state_partitions, initial_state_partition)
+@time piecewise_barrier(system_dimension, state_space, state_partitions, initial_state_partition)
