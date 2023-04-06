@@ -38,7 +38,8 @@ system = "test"
 
 if system == "test":
     dimension = int(1)
-    state_space = np.array([[-5.0, -3.0]])
+    # state_space = np.array([[-5.0, -3.0]])
+    # state_space = np.array([[13.0, 15.0]])
     state_space = np.array([[-1.0, 1.0]])
     epsilon_state = 0.20
 

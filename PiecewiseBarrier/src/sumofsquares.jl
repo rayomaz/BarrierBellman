@@ -220,7 +220,7 @@ function sos_barrier(state_space,
     # Print optimal values
     β_values = value.(β_parts_var)
     max_β = maximum(β_values)
-    println("Solution: [η = $(value(η)), β = $(value(max_β)), Ps = $(0) ]")
+    println("Solution: [η = $(value(η)), β = $(value(max_β))]")
 
     # # Return optimal values
     # eta = value(η)
