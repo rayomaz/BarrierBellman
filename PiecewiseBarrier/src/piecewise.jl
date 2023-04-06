@@ -36,25 +36,15 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
     @variable(model, η)
     @constraint(model, η >= ϵ)
 
-    # Create barrier polynomial and specify degree Lagrangian polynomials
+    # Create PWA barrier and specify degree Lagrangian polynomials
     lagrange_degree = 2
-    length_per_lagrange_func = length_polynomial(x, lagrange_degree)
 
     # Create optimization variables
     @variable(model, A[1:number_state_hypercubes, 1:system_dimension])
     @variable(model, b[1:number_state_hypercubes])
     @variable(model, ϵ <= β_parts_var[1:number_state_hypercubes] <= 1 - ϵ)
 
-    # One initial condition and unsafe conditions
-    @variable(model, lag_vars_initial[1:system_dimension, 1:length_per_lagrange_func])
-    @variable(model, lag_vars_unsafe_lower[1:number_state_hypercubes, 1:system_dimension, 1:length_per_lagrange_func])
-    @variable(model, lag_vars_unsafe_upper[1:number_state_hypercubes, 1:system_dimension, 1:length_per_lagrange_func])
-
-    # Specify standard Lagrangian optimization variables for martingale
-    @variable(model, lag_vars_X[1:number_state_hypercubes, 1:system_dimension, 1:length_per_lagrange_func])          # Lagrange to bound hyperspace
-
     # Construct piecewise constraints
-    
     martingale = true
 
     for jj in eachindex(state_partitions)
@@ -81,8 +71,8 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
                 end
 
                 # Lagragian multiplier
-                lag_poly_initial = sos_polynomial(lag_vars_initial[ii,:], x[ii], lagrange_degree)
-                @constraint(model, lag_poly_initial >= 0)
+                monos = monomials(x[ii], 0:lagrange_degree)
+                lag_poly_initial = @variable(model, variable_type=SOSPoly(monos))
         
                 # Extract lower and upper bound
                 lower_state = initial_condition_state_partition[1, ii]
@@ -125,8 +115,8 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
                     x_k_upper::Float64 = current_state_partition[2, kk]
 
                     # Generate Lagragian for partition bounds
-                    lag_poly_X = sos_polynomial(lag_vars_X[state, kk, :], x[kk], lagrange_degree)
-                    @constraint(model, lag_poly_X >= 0)
+                    monos = monomials(x[kk], 0:lagrange_degree)
+                    lag_poly_X = @variable(model, variable_type=SOSPoly(monos))
 
                     # Generate SOS polynomials for bounds
                     hCubeSOS_X += lag_poly_X*(x_k_upper - x[kk])*(x[kk] - x_k_lower)
