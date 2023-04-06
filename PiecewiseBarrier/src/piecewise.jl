@@ -104,9 +104,6 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
         """
 
         if martingale == true
-            # Specify constraints per loop
-            number_constraints_per_loop = system_dimension + 1
-
             # Create constraints for X (Partition), μ (Mean Dynamics) and σ (Noise Variable)
             for state in eachindex(state_partitions)
 
@@ -116,9 +113,6 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
                 if system_dimension > 1
                     current_state_partition = reshape(current_state_partition, (system_dimension, system_dimension))
                 end
-
-                # Setup constraints array
-                constraints = Vector{DynamicPolynomials.Polynomial{true, AffExpr}}(undef, number_constraints_per_loop)
 
                 # Semi-algebraic sets
                 hCubeSOS_X = 0
@@ -132,7 +126,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
 
                     # Generate Lagragian for partition bounds
                     lag_poly_X = sos_polynomial(lag_vars_X[state, kk, :], x[kk], lagrange_degree)
-                    constraints[Integer(1), kk] = lag_poly_X
+                    @constraint(model, lag_poly_X >= 0)
 
                     # Generate SOS polynomials for bounds
                     hCubeSOS_X += lag_poly_X*(x_k_upper - x[kk])*(x[kk] - x_k_lower)
@@ -161,13 +155,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
 
                 # Constraint for hypercube
                 martingale_condition_multivariate = - exp_current + Bⱼ + β_parts_var[state] - hCubeSOS_X
-
-                # Constraint for hypercube
-                constraints[number_constraints_per_loop] = martingale_condition_multivariate
-
-                # Add constraints to model
-                @constraint(model, constraints .>= 0)
-
+                @constraint(model, martingale_condition_multivariate >= 0)
             end
 
         end
