@@ -62,8 +62,8 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
             initial_constraint!(model, Bⱼ, x, region, η, lagrange_degree)
         end
 
-        if martingale == true
-            expectation_constraint!(model, Bⱼ, x, β_parts_var, state_partitions)
+        if martingale
+            expectation_constraint!(model, Bⱼ, x, β_parts_var, state_partitions, lagrange_degree)
         end
 
     end
@@ -83,7 +83,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
     optimize!(model)
 
     # Barrier certificate
-    for jj = 1:number_state_hypercubes
+    for jj in 1:number_state_hypercubes
         certificate = piecewise_barrier_certificate(system_dimension, A[jj, :], b[jj], x)
         println(certificate)
     end
@@ -124,7 +124,7 @@ function initial_constraint!(model, barrier, x, region, η, lagrange_degree)
     @constraint(model, _barrier_initial >= 0)
 end
 
-function expectation_constraint!(model, barrier, x, β_parts_var, state_partitions)
+function expectation_constraint!(model, barrier, x, β_parts_var, state_partitions, lagrange_degree)
     """ Barrier martingale condition
     * E[B(f(x,u))] <= B(x) + β
     """

@@ -27,154 +27,30 @@ function sos_barrier(system_dimension, state_space,
     # Create probability decision variables eta
     @variable(model, η >= ϵ)
 
-    # Create barrier polynomial and specify degree Lagrangian polynomials
-    length_per_lagrange_func::Int64 = length_polynomial(x::Array{PolyVar{true},1}, lagrange_degree::Int64)
-
     # Create barrier candidate
-    barrier_monomial::MonomialVector{true} = monomials(x, 0:barrier_degree)
-    @variable(model, c[1:Integer(length(barrier_monomial))])
-    BARRIER::DynamicPolynomials.Polynomial{true, AffExpr} = barrier_polynomial(c, barrier_monomial)
+    barrier_monomials = monomials(x, 0:barrier_degree)
+    @variable(model, BARRIER, SOSPoly(barrier_monomials))
 
-    # Non-negative in ℜ^n
-    add_constraint_to_model(model, BARRIER)
-
-    # One initial condition and unsafe conditions
-    @variable(model, lag_vars_initial[1:system_dimension, 1:length_per_lagrange_func])
-    @variable(model, lag_vars_unsafe_lower[1:system_dimension, 1:length_per_lagrange_func])
-    @variable(model, lag_vars_unsafe_upper[1:system_dimension, 1:length_per_lagrange_func])
-
-    """ Barrier condition: initial
-        * B(x) <= η
-    """
-    initial_condition_state_partition = state_partitions[initial_state_partition]
-
-    for ii = 1:system_dimension
-
-        # Lagragian multiplier
-        lag_poly_initial::DynamicPolynomials.Polynomial{true, AffExpr} = sos_polynomial(lag_vars_initial[ii,:], x[ii], lagrange_degree::Int64)
-        add_constraint_to_model(model, lag_poly_initial)
-
-        # Extract lower and upper bound
-        lower_state = low(initial_condition_state_partition, ii)
-        upper_state = high(initial_condition_state_partition, ii)
-
-        # Specify initial range
-        initial_state = lag_poly_initial * (upper_state - x[ii]) * (x[ii] - lower_state)
-
-        # Add constraint to model
-        _barrier_initial = -BARRIER + η - initial_state
-        add_constraint_to_model(model, _barrier_initial)
-
-    end
-
-    """ Barrier unsafe region conditions
-        * B(x) >= 1
-    """
-
-    for ii = 1:system_dimension
-
-        lag_poly_i_lower::DynamicPolynomials.Polynomial{true, AffExpr} =  sos_polynomial(lag_vars_unsafe_lower[ii, :], x[ii], lagrange_degree::Int64)
-        lag_poly_i_upper::DynamicPolynomials.Polynomial{true, AffExpr} =  sos_polynomial(lag_vars_unsafe_upper[ii, :], x[ii], lagrange_degree::Int64)
-
-        add_constraint_to_model(model, lag_poly_i_lower)
-        add_constraint_to_model(model, lag_poly_i_upper)
-
-        # State space ranges
-        x_i_lower = state_space[1][ii]
-        x_i_upper = state_space[2][ii]
-
-        # Specify constraints for initial and unsafe set
-        _barrier_unsafe_lower = BARRIER - lag_poly_i_lower * (x_i_lower - x[ii]) - 1.0
-        _barrier_unsafe_upper = BARRIER - lag_poly_i_upper * (x[ii] - x_i_upper) - 1.0
-
-        # Add constraints to model
-        add_constraint_to_model(model, lag_poly_i_lower)
-        add_constraint_to_model(model, lag_poly_i_upper)
-        add_constraint_to_model(model, _barrier_unsafe_lower)
-        add_constraint_to_model(model, _barrier_unsafe_upper)
-
-    end
+    sos_initial_constraint!(model, BARRIER, x, state_partitions[initial_state_partition], η, lagrange_degree)
+    sos_unsafe_constraint!(model, BARRIER, x, state_space, lagrange_degree)
 
     """ Barrier martingale condition
         * E[B(f(x,u))] <= B(x) + β
     """
     martingale = true
-    if martingale == true
-
+    if martingale
         # Optimization variables beta
-        @variable(model, β_parts_var[1:number_state_hypercubes])
+        @variable(model, ϵ <= β_parts_var[1:number_state_hypercubes] <= 1 - ϵ)
 
-        for states = 1:number_state_hypercubes
-            @constraint(model, β_parts_var[states] >= ϵ)
-            @constraint(model, β_parts_var[states] <= (1 - ϵ))
-        end
-
-        # Specify standard Lagrangian optimization variables
-        @variable(model, lag_vars_X[1:number_state_hypercubes, 1:system_dimension, 1:length_per_lagrange_func])          # Lagrange to bound hyperspace
-
-        # Specify constraints per loop
-        number_constraints_per_loop = system_dimension
-
-        # Create constraints for X (Partition), μ (Mean Dynamics) and σ (Noise Variable)
-        for state ∈ eachindex(state_partitions)
-
-            # Current state partition
-            current_state_partition = state_partitions[state]
-
-            # Setup constraints array
-            constraints = Array{DynamicPolynomials.Polynomial{true, AffExpr}}(undef, Integer(1), number_constraints_per_loop)
-
-            # Semi-algebraic sets
-            hCubeSOS_X = 0
-
-            # Loop over state dimensions
-            for kk = 1:system_dimension
-
-                # Partition bounds
-                x_k_lower::Float64 = low(current_state_partition, kk)
-                x_k_upper::Float64 = high(current_state_partition, kk)
-
-                # Generate Lagragian for partition bounds
-                lag_poly_X = sos_polynomial(lag_vars_X[state, kk, :], x[kk], lagrange_degree::Int64)
-                constraints[Integer(1), kk] = lag_poly_X
-
-                # Generate SOS polynomials for bounds
-                hCubeSOS_X += lag_poly_X*(x_k_upper - x[kk])*(x[kk] - x_k_lower)
-
-            end
-
-            # Create noise variable
-            @polyvar z[1:system_dimension]
-
-            # Compute expectation
-            _e_barrier = BARRIER
-            exp_evaluated = _e_barrier
-            
-            # Dummy system
-            for zz = 1:system_dimension
-                exp_evaluated = subs(exp_evaluated, x[zz] => 0.95*x[zz] + z[zz])
-            end
-
-            # Extract noise term
-            exp = expectation_noise(exp_evaluated, σ_noise, z)
-
-            # Constraint for hypercube
-            martingale_condition_multivariate = -exp + BARRIER + β_parts_var[state] - hCubeSOS_X
-
-            # Constraint for hypercube
-            constraints[Integer(1), number_constraints_per_loop] = martingale_condition_multivariate
-
-            # Add constraints to model
-            @constraint(model, constraints .>= 0)
-
-        end
-
+        sos_expectation_constraint!(model, BARRIER, x, β_parts_var, state_partitions, lagrange_degree)
     end
 
     # Define optimization objective
-    if martingale == true
+    if martingale
         time_horizon = 1
-        @objective(model, Min, η + sum(β_parts_var)*time_horizon)
+        #! The objective ought to be @objective(model, Min, η + max(β_parts_var) * time_horizon).
+        #! Can be implemented using more constraints.
+        @objective(model, Min, η + sum(β_parts_var) * time_horizon)
     else
         @objective(model, Min, η)
     end
@@ -188,27 +64,125 @@ function sos_barrier(system_dimension, state_space,
     # print(value(lag_vars_unsafe_upper[1,1]), " " , value(lag_vars_unsafe_upper[1,2]), " " , value(lag_vars_unsafe_upper[1,3]))
 
     # Barrier certificate
-    certificate = sos_barrier_certificate(barrier_monomial, c)
+    certificate = polynomial(value(BARRIER))
 
     # Run barrier certificate validation tests
-    nonnegative_barrier(certificate, state_space, system_dimension)
-    unsafe_barrier(certificate, state_space, system_dimension)
+    # nonnegative_barrier(certificate, state_space, system_dimension)
+    # unsafe_barrier(certificate, state_space, system_dimension)
 
     # Print barrier
-    print("\n", "B(x) = ", certificate, "\n")
+    println("B(x) = $certificate")
 
     # Print optimal values
     β_values = value.(β_parts_var)
     max_β = maximum(β_values)
-    println("Solution: [η = $(value(η)), β = $(value(max_β))]")
+    println("Solution: [η = $(value(η)), β = $max_β]")
 
     # # Return optimal values
     # eta = value(η)
-    # if martingale == true
+    # if martingale
     #     β_values = value.(β_parts_var)
     #     return certificate, eta, β_values
     # else
     #     return certificate, eta, 0
     # end
 
+end
+
+function sos_initial_constraint!(model, barrier, x, region, η, lagrange_degree)
+    """ Barrier condition: initial
+    * B(x) <= η
+    """
+
+    lower_state = low(region)
+    upper_state = high(region)
+    product_set = (upper_state - x) .* (x - lower_state)
+
+    for (xi, dim_set) in zip(x, product_set)
+        # Lagragian multiplier
+        monos = monomials(xi, 0:lagrange_degree)
+        lag_poly_initial = @variable(model, variable_type=SOSPoly(monos))
+
+        # Extract lower and upper bound
+        # Specify initial range
+        initial_state = lag_poly_initial * dim_set
+
+        # Add constraint to model
+        _barrier_initial = -barrier + η - initial_state
+        @constraint(model, _barrier_initial >= 0)
+    end
+end
+
+function sos_unsafe_constraint!(model, barrier, x, state_space, lagrange_degree)
+    """ Barrier unsafe region conditions
+    * B(x) >= 1
+    """
+    product_set_lower = state_space[1] - x
+    product_set_upper = x - state_space[2]
+
+    for (xi, dim_set_lower, dim_set_upper) in zip(x, product_set_lower, product_set_upper)
+
+        # Lagragian multiplier
+        monos = monomials(xi, 0:lagrange_degree)
+        lag_poly_i_lower = @variable(model, variable_type=SOSPoly(monos))
+        lag_poly_i_upper = @variable(model, variable_type=SOSPoly(monos))
+
+        # Specify constraints for initial and unsafe set
+        _barrier_unsafe_lower = barrier - lag_poly_i_lower * dim_set_lower - 1.0
+        _barrier_unsafe_upper = barrier - lag_poly_i_upper * dim_set_upper - 1.0
+
+        # Add constraints to model
+        @constraint(model, _barrier_unsafe_lower >= 0)
+        @constraint(model, _barrier_unsafe_upper >= 0)
+
+    end
+end
+
+function sos_expectation_constraint!(model, barrier, x, β_parts_var, state_partitions, lagrange_degree)
+
+    system_dimension = length(x)
+
+    # Create constraints for X (Partition), μ (Mean Dynamics) and σ (Noise Variable)
+    for state in eachindex(state_partitions)
+
+        # Current state partition
+        current_state_partition = state_partitions[state]
+
+        # Semi-algebraic sets
+        hCubeSOS_X = 0
+
+        # Partition bounds
+        x_k_lower = low(current_state_partition)
+        x_k_upper = high(current_state_partition)
+        product_set = (x_k_upper - x) .* (x - x_k_lower)
+
+        # Loop over state dimensions
+        for (xk, dim_set) in zip(x, product_set)
+            # Generate Lagragian for partition bounds
+            monos = monomials(xk, 0:lagrange_degree)
+            lag_poly_X = @variable(model, variable_type=SOSPoly(monos))
+
+            # Generate SOS polynomials for bounds
+            hCubeSOS_X += lag_poly_X * dim_set
+        end
+
+        # Create noise variable
+        @polyvar z[1:system_dimension]
+
+        # Compute expectation
+        _e_barrier = barrier
+        exp_evaluated = _e_barrier
+        
+        # Dummy system
+        for zz in 1:system_dimension
+            exp_evaluated = subs(exp_evaluated, x[zz] => 0.95*x[zz] + z[zz])
+        end
+
+        # Extract noise term
+        exp = expectation_noise(exp_evaluated, σ_noise, z)
+
+        # Constraint for hypercube
+        martingale_condition_multivariate = -exp + barrier + β_parts_var[state] - hCubeSOS_X
+        @constraint(model, martingale_condition_multivariate >= 0)
+    end
 end

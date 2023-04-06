@@ -414,12 +414,6 @@ git-tree-sha1 = "42324d08725e200c23d4dfb549e0d5d89dede2d2"
 uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 version = "0.5.10"
 
-[[deps.MakieCore]]
-deps = ["Observables"]
-git-tree-sha1 = "9926529455a331ed73c19ff06d16906737a876ed"
-uuid = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
-version = "0.6.3"
-
 [[deps.Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
@@ -506,11 +500,6 @@ version = "1.0.2"
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
 
-[[deps.Observables]]
-git-tree-sha1 = "6862738f9796b3edc1c09d0890afce4eca9e7e93"
-uuid = "510215fc-4207-5dde-b226-833fc4488ee2"
-version = "0.5.4"
-
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
@@ -569,7 +558,7 @@ uuid = "8bc5a954-2dfc-11e9-10e6-cd969bffa420"
 version = "0.3.3"
 
 [[deps.PiecewiseBarrier]]
-deps = ["Combinatorics", "Distributions", "DynamicPolynomials", "GLPK", "JuMP", "LaTeXStrings", "LazySets", "LinearAlgebra", "MosekTools", "MultivariatePolynomials", "Optim", "Polynomials", "StatsBase", "SumOfSquares"]
+deps = ["Combinatorics", "Distributions", "DynamicPolynomials", "GLPK", "JuMP", "LaTeXStrings", "LazySets", "LinearAlgebra", "MosekTools", "MultivariatePolynomials", "Optim", "StatsBase", "SumOfSquares"]
 path = ".."
 uuid = "a06fe262-dd7d-4c83-aa2f-7afdb1a09a89"
 version = "0.1.0"
@@ -584,12 +573,6 @@ deps = ["JuMP", "LinearAlgebra", "MathOptInterface", "MultivariateBases", "Multi
 git-tree-sha1 = "4b6ea54520081bb18c5b2a86a35e73d617f436c4"
 uuid = "ddf597a6-d67e-5340-b84c-e37d84115374"
 version = "0.6.2"
-
-[[deps.Polynomials]]
-deps = ["ChainRulesCore", "LinearAlgebra", "MakieCore", "RecipesBase"]
-git-tree-sha1 = "86efc6f761df655f8782f50628e45e01a457d5a2"
-uuid = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
-version = "3.2.8"
 
 [[deps.PositiveFactorizations]]
 deps = ["LinearAlgebra"]
