@@ -5,9 +5,7 @@
 """
 
 # Sum of squares optimization function
-function sos_barrier(system_dimension, state_space,
-                     state_partitions,
-                     initial_state_partition)                               
+function sos_barrier(system, state_space, state_partitions, initial_state_partition)                               
 
     # Using Mosek as the SDP solver
     optimizer = optimizer_with_attributes(Mosek.Optimizer,
@@ -18,8 +16,8 @@ function sos_barrier(system_dimension, state_space,
         "MSK_IPAR_PRESOLVE_USE" => 0)
     model = SOSModel(optimizer)
     
-    # Create state space variables
-    @polyvar x[1:system_dimension]
+    # Fetch state space variables
+    x = variables(system)
 
     # Hyperspace
     number_state_hypercubes = length(state_partitions)
@@ -31,18 +29,15 @@ function sos_barrier(system_dimension, state_space,
     barrier_monomials = monomials(x, 0:barrier_degree)
     @variable(model, BARRIER, SOSPoly(barrier_monomials))
 
-    sos_initial_constraint!(model, BARRIER, x, state_partitions[initial_state_partition], η, lagrange_degree)
-    sos_unsafe_constraint!(model, BARRIER, x, state_space, lagrange_degree)
+    sos_initial_constraint!(model, BARRIER, system, state_partitions[initial_state_partition], η, lagrange_degree)
+    sos_unsafe_constraint!(model, BARRIER, system, state_space, lagrange_degree)
 
-    """ Barrier martingale condition
-        * E[B(f(x,u))] <= B(x) + β
-    """
     martingale = true
     if martingale
         # Optimization variables beta
         @variable(model, ϵ <= β_parts_var[1:number_state_hypercubes] <= 1 - ϵ)
 
-        sos_expectation_constraint!(model, BARRIER, x, β_parts_var, state_partitions, lagrange_degree)
+        sos_expectation_constraint!(model, BARRIER, system, β_parts_var, state_partitions, lagrange_degree)
     end
 
     # Define optimization objective
@@ -89,10 +84,11 @@ function sos_barrier(system_dimension, state_space,
 
 end
 
-function sos_initial_constraint!(model, barrier, x, region, η, lagrange_degree)
+function sos_initial_constraint!(model, barrier, system, region, η, lagrange_degree)
     """ Barrier condition: initial
     * B(x) <= η
     """
+    x = variables(system)
 
     lower_state = low(region)
     upper_state = high(region)
@@ -113,10 +109,12 @@ function sos_initial_constraint!(model, barrier, x, region, η, lagrange_degree)
     end
 end
 
-function sos_unsafe_constraint!(model, barrier, x, state_space, lagrange_degree)
+function sos_unsafe_constraint!(model, barrier, system, state_space, lagrange_degree)
     """ Barrier unsafe region conditions
     * B(x) >= 1
     """
+    x = variables(system)
+
     product_set_lower = state_space[1] - x
     product_set_upper = x - state_space[2]
 
@@ -138,9 +136,12 @@ function sos_unsafe_constraint!(model, barrier, x, state_space, lagrange_degree)
     end
 end
 
-function sos_expectation_constraint!(model, barrier, x, β_parts_var, state_partitions, lagrange_degree)
-
-    system_dimension = length(x)
+function sos_expectation_constraint!(model, barrier, system::AdditiveGaussianPolynomialSystem{T, N}, β_parts_var, state_partitions, lagrange_degree) where {T, N}
+    """ Barrier martingale condition
+        * E[B(f(x,u))] <= B(x) + β
+    """
+    x = variables(system)
+    fx = dynamics(system)
 
     # Create constraints for X (Partition), μ (Mean Dynamics) and σ (Noise Variable)
     for state in eachindex(state_partitions)
@@ -167,18 +168,14 @@ function sos_expectation_constraint!(model, barrier, x, β_parts_var, state_part
         end
 
         # Create noise variable
-        @polyvar z[1:system_dimension]
+        @polyvar z[1:N]
 
         # Compute expectation
         _e_barrier = barrier
-        exp_evaluated = _e_barrier
-        
-        # Dummy system
-        for zz in 1:system_dimension
-            exp_evaluated = subs(exp_evaluated, x[zz] => 0.95*x[zz] + z[zz])
-        end
+        exp_evaluated = subs(_e_barrier, x => fx + z)
 
         # Extract noise term
+        σ_noise = noise_distribution(system)
         exp = expectation_noise(exp_evaluated, σ_noise, z)
 
         # Constraint for hypercube
