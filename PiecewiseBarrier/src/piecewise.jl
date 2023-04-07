@@ -26,9 +26,6 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, state
         "MSK_IPAR_PRESOLVE_USE" => 0)
     model = SOSModel(optimizer)
 
-    # Numerical precision
-    ϵ = 1e-6
-
     # Hyperspace
     number_state_hypercubes = length(state_partitions)
 
@@ -160,7 +157,7 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
         exp_evaluated = subs(_e_barrier, x => fx + z)
 
         # Extract noise term
-        σ_noise = 0.01
+        σ_noise = noise_distribution(system)
         exp = expectation_noise(exp_evaluated, σ_noise, z)
 
         # Constraint for hypercube
