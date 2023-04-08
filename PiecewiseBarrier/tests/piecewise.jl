@@ -18,7 +18,6 @@ state_partitions = [Hyperrectangle(low=[low], high=[high]) for (low, high) in ea
 state_space = state_space_generation(state_partitions)
 
 # Optimization flags
-σ_noise = 0.1
 initial_state_partition = 3
 
 # # Optimize

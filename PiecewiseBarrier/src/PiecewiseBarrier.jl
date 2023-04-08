@@ -16,7 +16,7 @@ using LaTeXStrings
 include("constants.jl")
 
 include("utility.jl")
-export state_space_generation
+export state_space_generation, maximum_beta_constraint
 
 include("expectation.jl")
 

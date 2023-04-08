@@ -5,13 +5,13 @@
 """
 
 # ACCUMULATION OF BUGS FOUND:
-# 1. number_constraints_per_loop should be system_dimension + 1 (so that the last element is not overwritten)
-# 2. η + sum(β_parts_var)*time_horizon is not the correct objective (should rather be the maximum over β_parts_var)
 # 3. Incorrect barrier in expectation (j, not i)
 # 4. A martingale constraint per pair (i, j) not per j
-# 5. Missing unsafe set constraint B(x) >= 1 for all x in Xᵤ
-# 6. Lacking indexing in dynamics
+# 5. Missing unsafe set constraint B(x) >= 1 for all x in Xᵤ 
 
+# TO DO LIST:
+
+# 1. Indexing dynamics
 
 
 # Optimization function
@@ -29,26 +29,19 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
     # Create state space variables
     @polyvar x[1:system_dimension]
 
-    # Numerical precision
-    ϵ = 1e-6
-
     # Hyperspace
     number_state_hypercubes = length(state_partitions)
 
     # Create probability decision variables eta
     @variable(model, η >= ϵ)
 
-    # Create PWA barrier and specify degree Lagrangian polynomials
-    lagrange_degree = 2
-
     # Create optimization variables
     @variable(model, A[1:number_state_hypercubes, 1:system_dimension])
     @variable(model, b[1:number_state_hypercubes])
     @variable(model, ϵ <= β_parts_var[1:number_state_hypercubes] <= 1 - ϵ)
+    @variable(model, β)
 
     # Construct piecewise constraints
-    martingale = true
-
     for (jj, region) in enumerate(state_partitions)
 
         # Construct partition barrier
@@ -62,21 +55,13 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
             initial_constraint!(model, Bⱼ, x, region, η, lagrange_degree)
         end
 
-        if martingale
-            expectation_constraint!(model, Bⱼ, x, β_parts_var, state_partitions, lagrange_degree)
-        end
+        expectation_constraint!(model, Bⱼ, x, β_parts_var, β, state_partitions, lagrange_degree)
 
     end
 
     # Define optimization objective
     time_horizon = 1
-    if martingale
-        #! The objective ought to be @objective(model, Min, η + max(β_parts_var) * time_horizon).
-        #! Can be implemented using more constraints.
-        @objective(model, Min, η + sum(β_parts_var)*time_horizon)
-    else
-        @objective(model, Min, η)
-    end
+    @objective(model, Min, η + β*time_horizon)
     println("Objective made")
 
     # Optimize model
@@ -124,12 +109,12 @@ function initial_constraint!(model, barrier, x, region, η, lagrange_degree)
     @constraint(model, _barrier_initial >= 0)
 end
 
-function expectation_constraint!(model, barrier, x, β_parts_var, state_partitions, lagrange_degree)
+function expectation_constraint!(model, barrier, x, β_parts_var, β, state_partitions, lagrange_degree)
     """ Barrier martingale condition
     * E[B(f(x,u))] <= B(x) + β
     """
 
-    # Create constraints for X (Partition), μ (Mean Dynamics) and σ (Noise Variable)
+    # Create constraints for X (Partition)
     for state in eachindex(state_partitions)
 
         # Current state partition
@@ -167,17 +152,21 @@ function expectation_constraint!(model, barrier, x, β_parts_var, state_partitio
         end
 
         # Extract noise term
-        σ_noise = 0.01
         exp = expectation_noise(exp_evaluated, σ_noise, z)
 
         # Constraint for hypercube
         martingale_condition_multivariate = -exp + barrier + β_parts_var[state] - hCubeSOS_X
         @constraint(model, martingale_condition_multivariate >= 0)
 
+        # Add constraint for maximum beta approach
+        maximum_beta_constraint!(model, β_parts_var[state], β)
+
         #! There should only be one martingale constraint for each j, not for each pair (i, j)
         #! In the expectation, the barrier Bᵢ should be used.
     end
 end
+
+
 
             # Compute transition probability
         # transition_probabilities = probability_distribution(hypercubes, covariance_matrix, system_dimension, system_flag, neural_flag)

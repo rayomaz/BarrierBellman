@@ -10,9 +10,9 @@ function nonnegative_barrier(certificate, state_space, system_dimension)
     barrier_nonnegative = find_minimum(certificate, state_space, system_dimension)
 
     if barrier_nonnegative >= -ϵ
-        print_green("Test passed: B(x) >= $(value(barrier_nonnegative)) ∈ Xs")
+        print_green!("Test passed: B(x) >= $(value(barrier_nonnegative)) ∈ Xₛ")
     else
-        print_red("Barrier invalid: non-negative condition ∈ Xs invalid")
+        print_red!("Barrier invalid: non-negative condition ∈ Xₛ invalid")
     end
 
 end
@@ -23,10 +23,10 @@ function unsafe_barrier(certificate, state_space, system_dimension)
     barrier_unsafe = evaluate_function(certificate, state_space, system_dimension)
 
     if all(x -> x > 1, barrier_unsafe) >= 1+ϵ || all(x -> x > 1, barrier_unsafe) <= 1+ϵ
-        print_green("Test passed: B(x) >= $(value(1.0)) ∈ Xu")
+        print_green!("Test passed: B(x) >= $(value(1.0)) ∈ Xᵤ")
         println("")
     else
-        print_red("Barrier invalid: unsafe condition ∈ Xu invalid")
+        print_red!("Barrier invalid: unsafe condition ∈ Xᵤ invalid")
         println("")
     end
 
@@ -59,15 +59,11 @@ function evaluate_function(f, intervals, system_dimension)
 end
 
 # Validate text print
-function print_green(text)
+function print_green!(text)
     print("\n", "\033[32m$(text)\033[0m")
 end
 
 # Validate text print
-function print_red(text)
+function print_red!(text)
     print("\n", "\033[31m$(text)\033[0m")
-end
-
-function print_blue(text)
-    print("\n", "\033[34m$(text)\033[0m")
 end

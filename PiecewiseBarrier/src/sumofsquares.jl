@@ -28,6 +28,8 @@ function sos_barrier(system_dimension, state_space, state_partitions,
 
     # Create barrier candidate
     barrier_monomials = monomials(x, 0:barrier_degree)
+
+    # Non-negative in ℝⁿ
     @variable(model, BARRIER, SOSPoly(barrier_monomials))
 
     # Barrier constraints and β variable
@@ -103,7 +105,7 @@ function sos_unsafe_constraint!(model, barrier, x, state_space, lagrange_degree)
         lag_poly_i_lower = @variable(model, variable_type=SOSPoly(monos))
         lag_poly_i_upper = @variable(model, variable_type=SOSPoly(monos))
 
-        # Specify constraints for initial and unsafe set
+        # Specify constraints for unsafe set
         _barrier_unsafe_lower = barrier - lag_poly_i_lower * dim_set_lower - 1.0
         _barrier_unsafe_upper = barrier - lag_poly_i_upper * dim_set_upper - 1.0
 
@@ -161,31 +163,10 @@ function sos_expectation_constraint!(model, barrier, x, β_parts_var, β, state_
 
         # Constraint for hypercube
         martingale_condition_multivariate = -exp + barrier + β_parts_var[state] - hCubeSOS_X
-        maximum_beta_constraint(model, β_parts_var[state], β)
         @constraint(model, martingale_condition_multivariate >= 0)
+
+        # Add constraint for maximum beta approach
+        maximum_beta_constraint(model, β_parts_var[state], β)
+
     end
-end
-
-
-function maximum_beta_constraint(model, β_state, β)
-    """ Adding constraint:
-        - minimize for maximum β
-    """
-
-    # Create dummy variable 
-    @polyvar w[1:2]
-
-    w_min = 0
-    w_max = 1
-
-    product_set = (w_max - w[1]).*(w[1] - w_min)
-
-    # Create Lagragian multiplier
-    monos = monomials(w, 0:lagrange_degree)
-    lag_poly_beta = @variable(model, variable_type=SOSPoly(monos))  
-
-    # Specify beta bound
-    beta_constraint = (- β_state + β - lag_poly_beta) * product_set
-    @constraint(model, beta_constraint >= 0)
-
 end

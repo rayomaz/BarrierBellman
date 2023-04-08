@@ -23,11 +23,3 @@ state_space = state_space_generation(state_partitions)
 
 # Optimization
 eta, beta = @time sos_barrier(system_dimension, state_space, state_partitions, initial_state_partition)
-
-
-
-
-                                     
-
-                                      
-
