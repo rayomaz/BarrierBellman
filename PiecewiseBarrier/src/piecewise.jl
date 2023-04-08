@@ -163,7 +163,7 @@ function expectation_constraint!(model, barrier, x, β_parts_var, state_partitio
         
         # Dummy system
         for zz in 1:system_dimension
-            exp_evaluated = subs(exp_evaluated, x[zz] => 0.5*x[zz]^2 + z[zz])
+            exp_evaluated = subs(exp_evaluated, x[zz] => 0.95*x[zz] + z[zz])
         end
 
         # Extract noise term

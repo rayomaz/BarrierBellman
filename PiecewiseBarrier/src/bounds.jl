@@ -8,4 +8,4 @@
 
 """
 
-# ! To do: generate bounds in Python, load in Julia for piecewise barrier construction
+#! To do: generate bounds in Python, load in Julia for piecewise barrier construction

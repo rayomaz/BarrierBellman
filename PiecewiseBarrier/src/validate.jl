@@ -8,6 +8,7 @@
 function nonnegative_barrier(certificate, state_space, system_dimension)
 
     barrier_nonnegative = find_minimum(certificate, state_space, system_dimension)
+
     if barrier_nonnegative >= -ϵ
         print_green("Test passed: B(x) >= $(value(barrier_nonnegative)) ∈ Xs")
     else
@@ -23,8 +24,10 @@ function unsafe_barrier(certificate, state_space, system_dimension)
 
     if all(x -> x > 1, barrier_unsafe) >= 1+ϵ || all(x -> x > 1, barrier_unsafe) <= 1+ϵ
         print_green("Test passed: B(x) >= $(value(1.0)) ∈ Xu")
+        println("")
     else
         print_red("Barrier invalid: unsafe condition ∈ Xu invalid")
+        println("")
     end
 
 end
@@ -33,7 +36,7 @@ end
 function find_minimum(f, intervals, system_dimension)
 
     if system_dimension == 1
-        result = optimize(f, intervals[1], intervals[2])
+        result = optimize(f, intervals[1][1], intervals[2][1])
         return result.minimum
     else
         error("Write code for higher-dimensional system here ...")

@@ -1,15 +1,15 @@
 """
-
     - Generation of Stochastic Barrier Functions
 
     © Rayan Mazouz
 
 """
 
-# Stochastic Barrier Verification for Thermostat Gaussian Process
+# Stochastic Barrier Verification
 using Revise, BenchmarkTools
 
 using PiecewiseBarrier
+using LazySets
 using DelimitedFiles
 
 # Optimization flags
@@ -22,8 +22,7 @@ state_partitions = [Hyperrectangle(low=[low], high=[high]) for (low, high) in ea
 state_space = state_space_generation(state_partitions)
 
 # Optimization
-# certificate, eta, beta = 
-@time sos_barrier(system_dimension, state_space, state_partitions, initial_state_partition)
+eta, beta = @time sos_barrier(system_dimension, state_space, state_partitions, initial_state_partition)
 
 
 
