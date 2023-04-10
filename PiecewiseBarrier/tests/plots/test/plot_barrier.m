@@ -7,7 +7,7 @@ find_minimum()
 
 % Save plots
 % print('barrier.pdf', '-dpdf', '-r300');
-print('barrier_1.png', '-dpng', '-r300');
+% print('barrier_1.png', '-dpng', '-r300');
 
 
 function plot_barrier_2D()
@@ -15,8 +15,8 @@ function plot_barrier_2D()
     x1 = linspace(-1, 1, 100);
 
     % Bounds on polynomial kernel
-    f = 1.0000007651953218*x1.^2 - 1.7197334168473105e-11*x1 - ...
-        9.088427152842553e-10;
+    f = 1.0000000175772528*x1.^2 + 4.756832229341722e-13*x1  + ...
+        9.043882221153276e-10;
 
     x_11 = linspace(-1, -0.6, 100);
     x_12 = linspace(-0.6, -0.2, 100);
@@ -24,11 +24,11 @@ function plot_barrier_2D()
     x_14 = linspace(0.2, 0.6, 100);
     x_15 = linspace(0.6, 1.0, 100);
 
-    f1 = 0.22003846464175245*ones(1, length(x_11));
-    f2 = 0.22003846464487442*ones(1, length(x_12));
-    f3 = 1.294560937958779e-7*ones(1, length(x_13));
-    f4 = 0.22003846464155855*ones(1, length(x_14));
-    f5 = 0.2200384646464848*ones(1, length(x_15));
+    f1 = 0.03613487559977736*ones(1, length(x_11));
+    f2 = 0.03613487560012611*ones(1, length(x_12));
+    f3 = 1.4284575015768225e-7*ones(1, length(x_13));
+    f4 = 0.036134875600239126*ones(1, length(x_14));
+    f5 = 0.036134875600037364*ones(1, length(x_15));
 
     eta = 0.04;
 
