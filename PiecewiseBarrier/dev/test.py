@@ -9,6 +9,11 @@ import numpy as np
 
 from abstract_barrier.bounds import ErfDiff
 
+# Quick checks:
+
+#! Cannot find location to change number of partitions
+#! Test case: [-1, 1], --> 5 partitions
+#! Trouble defining mean: need a simple mean function of 0.95*x
 
 class ProdAll(nn.Sequential):
     def __init__(self, ndim):
@@ -34,7 +39,8 @@ k = 1
 z_upper, z_lower = torch.tensor([]), torch.tensor([])
 
 # Mean is some function of x.
-mean = nn.Sequential(np.dot(0.95, x))
+#! Having trouble defining mean here: need a simple mean function of 0.95*x
+mean = nn.Sequential()
 
 erfdiff_term = nn.Sequential(
     mean,
