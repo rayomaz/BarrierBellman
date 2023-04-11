@@ -1,10 +1,9 @@
 module PiecewiseBarrier
 
 using SumOfSquares
-using DynamicPolynomials
+using MultivariatePolynomials, DynamicPolynomials
 using MosekTools
-using MAT
-using Polynomials
+using LazySets
 using StatsBase
 using Combinatorics
 using LinearAlgebra
@@ -14,19 +13,19 @@ using JuMP
 import JuMP.@variable
 using LaTeXStrings
 
-# Include @__DIR__
-include(joinpath(@__DIR__,"constants.jl"))
+include("constants.jl")
 
-include(joinpath(@__DIR__,"utility.jl"))
+include("utility.jl")
+export state_space_generation, maximum_beta_constraint
 
-include(joinpath(@__DIR__,"expectation.jl"))
+include("expectation.jl")
 
-include(joinpath(@__DIR__,"validate.jl"))
+include("validate.jl")
 
-include(joinpath(@__DIR__,"sumofsquares.jl"))
+include("sumofsquares.jl")
 export sos_barrier
 
-include(joinpath(@__DIR__,"piecewise.jl"))
+include("piecewise.jl")
 export piecewise_barrier
 
 end # module PiecewiseBarrier
