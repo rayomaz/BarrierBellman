@@ -5,8 +5,7 @@
 """
 
 # Optimization function
-function piecewise_barrier(system_dimension, state_partitions, initial_state_partition)
-
+function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, state_partitions, initial_state_partition) where {T, N}
     # Using Mosek as the SDP solver
     optimizer = optimizer_with_attributes(Mosek.Optimizer,
         "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
@@ -16,9 +15,6 @@ function piecewise_barrier(system_dimension, state_partitions, initial_state_par
         "MSK_IPAR_PRESOLVE_USE" => 0)
     model = SOSModel(optimizer)
 
-    # Create state space variables
-    @polyvar x[1:system_dimension]
-
     # Hyperspace
     number_state_hypercubes = length(state_partitions)
 
@@ -26,7 +22,7 @@ function piecewise_barrier(system_dimension, state_partitions, initial_state_par
     @variable(model, η >= ϵ)
 
     # Create optimization variables
-    @variable(model, A[1:number_state_hypercubes, 1:system_dimension])
+    @variable(model, A[1:number_state_hypercubes, 1:N])
     @variable(model, b[1:number_state_hypercubes])
     @variable(model, ϵ <= β_parts_var[1:number_state_hypercubes] <= 1 - ϵ)
     @variable(model, β)
@@ -35,15 +31,15 @@ function piecewise_barrier(system_dimension, state_partitions, initial_state_par
     for (jj, region) in enumerate(state_partitions)
 
         # Construct partition barrier
-        Bⱼ = barrier_construct(system_dimension, A[jj, :], b[jj], x)
+        Bⱼ = barrier_construct(system, A[jj, :], b[jj])
 
         nonnegativity_constraint!(model, Bⱼ)
 
         if jj == initial_state_partition
-            initial_constraint!(model, Bⱼ, x, region, η, lagrange_degree)
+            initial_constraint!(model, Bⱼ, system, region, η, lagrange_degree)
         end
 
-        expectation_constraint!(model, Bⱼ, x, β_parts_var, β, state_partitions, lagrange_degree)
+        expectation_constraint!(model, Bⱼ, system, β_parts_var, β, state_partitions, lagrange_degree)
 
     end
 
@@ -57,7 +53,7 @@ function piecewise_barrier(system_dimension, state_partitions, initial_state_par
 
     # Barrier certificate
     for jj in 1:number_state_hypercubes
-        certificate = piecewise_barrier_certificate(system_dimension, A[jj, :], b[jj], x)
+        certificate = piecewise_barrier_certificate(system, A[jj, :], b[jj])
         println(certificate)
     end
 
@@ -72,16 +68,17 @@ end
 
 function nonnegativity_constraint!(model, barrier)
     """ Barrier condition: nonnegativity
-    * B(x) >= 0
+        * B(x) >= 0
     """
     # Non-negative in ℝⁿ 
     @constraint(model, barrier >= 0)
 end
 
-function initial_constraint!(model, barrier, x, region, η, lagrange_degree)
+function initial_constraint!(model, barrier, system, region, η, lagrange_degree)
     """ Barrier condition: initial
         * B(x) <= η
     """
+    x = variables(system)
     initial_state = 0.0
 
     lower_state = low(region)
@@ -102,11 +99,17 @@ function initial_constraint!(model, barrier, x, region, η, lagrange_degree)
     @constraint(model, _barrier_initial >= 0)
 end
 
-function expectation_constraint!(model, barrier, x, β_parts_var, β, state_partitions, lagrange_degree)
+function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynomialSystem{T, N}, β_parts_var, β, state_partitions, lagrange_degree) where {T, N}
     """ Barrier martingale condition
         * E[B(f(x,u))] <= B(x) + β
     """
 
+    x = variables(system)
+    fx = dynamics(system)
+
+    # Create noise variable
+    @polyvar z[1:N]
+    
     # Create constraints for X (Partition)
     for state in eachindex(state_partitions)
 
@@ -130,21 +133,12 @@ function expectation_constraint!(model, barrier, x, β_parts_var, β, state_part
             hCubeSOS_X += lag_poly_X * dim_set
         end
 
-        system_dimension = length(x)
-
-        # Create noise variable
-        @polyvar z[1:system_dimension]
-
         # Compute expectation
         _e_barrier = barrier
-        exp_evaluated = _e_barrier
-        
-        # Dummy system
-        for zz in 1:system_dimension
-            exp_evaluated = subs(exp_evaluated, x[zz] => 0.95*x[zz] + z[zz])
-        end
+        exp_evaluated = subs(_e_barrier, x => fx + z)
 
         # Extract noise term
+        σ_noise = noise_distribution(system)
         exp = expectation_noise(exp_evaluated, σ_noise, z)
 
         # Constraint for hypercube
@@ -160,4 +154,3 @@ function expectation_constraint!(model, barrier, x, β_parts_var, β, state_part
 
     end
 end
-
