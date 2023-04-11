@@ -4,28 +4,18 @@
 
 """
 
+vectorize(x::Vector) = x
+vectorize(x::VariableRef) = [x]
+vectorize(x::Number) = [x]
+vectorize(x::AbstractPolynomialLike) = [x]
+
 # Compute the final barrier certificate
-function piecewise_barrier_certificate(system_dimension, A, b, x)
-
-    # Control Barrier Certificate
-    barrier_certificate = value(b)
-    for ii = 1:system_dimension
-        barrier_certificate += value(A[ii])*x[ii]
-    end
-
-    return barrier_certificate
-
-end
+piecewise_barrier_certificate(system, A, b) = barrier_construct(system, value.(A), value.(b))
 
 # Create Linear Barrier Function
-function barrier_construct(system_dimension, A, b, x) #::DynamicPolynomials.Polynomial{true, AffExpr}
-
-    barrier_linear = b
-    for ii = 1:system_dimension
-        barrier_linear += A[ii]*x[ii]
-    end
-
-    return barrier_linear
+function barrier_construct(system, A, b) 
+    x = variables(system)
+    return dot(A, x) + b
 end
 
 # Generate state space from bounds
