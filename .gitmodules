@@ -1,0 +1,3 @@
+[submodule "PiecewiseBarrier/dev/bound_propagation"]
+	path = PiecewiseBarrier/dev/bound_propagation
+	url = https://github.com/Zinoex/bound_propagation
