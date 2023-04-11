@@ -4,3 +4,6 @@
 [submodule "PiecewiseBarrier/dev/abstract-barrier"]
 	path = PiecewiseBarrier/dev/abstract-barrier
 	url = https://github.com/Zinoex/abstract-barrier
+[submodule "PiecewiseBarrier/dev/abstract_barrier"]
+	path = PiecewiseBarrier/dev/abstract_barrier
+	url = https://github.com/Zinoex/abstract-barrier

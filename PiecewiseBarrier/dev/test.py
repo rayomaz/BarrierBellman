@@ -7,7 +7,7 @@ from torch.nn import Identity
 
 import numpy as np
 
-from abstract_barrier.bounds import ErfDiff
+from abstract_barrier.abstract_barrier.bounds import ErfDiff
 
 # Quick checks:
 
