@@ -11,9 +11,9 @@ from abstract_barrier.abstract_barrier.bounds import ErfDiff
 
 # Quick checks:
 
-#! Cannot find location to change number of partitions
-#! Test case: [-1, 1], --> 5 partitions
-#! Trouble defining mean: need a simple mean function of 0.95*x
+#! 1. Cannot find location to change number of partitions
+#! 2. Test case: [-1, 1], --> 5 partitions
+#! 3. Trouble defining mean: need a simple mean function of 0.95*x in nn.Sequential() (line 43)
 
 class ProdAll(nn.Sequential):
     def __init__(self, ndim):
