@@ -16,7 +16,11 @@ using LaTeXStrings
 include("constants.jl")
 
 include("utility.jl")
-export state_space_generation, maximum_beta_constraint
+export state_space_generation, vectorize
+
+include("system.jl")
+export AbstractDiscreteTimeStochasticSystem, AdditiveGaussianPolynomialSystem
+export variables, dynamics, noise_distribution
 
 include("expectation.jl")
 
