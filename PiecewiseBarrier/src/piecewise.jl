@@ -5,7 +5,7 @@
 """
 
 # Optimization function
-function piecewise_barrier(system_dimension, state_space, state_partitions, initial_state_partition)
+function piecewise_barrier(system_dimension, state_partitions, initial_state_partition)
 
     # Using Mosek as the SDP solver
     optimizer = optimizer_with_attributes(Mosek.Optimizer,
@@ -37,9 +37,7 @@ function piecewise_barrier(system_dimension, state_space, state_partitions, init
         # Construct partition barrier
         Bⱼ = barrier_construct(system_dimension, A[jj, :], b[jj], x)
 
-        # nonnegativity_constraint!(model, Bⱼ)
-
-        # expectation_constraint!(model, barrier, x, β_parts_var, β, state_partitions, lagrange_degree)
+        nonnegativity_constraint!(model, Bⱼ)
 
         if jj == initial_state_partition
             initial_constraint!(model, Bⱼ, x, region, η, lagrange_degree)
@@ -82,7 +80,7 @@ end
 
 function initial_constraint!(model, barrier, x, region, η, lagrange_degree)
     """ Barrier condition: initial
-    * B(x) <= η
+        * B(x) <= η
     """
     initial_state = 0.0
 
@@ -106,7 +104,7 @@ end
 
 function expectation_constraint!(model, barrier, x, β_parts_var, β, state_partitions, lagrange_degree)
     """ Barrier martingale condition
-    * E[B(f(x,u))] <= B(x) + β
+        * E[B(f(x,u))] <= B(x) + β
     """
 
     # Create constraints for X (Partition)
@@ -157,12 +155,9 @@ function expectation_constraint!(model, barrier, x, β_parts_var, β, state_part
         non_negative = barrier - hCubeSOS_X
         @constraint(model, non_negative >= 0)
 
-
         # Add constraint for maximum beta approach
-        maximum_beta_constraint(model, β_parts_var[state], β)
+        @constraint(model, β_parts_var[state] <= β)
 
-        #! There should only be one martingale constraint for each j, not for each pair (i, j)
-        #! In the expectation, the barrier Bᵢ should be used.
     end
 end
 

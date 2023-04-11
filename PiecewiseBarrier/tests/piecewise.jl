@@ -21,4 +21,4 @@ state_space = state_space_generation(state_partitions)
 initial_state_partition = 3
 
 # # Optimize
-@time piecewise_barrier(system_dimension, state_space, state_partitions, initial_state_partition)
+@time piecewise_barrier(system_dimension, state_partitions, initial_state_partition)
