@@ -17,7 +17,7 @@ using DelimitedFiles
 # System
 @polyvar x
 fx = 0.95 * x
-σ = 0.01
+σ = 0.1
 
 system = AdditiveGaussianPolynomialSystem{Float64, 1}(x, fx, σ)
 
