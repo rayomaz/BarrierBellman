@@ -150,8 +150,8 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
         upper_prob_A = read(bounds, "upper_probability_bounds_A")
         upper_prob_b = read(bounds, "upper_probability_bounds_b")
 
-        prob_Ax_lower = lower_prob_A[state]*x
-        prob_Ax_upper = upper_prob_A[state]*x
+        prob_Ax_lower = lower_prob_A[state] * x
+        prob_Ax_upper = upper_prob_A[state] * x
 
         #! Testing this for 1D case first - generalize later
         #! ibp returns single b-value: should be b[jj]
