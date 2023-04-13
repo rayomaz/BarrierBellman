@@ -26,8 +26,8 @@ state_partitions = readdlm("partitions/test/state_partitions.txt", ' ')
 state_partitions = [Hyperrectangle(low=[low], high=[high]) for (low, high) in eachrow(state_partitions)]
 
 # Bounds
-bounds_file = "/partitions/test/linearsystem_5.mat"
-bounds = matopen(pwd()*bounds_file)
+bounds_file = "partitions/test/linearsystem_5.mat"
+bounds = matopen(bounds_file)
 
 # Optimization flags
 initial_state_partition = 3
