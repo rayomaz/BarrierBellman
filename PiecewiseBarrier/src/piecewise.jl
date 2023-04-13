@@ -39,8 +39,8 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
             initial_constraint!(model, Bⱼ, system, region, η, lagrange_degree)
         end
 
-        expectation_constraint!(model, Bⱼ, system, bounds, β_parts_var, β, state_partitions, lagrange_degree)
-
+        expectation_constraint!(model, Bⱼ, system, bounds, jj, A, β_parts_var, β, state_partitions, lagrange_degree)
+ 
     end
 
     # Define optimization objective
@@ -117,7 +117,7 @@ function initial_constraint!(model, barrier, system, region, η, lagrange_degree
     @constraint(model, _barrier_initial >= 0)
 end
 
-function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynomialSystem{T, N}, bounds, β_parts_var, β, state_partitions, lagrange_degree) where {T, N}
+function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynomialSystem{T, N}, bounds, jj, A, β_parts_var, β, state_partitions, lagrange_degree) where {T, N}
     """ Barrier martingale condition
         * E[B(f(x,u))] <= B(x) + β
     """
@@ -125,8 +125,9 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
     x = variables(system)
     fx = dynamics(system)
 
-    # Create noise variable
-    @polyvar z[1:N]
+    # Martingale term expansion
+    @polyvar P[1:N]
+    @polyvar E[1:N]
     
     # Create constraints for X (Partition)
     for state in eachindex(state_partitions)
@@ -136,10 +137,25 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
 
         # Semi-algebraic sets
         hCubeSOS_X = 0
+        # hCubeSOS_P = 0
+        # hCubeSOS_E = 0
 
         x_k_lower = low(current_state_partition)
         x_k_upper = high(current_state_partition)
         product_set = (x_k_upper - x) .* (x - x_k_lower)
+
+        lower_prob_A = read(bounds, "lower_probability_bounds_A")
+        lower_prob_b = read(bounds, "lower_probability_bounds_b")
+
+        upper_prob_A = read(bounds, "upper_probability_bounds_A")
+        upper_prob_b = read(bounds, "upper_probability_bounds_b")
+        # lower_probability = sum(lower_prob_A[jj][1]*x, lower_prob_b[jj][1])
+        # upper_probability = sum(lower_prob_A[jj][1]*x, lower_prob_b[jj][1])
+
+        # expo_term 
+        #! expo term is a convex/concave on given interval: compute bounds directly
+        # lower_expectation = expo_term + fx*sum(lower_prob_A[jj][1]*x, lower_prob_b[jj][1])
+        # upper_expectation = expo_term + fx*sum(lower_prob_A[jj][1]*x, lower_prob_b[jj][1])
 
         # Loop over state dimensions
         for (xi, dim_set) in zip(x, product_set)
@@ -147,17 +163,27 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
             monos = monomials(xi, 0:lagrange_degree)
             lag_poly_X = @variable(model, variable_type=SOSPoly(monos))
 
+            # Generate Lagragian for probability bounds
+            # monos_probability = monomials(xi, 0:lagrange_degree)
+            # lag_poly_P = @variable(model, variable_type=SOSPoly(monos))
+
+            # Generate Lagragian for probability bounds
+            # monos_expectation = monomials(xi, 0:lagrange_degree)
+            # lag_poly_E = @variable(model, variable_type=SOSPoly(monos))
+
             # Generate SOS polynomials for bounds
             hCubeSOS_X += lag_poly_X * dim_set
+            #hCubeSOS_P += lag_poly_P*(upper_probability- P[xi])*(P[xi] - lower_probability)
+            #hCubeSOS_E += lag_poly_E*(upper_expectation- E[xi])*(E[xi] - lower_expectation)
         end
 
         # Compute expectation
         _e_barrier = barrier
-        exp_evaluated = subs(_e_barrier, x => fx + z)
+        exp_evaluated = subs(_e_barrier, x => fx)
 
-        # Extract noise term
-        σ_noise = noise_distribution(system)
-        exp = expectation_noise(exp_evaluated, σ_noise, z)
+        # Martingale sum
+        exp = exp_evaluated*0.9
+        # exp = exp_evaluated*P + A[jj, :]*E
 
         # Constraint for hypercube
         martingale_condition_multivariate = -exp + barrier + β_parts_var[state] - hCubeSOS_X

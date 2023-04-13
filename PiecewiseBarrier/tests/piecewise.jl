@@ -17,7 +17,7 @@ using MAT
 # System
 @polyvar x
 fx = 0.95 * x
-σ = 0.01
+σ = false
 
 system = AdditiveGaussianPolynomialSystem{Float64, 1}(x, fx, σ)
 
@@ -33,4 +33,4 @@ bounds = matopen(pwd()*bounds_file)
 initial_state_partition = 3
 
 # # Optimize
-@time piecewise_barrier(system, bounds,state_partitions, initial_state_partition)
+@time piecewise_barrier(system, bounds, state_partitions, initial_state_partition)
