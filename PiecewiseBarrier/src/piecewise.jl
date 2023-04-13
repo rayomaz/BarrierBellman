@@ -172,17 +172,16 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
 
         # Loop over state dimensions
         for (xi, dim_set) in zip(x, product_set)
-            # Generate Lagragian for partition bounds
             monos = monomials(xi, 0:lagrange_degree)
+
+            # Generate Lagragian for partition bounds
             lag_poly_X = @variable(model, variable_type=SOSPoly(monos))
 
             # Generate Lagragian for probability bounds
-            monos_probability = monomials(xi, 0:lagrange_degree)
-            lag_poly_P = @variable(model, variable_type=SOSPoly(monos_probability))
+            lag_poly_P = @variable(model, variable_type=SOSPoly(monos))
 
             # Generate Lagragian for probability bound
-            monos_expectation = monomials(xi, 0:lagrange_degree)
-            lag_poly_E = @variable(model, variable_type=SOSPoly(monos_expectation))
+            lag_poly_E = @variable(model, variable_type=SOSPoly(monos))
 
             # Generate SOS polynomials for bounds
             hCubeSOS_X += lag_poly_X * dim_set
