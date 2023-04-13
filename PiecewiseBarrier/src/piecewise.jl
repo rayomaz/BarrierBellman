@@ -23,23 +23,24 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
 
     # Create optimization variables
     @variable(model, A[1:number_state_hypercubes, 1:N])
-    @variable(model, b[1:number_state_hypercubes])
+    @variable(model, b[1:number_state_hypercubes])    
     @variable(model, ϵ <= β_parts_var[1:number_state_hypercubes] <= 1 - ϵ)
     @variable(model, β)
+
+    @constraint(model, β_parts_var .<= β)
+
+    B = [barrier_construct(system, A[jj, :], b[jj]) for jj in eachindex(state_partitions)]
 
     # Construct piecewise constraints
     for (jj, region) in enumerate(state_partitions)
 
-        # Construct partition barrier
-        Bⱼ = barrier_construct(system, A[jj, :], b[jj])
-
-        nonnegativity_constraint!(model, Bⱼ, system, region, lagrange_degree)
+        nonnegativity_constraint!(model, B[jj], system, region, lagrange_degree)
 
         if jj == initial_state_partition
-            initial_constraint!(model, Bⱼ, system, region, η, lagrange_degree)
+            initial_constraint!(model, B[jj], system, region, η, lagrange_degree)
         end
 
-        expectation_constraint!(model, Bⱼ, system, bounds, jj, A, β_parts_var, β, state_partitions, lagrange_degree)
+        expectation_constraint!(model, B[jj], system, bounds, β_parts_var[jj], state_partitions, lagrange_degree)
     end
 
     # Define optimization objective
@@ -52,7 +53,7 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
 
     # Barrier certificate
     for jj in 1:number_state_hypercubes
-        certificate = piecewise_barrier_certificate(system, A[jj, :], b[jj])
+        certificate = piecewise_barrier_certificate(B[jj])
         println(certificate)
     end
 
@@ -85,7 +86,7 @@ function nonnegativity_constraint!(model, barrier, system, region, lagrange_degr
         positive_set += lag_poly_positive * dim_set
     end
 
-    barrier_set_nonnegative = barrier - positive_set
+    barrier_set_nonnegative = polynomial(barrier) - positive_set
 
     # Non-negative in Xᵢ ⊂ ℝⁿ 
     @constraint(model, barrier_set_nonnegative >= 0)
@@ -112,11 +113,11 @@ function initial_constraint!(model, barrier, system, region, η, lagrange_degree
     end
 
     # Add constraint to model
-    _barrier_initial = -barrier + η - initial_state
+    _barrier_initial = -polynomial(barrier) + η - initial_state
     @constraint(model, _barrier_initial >= 0)
 end
 
-function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynomialSystem{T, N}, bounds, jj, A, β_parts_var, β, state_partitions, lagrange_degree) where {T, N}
+function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynomialSystem{T, N}, bounds, β, state_partitions, lagrange_degree) where {T, N}
     """ Barrier martingale condition
         * E[B(f(x,u))] <= B(x) + β
     """
@@ -149,8 +150,8 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
         upper_prob_A = read(bounds, "upper_probability_bounds_A")
         upper_prob_b = read(bounds, "upper_probability_bounds_b")
 
-        prob_Ax_lower = lower_prob_A[jj]*x
-        prob_Ax_upper = upper_prob_A[jj]*x
+        prob_Ax_lower = lower_prob_A[state]*x
+        prob_Ax_upper = upper_prob_A[state]*x
 
         #! Testing this for 1D case first - generalize later
         #! ibp returns single b-value: should be b[jj]
@@ -158,11 +159,11 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
         # upper_probability_bound = prob_Ax_upper[1] + upper_prob_b[jj]
         lower_probability_bound = prob_Ax_lower[1] + lower_prob_b
         upper_probability_bound = prob_Ax_upper[1] + upper_prob_b
-        probability_product_set = (upper_probability_bound - P[1]).*(P[1] - lower_probability_bound)
+        probability_product_set = (upper_probability_bound - P[1]) .* (P[1] - lower_probability_bound)
 
-        lower_expectation_bound = fx[1]*lower_probability_bound
-        upper_expectation_bound = fx[1]*upper_probability_bound
-        expectation_product_set = (upper_expectation_bound - E[1])*(E[1] - lower_expectation_bound)
+        lower_expectation_bound = fx[1] * lower_probability_bound
+        upper_expectation_bound = fx[1] * upper_probability_bound
+        expectation_product_set = (upper_expectation_bound - E[1]) * (E[1] - lower_expectation_bound)
 
         # expo_term 
         #! expo term is a convex/concave on given interval: compute bounds directly
@@ -190,11 +191,11 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
         end
 
         # Compute expectation
-        _e_barrier = barrier
+        _e_barrier = polynomial(barrier)
         exp_evaluated = subs(_e_barrier, x => fx)
 
         # Martingale sum
-        exp = sum(exp_evaluated*P[1]) + sum(transpose(A)*E[1])
+        exp = sum(exp_evaluated*P[1]) + sum(transpose(barrier.A)*E[1])
         #! Testing this for 1D case first - generalize later
         #! Has to be summation over each barrier times respective probability term
         #! Fix ibp bounds first to return transition probability from Xi to every Xj
@@ -202,15 +203,7 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
         #! Same issue with transition probability from Xi to Xs
 
         # Constraint for hypercube
-        martingale_condition_multivariate = -exp + barrier + β_parts_var[state] - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
+        martingale_condition_multivariate = -exp + polynomial(barrier) + β - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
         @constraint(model, martingale_condition_multivariate >= 0)
-
-        # Non-negative constraint
-        non_negative = barrier - hCubeSOS_X
-        @constraint(model, non_negative >= 0)
-
-        # Add constraint for maximum beta approach
-        @constraint(model, β_parts_var[state] <= β)
-
     end
 end

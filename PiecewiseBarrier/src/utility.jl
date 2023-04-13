@@ -9,15 +9,6 @@ vectorize(x::VariableRef) = [x]
 vectorize(x::Number) = [x]
 vectorize(x::AbstractPolynomialLike) = [x]
 
-# Compute the final barrier certificate
-piecewise_barrier_certificate(system, A, b) = barrier_construct(system, value.(A), value.(b))
-
-# Create Linear Barrier Function
-function barrier_construct(system, A, b) 
-    x = variables(system)
-    return dot(A, x) + b
-end
-
 # Generate state space from bounds
 function state_space_generation(state_partitions)
 
