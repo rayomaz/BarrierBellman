@@ -1,7 +1,7 @@
 
-struct LinearBarrier{T, M<:AbstractMonomialLike}
-    x::AbstractVector{M}
-    A::AbstractVector{T}
+struct LinearBarrier{T, VT<:AbstractVector{T}, VM<:AbstractVector{<:AbstractMonomialLike}}
+    x::VM
+    A::VT
     b::T
 end
 
