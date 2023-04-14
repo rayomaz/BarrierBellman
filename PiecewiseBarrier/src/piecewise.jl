@@ -30,6 +30,7 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
     @constraint(model, β_parts_var .<= β)
 
     B = [barrier_construct(system, A[jj, :], b[jj]) for jj in eachindex(state_partitions)]
+    barriers = B    # assert all barriers
 
     # Construct piecewise constraints
     for (jj, region) in enumerate(state_partitions)
@@ -40,7 +41,9 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
             initial_constraint!(model, B[jj], system, region, η, lagrange_degree)
         end
 
-        expectation_constraint!(model, B[jj], system, bounds, β_parts_var[jj], state_partitions, lagrange_degree)
+        current_state_partition = state_partitions[jj]
+        expectation_constraint!(model, barriers, B[jj], system, bounds, β_parts_var[jj], current_state_partition, lagrange_degree)
+
     end
 
     # Define optimization objective
@@ -117,7 +120,7 @@ function initial_constraint!(model, barrier, system, region, η, lagrange_degree
     @constraint(model, _barrier_initial >= 0)
 end
 
-function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynomialSystem{T, N}, bounds, β, state_partitions, lagrange_degree) where {T, N}
+function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussianPolynomialSystem{T, N}, bounds, β, current_state_partition, lagrange_degree) where {T, N}
     """ Barrier martingale condition
         * E[B(f(x,u))] <= B(x) + β
     """
@@ -128,22 +131,33 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
     # Martingale term expansion
     @polyvar P[1:N]
     @polyvar E[1:N]
-    
+
+    # Current state partition
+    x_k_lower = low(current_state_partition)
+    x_k_upper = high(current_state_partition)
+    product_set = (x_k_upper - x) .* (x - x_k_lower)
+
+    # Loop over state dimensions
+    hCubeSOS_X = 0  # Semi-algebraic set for current partition only
+    for (xi, dim_set) in zip(x, product_set)
+        monos = monomials(xi, 0:lagrange_degree)
+
+        # Generate Lagragian for partition bounds
+        lag_poly_X = @variable(model, variable_type=SOSPoly(monos))
+
+        # Generate SOS polynomials for bounds
+        hCubeSOS_X += lag_poly_X * dim_set
+    end
+
     # Create constraints for X (Partition)
     for state in eachindex(state_partitions)
 
-        # Current state partition
-        current_state_partition = state_partitions[state]
-
         # Semi-algebraic sets
-        hCubeSOS_X = 0
+        
         hCubeSOS_P = 0
         hCubeSOS_E = 0
 
-        x_k_lower = low(current_state_partition)
-        x_k_upper = high(current_state_partition)
-        product_set = (x_k_upper - x) .* (x - x_k_lower)
-
+        # Bounds on P
         lower_prob_A = read(bounds, "lower_probability_bounds_A")
         lower_prob_b = read(bounds, "lower_probability_bounds_b")
 
@@ -153,17 +167,19 @@ function expectation_constraint!(model, barrier, system::AdditiveGaussianPolynom
         prob_Ax_lower = lower_prob_A[state] * x
         prob_Ax_upper = upper_prob_A[state] * x
 
+
         #! Testing this for 1D case first - generalize later
         #! ibp returns single b-value: should be b[jj]
         # lower_probability_bound = prob_Ax_lower[1] + lower_prob_b[jj]
         # upper_probability_bound = prob_Ax_upper[1] + upper_prob_b[jj]
         lower_probability_bound = prob_Ax_lower[1] + lower_prob_b
         upper_probability_bound = prob_Ax_upper[1] + upper_prob_b
-        probability_product_set = (upper_probability_bound - P[1]) .* (P[1] - lower_probability_bound)
+        probability_product_set = (upper_probability_bound - P) .* (P - lower_probability_bound)
 
+        # Bounds on E
         lower_expectation_bound = fx[1] * lower_probability_bound
         upper_expectation_bound = fx[1] * upper_probability_bound
-        expectation_product_set = (upper_expectation_bound - E[1]) * (E[1] - lower_expectation_bound)
+        expectation_product_set = (upper_expectation_bound - E) * (E - lower_expectation_bound)
 
         # expo_term 
         #! expo term is a convex/concave on given interval: compute bounds directly

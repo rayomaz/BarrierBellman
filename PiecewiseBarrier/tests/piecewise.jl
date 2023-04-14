@@ -32,5 +32,5 @@ bounds = matopen(bounds_file)
 # Optimization flags
 initial_state_partition = 3
 
-# # Optimize
+# Optimize
 @time piecewise_barrier(system, bounds, state_partitions, initial_state_partition)
