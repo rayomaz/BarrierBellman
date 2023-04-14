@@ -17,7 +17,7 @@ using MAT
 # System
 @polyvar x
 fx = 0.95 * x
-σ = false
+σ = false           # comment: noise not needed in piecewise, embedded in bounds on P(x) and E(x)
 
 system = AdditiveGaussianPolynomialSystem{Float64, 1}(x, fx, σ)
 
