@@ -34,12 +34,7 @@ LOGGING_CONFIG = {
             'level': 'DEBUG',
             'propagate': False
         },
-        'abstract_barrier.monte_carlo': {  # monte_carlo logger
-            'handlers': ['default'],
-            'level': 'DEBUG',
-            'propagate': False
-        },
-        'abstract_barrier.certifier': {  # certifier logger
+        'bounds.certifier': {  # certifier logger
             'handlers': ['default'],
             'level': 'INFO',
             'propagate': False

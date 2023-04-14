@@ -42,22 +42,22 @@ class Runner:
 
     def run(self):
 
-        print(" Called on certifier ... ")
+        logger.info(" Called on certifier ... ")
         cons = self.experiment.dynamics, self.experiment.factory
         partition = self.experiment.grid_partition()
 
         lower_partition, upper_partition = partition.safe.lower, partition.safe.upper 
 
-        print('Number of hypercubes, lower bound = ', lower_partition.size())
-        print('Number of hypercubes, upper bound = ', upper_partition.size())
+        logger.debug('Number of hypercubes, lower bound = {}'.format(lower_partition.size()))
+        logger.debug('Number of hypercubes, upper bound = {}'.format(upper_partition.size()))
 
         # Create certifiers
         certifier = GaussianCertifier(*cons, partition, type=self.type, horizon=self.horizon, device=self.device)
-        print(" Certifier created ... ")
+        logger.info(" Certifier created ... ")
 
         # Compute the probability bounds of transition from each hypercube to the other 
         probability_bounds_safe = certifier.probability_bounds()
-        print(" Probability bounds obtained ...")
+        logger.info(" Probability bounds obtained ...")
 
         lower_probability_bounds = probability_bounds_safe.lower
         upper_probability_bounds = probability_bounds_safe.upper
@@ -67,16 +67,16 @@ class Runner:
 
 def main(args, config):
 
-    print(" Called runner ... ")
+    logger.info(" Called runner ... ")
     type = "normal"
     runner = Runner(args, config, type)
     lower_partition, upper_partition, lower_probability_bounds, upper_probability_bounds = runner.run()
-    print(" Regular probability bounds obtained ... ")
+    logger.info(" Regular probability bounds obtained ... ")
 
     type = "safe_set"
     runner = Runner(args, config, type)
     lower_partition_safe_set, upper_partition_safe_set, lower_probability_bounds_safe_set, upper_probability_bounds_safe_set = runner.run()
-    print(" Safe set probability bounds obtained ... ")
+    logger.info(" Safe set probability bounds obtained ... ")
 
     ''' # First element of the tuple represents the A matrix
         # Second element of the tuple represents the b vector
@@ -119,7 +119,7 @@ def main(args, config):
 
     scipy.io.savemat('linearsystem_safe_5.mat', probability_array_safe)
 
-    print("Probability data saved to .mat file ... ")
+    logger.info("Probability data saved to .mat file ... ")
 
 
 def parse_arguments():
