@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # 3. The set definitions in dynamics.py (for each system) should be updated.
 #    We should possibly just remove initial and unsafe set, as they are not relevant for this method.
 # 4. The safe-set type in the certifier is unclear. Please read comment in bounds/certifier.py for further info.
-# 5.
+# 5. Check assumption 1 in certifier. Might need to be replaced by another assumption.
 
 
 class Runner:
