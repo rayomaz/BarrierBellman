@@ -6,10 +6,6 @@ class StochasticDynamics(abc.ABC):
     def initial(self, x, eps=None):
         raise NotImplementedError()
 
-    @abc.abstractmethod
-    def sample_initial(self, num_particles):
-        raise NotImplementedError()
-
     def safe(self, x, eps=None):
         return ~self.unsafe(x, eps=eps)
 

@@ -56,6 +56,9 @@ class GaussianCertifier(nn.Module):
                 linear_bounds.append(self.batch_linear_bounds(HyperRectangle(l, u)))
 
         elif self.type == "safe_set":
+            # Please describe what is going on here. You mix indexing between lower and upper sets,
+            # and it is unclear why the torch.cat is used.
+
             _dimension = self.partition.safe.lower.size()
             _lower_bounds_state = self.partition.safe.lower[0]
             _upper_bounds_state = self.partition.safe.upper[-1]

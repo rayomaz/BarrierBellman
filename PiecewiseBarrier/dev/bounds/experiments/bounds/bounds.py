@@ -11,7 +11,7 @@ from bound_propagation.probability import BoundBellCurve
 from torch import nn
 from torch.nn import Identity
 
-from abstract_barrier.discretization import BoundButcherTableau, ButcherTableau
+from .discretization import BoundButcherTableau, ButcherTableau
 
 
 class SumAll(nn.Module):
