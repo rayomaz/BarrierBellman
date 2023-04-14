@@ -205,10 +205,10 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         # Compute expectation
         Bᵢ = barriers[ii]
         _e_barrier = polynomial(Bᵢ)
-        exp_evaluated = subs(_e_barrier, x => fx)
+        barrier_fx = subs(_e_barrier, x => fx)
     
         # Martingale
-        martingale += -Bᵢ * P[ii] - transpose(Bᵢ.A)*E[ii]
+        martingale += -barrier_fx * P[ii] - transpose(Bᵢ.A)*E[ii]
 
     end
 
