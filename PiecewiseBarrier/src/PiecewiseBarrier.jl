@@ -2,6 +2,8 @@ module PiecewiseBarrier
 
 using SumOfSquares
 using MultivariatePolynomials, DynamicPolynomials
+const MP = MultivariatePolynomials
+
 using MosekTools
 using LazySets
 using StatsBase
@@ -28,6 +30,8 @@ include("validate.jl")
 
 include("sumofsquares.jl")
 export sos_barrier
+
+include("barrier.jl")
 
 include("piecewise.jl")
 export piecewise_barrier
