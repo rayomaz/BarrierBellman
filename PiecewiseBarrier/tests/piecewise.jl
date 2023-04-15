@@ -17,7 +17,7 @@ using MAT
 # System
 @polyvar x
 fx = 0.95 * x
-σ = false
+σ = false           # comment: noise not needed in piecewise, embedded in bounds on P(x) and E(x)
 
 system = AdditiveGaussianPolynomialSystem{Float64, 1}(x, fx, σ)
 
@@ -32,5 +32,5 @@ bounds = matopen(bounds_file)
 # Optimization flags
 initial_state_partition = 3
 
-# # Optimize
+# Optimize
 @time piecewise_barrier(system, bounds, state_partitions, initial_state_partition)

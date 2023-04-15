@@ -1,8 +1,6 @@
 import logging
 
-from torch import nn
-
-from abstract_barrier.bounds import BarrierBoundModelFactory
+from bounds.bounds import BarrierBoundModelFactory
 
 from .dynamics import Linear
 from .partitioning import linear_grid_partition

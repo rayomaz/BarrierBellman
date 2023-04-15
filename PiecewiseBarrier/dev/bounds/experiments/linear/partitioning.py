@@ -1,5 +1,5 @@
 import torch
-from abstract_barrier.partitioning import Partition
+from bounds.partitioning import Partition
 
 
 def linear_grid_partition(args, config, dynamics):
@@ -10,10 +10,10 @@ def linear_grid_partition(args, config, dynamics):
 
     x1_space = torch.linspace(x_lower, x_upper, partitioning_config['num_slices'][0] + 1)
 
-    cell_width = torch.stack([(x1_space[1] - x1_space[0]) / 2]) #, (x2_space[1] - x2_space[0]) / 2])
-    x1_slice_centers = (x1_space[:-1] + x1_space[1:]) / 2
+    cell_width = (x1_space[1:] - x1_space[:-1]) / 2
+    cell_centers = (x1_space[:-1] + x1_space[1:]) / 2
 
-    cell_centers = torch.cartesian_prod(x1_slice_centers) #, x2_slice_centers)
+    cell_width, cell_centers = cell_width.unsqueeze(-1), cell_centers.unsqueeze(-1)
     lower_x, upper_x = cell_centers - cell_width, cell_centers + cell_width
 
     initial_mask = dynamics.initial(cell_centers, cell_width)
