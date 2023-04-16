@@ -24,11 +24,11 @@ function plot_barrier_2D()
     x_14 = linspace(0.2, 0.6, 100);
     x_15 = linspace(0.6, 1.0, 100);
 
-    f1 = 0.03613487559977736*ones(1, length(x_11));
-    f2 = 0.03613487560012611*ones(1, length(x_12));
-    f3 = 1.4284575015768225e-7*ones(1, length(x_13));
-    f4 = 0.036134875600239126*ones(1, length(x_14));
-    f5 = 0.036134875600037364*ones(1, length(x_15));
+    f1 = -0.6257646550079469*x_11 - 0.12888967897763098;
+    f2 = -0.28029019767977764*x_12 + 0.09871002732834824;
+    f3 = 1.8775313491588013e-12*x_13 + 4.999558666025719e-7;
+    f4 = 0.2802901976852299*x_14 + 0.09871002741731587;
+    f5 = 0.6257646550090096*x_15 - 0.12888967894350842;
 
     eta = 0.04;
 
@@ -40,12 +40,13 @@ function plot_barrier_2D()
     plot(x_14, f4, 'LineWidth', 3, 'Color', 'black')
     plot(x_15, f5, 'LineWidth', 3, 'Color', 'black')
 
-    xline(-0.2,'k--','LineWidth',2);
-    xline(+0.2,'k--','LineWidth',2);
+    xline(-0.2,'m--','LineWidth',2);
+    xline(+0.2,'m--','LineWidth',2);
     xline(-1.0,'r--','LineWidth',2);
     xline(+1.0,'r--','LineWidth',2);
     yline(eta,'m--','LineWidth',2)
-    text(-.05,0.5,'$X_0$','Interpreter','latex','FontSize',16)
+    text(-.05,0.5,'$X_0$', 'Color' , 'm', 'Interpreter','latex',...
+        'FontSize',16)
     text(+1.05,0.6,'$X_u$','Interpreter','latex', ...
             'Color', 'red', 'FontSize',16)
     text(-1.20,0.6,'$X_u$','Interpreter','latex', ...

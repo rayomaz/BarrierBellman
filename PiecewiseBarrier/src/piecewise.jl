@@ -29,8 +29,15 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
 
     @constraint(model, β_parts_var .<= β)
 
+    # Construct barriers
     B = [barrier_construct(system, A[jj, :], b[jj]) for jj in eachindex(state_partitions)]
-    barriers = B    # assert all barriers
+
+    # Extract probability bounds
+    lower_prob_A = read(bounds, "lower_probability_bounds_A")
+    lower_prob_b = read(bounds, "lower_probability_bounds_b")
+    
+    upper_prob_A = read(bounds, "upper_probability_bounds_A")
+    upper_prob_b = read(bounds, "upper_probability_bounds_b")
 
     # Construct piecewise constraints
     for (jj, region) in enumerate(state_partitions)
@@ -42,8 +49,15 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
         end
 
         current_state_partition = state_partitions[jj]
-        expectation_constraint!(model, barriers, B[jj], system, bounds, β_parts_var[jj], current_state_partition, lagrange_degree)
-        return 0,0
+
+        probability_bounds = [lower_prob_A[jj, :], 
+                              lower_prob_b[jj, :],
+                              upper_prob_A[jj, :], 
+                              upper_prob_b[jj, :]]
+
+        expectation_constraint!(model, B, B[jj], system, probability_bounds, 
+                                β_parts_var[jj], current_state_partition, lagrange_degree)
+
     end
 
     # Define optimization objective
@@ -120,17 +134,18 @@ function initial_constraint!(model, barrier, system, region, η, lagrange_degree
     @constraint(model, _barrier_initial >= 0)
 end
 
-function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussianPolynomialSystem{T, N}, bounds, β, current_state_partition, lagrange_degree) where {T, N}
+function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussianPolynomialSystem{T, N}, probability_bounds, 
+                                 βⱼ, current_state_partition, lagrange_degree) where {T, N}
     """ Barrier martingale condition
-        * E[B(f(x,u))] <= B(x) + β: expanded in summations
+        * E[B(f(x))] <= B(x) + β: expanded in summations
     """
 
     x = variables(system)
     fx = dynamics(system)
 
-    # Martingale term expansion
-    @polyvar P[1:N]
-    @polyvar E[1:N]
+    # Martingale terms
+    @polyvar P
+    @polyvar E
 
     # Current state partition
     x_k_lower = low(current_state_partition)
@@ -149,71 +164,49 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         hCubeSOS_X += lag_poly_X * dim_set
     end
 
-    # Bounds on probability
-    lower_prob_A = read(bounds, "lower_probability_bounds_A")
-    lower_prob_b = read(bounds, "lower_probability_bounds_b")
-
-    upper_prob_A = read(bounds, "upper_probability_bounds_A")
-    upper_prob_b = read(bounds, "upper_probability_bounds_b")
-
     # Construct piecewise martingale constraint
     martingale = 0
-    for ii in enumarate(barriers)
+    hCubeSOS_P = 0
+    hCubeSOS_E = 0
+    
+    for (ii, Bᵢ) in enumerate(barriers)
 
-        # Semi-algebraic sets
-        hCubeSOS_P = 0
-        hCubeSOS_E = 0
+        # Bounds on Pij
+        lower_probability_bound = polynomial(probability_bounds[1,:][1][ii]*x) + probability_bounds[2,:][1][ii]
+        upper_probability_bound = polynomial(probability_bounds[3,:][1][ii]*x) + probability_bounds[4,:][1][ii]
+        probability_product_set = (upper_probability_bound - P) .* (P - lower_probability_bound)
         
-        # Bounds on probability
-        prob_Ax_lower = lower_prob_A[ii] * x
-        prob_Ax_upper = upper_prob_A[ii] * x
-
-        """ #! Comment:
-            1. jj should be fixed here, such that it should become lower_prob_A[jj, ii]*x 
-            2. This will be fixed once the bounds issues are fixed
-        """
-
-        lower_probability_bound = prob_Ax_lower[jj, ii] + lower_prob_b[jj, ii]
-        upper_probability_bound = prob_Ax_upper[jj, ii] + upper_prob_b[jj, ii]
-        probability_product_set = (upper_probability_bound - P[ii]) .* (P[ii] - lower_probability_bound)
-        
-        # Bounds on E
+        # Bounds on Eij
         lower_expectation_bound = fx[1] * lower_probability_bound
         upper_expectation_bound = fx[1] * upper_probability_bound
-        expectation_product_set = (upper_expectation_bound - E[ii]) * (E[ii] - lower_expectation_bound)
+        expectation_product_set = (upper_expectation_bound - E) .* (E - lower_expectation_bound)
 
         """ #! Comments:
             1. expo term is a convex/concave on given interval: compute bounds directly
             2. include julia function that computes these bounds
         """
 
-        # Loop over probability/expectation dimensions
-        for xi in zip(x, probability_product_set)
-            monos = monomials(xi, 0:lagrange_degree)
+        # Generate probability Lagrangian
+        monos_P = monomials(P, 0:lagrange_degree)
+        lag_poly_P = @variable(model, variable_type=SOSPoly(monos_P))
+        hCubeSOS_P += lag_poly_P * probability_product_set
+        print(hCubeSOS_P)
 
-            # Generate Lagragian for probability bounds
-            lag_poly_P = @variable(model, variable_type=SOSPoly(monos))
+        # Generate expecation Lagrangian
+        monos_E = monomials(E, 0:lagrange_degree)
+        lag_poly_E = @variable(model, variable_type=SOSPoly(monos_E))
+        hCubeSOS_E += lag_poly_E * expectation_product_set
 
-            # Generate Lagragian for probability bound
-            lag_poly_E = @variable(model, variable_type=SOSPoly(monos))
-
-            # Generate SOS polynomials for bounds
-            hCubeSOS_P += lag_poly_P * probability_product_set
-            hCubeSOS_E += lag_poly_E * expectation_product_set
-        end
-
-        # Compute expectation
-        Bᵢ = barriers[ii]
-        _e_barrier = polynomial(Bᵢ)
-        barrier_fx = subs(_e_barrier, x => fx)
+        # Compute B(f(x))
+        barrier_fx = subs(polynomial(Bᵢ), x => fx)
     
         # Martingale
-        martingale += -barrier_fx * P[ii] - transpose(Bᵢ.A)*E[ii]
+        martingale += -barrier_fx * P - transpose(polynomial(Bᵢ.A))*E
 
     end
 
     # Constraint martingale
-    martingale_condition_multivariate = martingale + polynomial(Bⱼ) + β - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
+    martingale_condition_multivariate = martingale + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
     @constraint(model, martingale_condition_multivariate >= 0)
 
 end
