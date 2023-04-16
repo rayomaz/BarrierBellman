@@ -152,8 +152,9 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     x_k_upper = high(current_state_partition)
     product_set = (x_k_upper - x) .* (x - x_k_lower)
 
-    # Loop over state dimensions
-    hCubeSOS_X = 0  # Semi-algebraic set for current partition only
+    # Semi-algebraic set for current partition only
+    hCubeSOS_X = 0  
+
     for (xi, dim_set) in zip(x, product_set)
         monos = monomials(xi, 0:lagrange_degree)
 
@@ -177,20 +178,14 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         probability_product_set = (upper_probability_bound - P) .* (P - lower_probability_bound)
         
         # Bounds on Eij
-        lower_expectation_bound = fx[1] * lower_probability_bound
-        upper_expectation_bound = fx[1] * upper_probability_bound
+        lower_expectation_bound = polynomial(fx) * lower_probability_bound
+        upper_expectation_bound = polynomial(fx) * upper_probability_bound
         expectation_product_set = (upper_expectation_bound - E) .* (E - lower_expectation_bound)
-
-        """ #! Comments:
-            1. expo term is a convex/concave on given interval: compute bounds directly
-            2. include julia function that computes these bounds
-        """
 
         # Generate probability Lagrangian
         monos_P = monomials(P, 0:lagrange_degree)
         lag_poly_P = @variable(model, variable_type=SOSPoly(monos_P))
         hCubeSOS_P += lag_poly_P * probability_product_set
-        print(hCubeSOS_P)
 
         # Generate expecation Lagrangian
         monos_E = monomials(E, 0:lagrange_degree)
