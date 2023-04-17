@@ -105,6 +105,11 @@ def main(args):
     lower_probability_bounds_A_matrix_safe_set = lower_probability_bounds_safe_set[0]
     lower_probability_bounds_b_vector_safe_set = lower_probability_bounds_safe_set[1]
 
+    # print(lower_probability_bounds_A_matrix.size())
+    # print(lower_probability_bounds_A_matrix_safe_set)
+    # exit()
+
+
     upper_probability_bounds_A_matrix = upper_probability_bounds[0]
     upper_probability_bounds_b_vector = upper_probability_bounds[1]
 
@@ -118,13 +123,13 @@ def main(args):
                          'lower_probability_bounds_A': lower_probability_bounds_A_matrix.numpy(), 'upper_probability_bounds_A': upper_probability_bounds_A_matrix.numpy(),
                          'lower_probability_bounds_b': lower_probability_bounds_b_vector.numpy(), 'upper_probability_bounds_b': upper_probability_bounds_b_vector.numpy()}
 
-    scipy.io.savemat('linearsystem_5.mat', probability_array)
+    scipy.io.savemat('../../../tests/partitions/test/linearsystem_5.mat', probability_array)
 
     probability_array_safe = {'state_space': state_space, 'lower_partition': lower_partition_safe_set, 'upper_partition': upper_partition_safe_set,
                          'lower_probability_bounds_A': lower_probability_bounds_A_matrix_safe_set.numpy(), 'upper_probability_bounds_A': upper_probability_bounds_A_matrix_safe_set.numpy(),
                          'lower_probability_bounds_b': lower_probability_bounds_b_vector_safe_set.numpy(), 'upper_probability_bounds_b': upper_probability_bounds_b_vector_safe_set.numpy()}
 
-    scipy.io.savemat('linearsystem_safe_5.mat', probability_array_safe)
+    scipy.io.savemat('../../../tests/partitions/test/linearsystem_safe_5.mat', probability_array_safe)
 
     logger.info("Probability data saved to .mat file ... ")
 
