@@ -65,7 +65,10 @@ class Runner:
         return lower_partition, upper_partition, lower_probability_bounds, upper_probability_bounds
 
 
-def main(args, config):
+def main(args):
+
+    torch.set_default_dtype(torch.float64)
+    config = load_config(args.config_path)
 
     logger.info(" Called runner ... ")
     type = "normal"
@@ -124,7 +127,7 @@ def main(args, config):
 
 def parse_arguments():
     parser = ArgumentParser()
-    parser.add_argument('--device', choices=list(map(torch.device, ['cuda', 'cpu'])), type=torch.device, default='cuda', help='Select device for tensor operations.')
+    parser.add_argument('--device', choices=list(map(torch.device, ['cuda', 'cpu'])), type=torch.device, default='cpu', help='Select device for tensor operations.')
     parser.add_argument('--config-path', type=str, help='Path to configuration of experiment.')
     parser.add_argument('--log-file', type=str, help='Path to log file.')
     parser.add_argument('--space', type=str, choices=['equivalent_space', 'modified_space'], default='equivalent_space')
@@ -139,10 +142,7 @@ if __name__ == '__main__':
     args = parse_arguments()
     configure_logging(args.log_file)
 
-    # Define configuration path
-    config = load_config(args.config_path)
-
     # Set default torch float64
     torch.set_default_dtype(torch.float64)
 
-    main(args, config)
+    main(args)
