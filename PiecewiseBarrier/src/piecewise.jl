@@ -50,10 +50,10 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
 
         current_state_partition = state_partitions[jj]
 
-        probability_bounds = [lower_prob_A[jj, :], 
-                              lower_prob_b[jj, :],
-                              upper_prob_A[jj, :], 
-                              upper_prob_b[jj, :]]
+        probability_bounds = [lower_prob_A[:, jj, 1, :], 
+                              lower_prob_b[:, jj, 1],
+                              upper_prob_A[:, jj, 1, :], 
+                              upper_prob_b[:, jj, 1]]
 
         expectation_constraint!(model, B, B[jj], system, probability_bounds, 
                                 β_parts_var[jj], current_state_partition, lagrange_degree)
@@ -169,7 +169,7 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     martingale = 0
     hCubeSOS_P = 0
     hCubeSOS_E = 0
-    
+
     for (ii, Bᵢ) in enumerate(barriers)
 
         # Bounds on Pij
