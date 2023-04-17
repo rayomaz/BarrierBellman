@@ -144,8 +144,8 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     fx = dynamics(system)
 
     # Martingale terms
-    @polyvar P
-    @polyvar E
+    @polyvar P[1:N]
+    @polyvar E[1:N]
 
     # Current state partition
     x_k_lower = low(current_state_partition)
