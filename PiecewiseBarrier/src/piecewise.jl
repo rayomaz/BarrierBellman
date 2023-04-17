@@ -170,6 +170,9 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     hCubeSOS_P = 0
     hCubeSOS_E = 0
 
+    monos_P = monomials(P, 0:lagrange_degree)
+    monos_E = monomials(E, 0:lagrange_degree)
+
     for (ii, Bᵢ) in enumerate(barriers)
 
         # Bounds on Pij
@@ -183,12 +186,11 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         expectation_product_set = (upper_expectation_bound - E) .* (E - lower_expectation_bound)
 
         # Generate probability Lagrangian
-        monos_P = monomials(P, 0:lagrange_degree)
+
         lag_poly_P = @variable(model, variable_type=SOSPoly(monos_P))
         hCubeSOS_P += lag_poly_P * probability_product_set
 
         # Generate expecation Lagrangian
-        monos_E = monomials(E, 0:lagrange_degree)
         lag_poly_E = @variable(model, variable_type=SOSPoly(monos_E))
         hCubeSOS_E += lag_poly_E * expectation_product_set
 
