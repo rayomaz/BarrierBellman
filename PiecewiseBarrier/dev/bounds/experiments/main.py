@@ -2,6 +2,7 @@ import logging
 from argparse import ArgumentParser
 
 import torch
+import os
 
 import numpy as np
 import scipy.io
@@ -68,8 +69,11 @@ class Runner:
 def main(args):
 
     torch.set_default_dtype(torch.float64)
-    config = load_config(args.config_path)
 
+    script_dir = os.path.dirname(__file__)
+    file_path = os.path.join(script_dir, 'linear.json')
+
+    config = load_config(file_path)
     logger.info(" Called runner ... ")
     type = "normal"
     runner = Runner(args, config, type)
