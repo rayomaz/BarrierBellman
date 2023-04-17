@@ -57,7 +57,7 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
 
         expectation_constraint!(model, B, B[jj], system, probability_bounds, 
                                 β_parts_var[jj], current_state_partition, lagrange_degree)
-
+        return 0,0
     end
 
     # Define optimization objective
@@ -144,8 +144,8 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     fx = dynamics(system)
 
     # Martingale terms
-    @polyvar P[1:N]
-    @polyvar E[1:N]
+    @polyvar P[1:length(barriers)]
+    @polyvar E[1:N, 1:length(barriers)]
 
     # Current state partition
     x_k_lower = low(current_state_partition)
@@ -170,35 +170,33 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     hCubeSOS_P = 0
     hCubeSOS_E = 0
 
-    monos_P = monomials(P, 0:lagrange_degree)
-    monos_E = monomials(E, 0:lagrange_degree)
-
     for (ii, Bᵢ) in enumerate(barriers)
 
         # Bounds on Pij
         lower_probability_bound = polynomial(probability_bounds[1][ii]*x) + probability_bounds[2][ii]
         upper_probability_bound = polynomial(probability_bounds[3][ii]*x) + probability_bounds[4][ii]
-        probability_product_set = (upper_probability_bound - P) .* (P - lower_probability_bound)
+        probability_product_set = (upper_probability_bound - P[ii]) .* (P[ii] - lower_probability_bound)
         
         # Bounds on Eij
         lower_expectation_bound = polynomial(fx) * lower_probability_bound
         upper_expectation_bound = polynomial(fx) * upper_probability_bound
-        expectation_product_set = (upper_expectation_bound - E) .* (E - lower_expectation_bound)
+        expectation_product_set = (upper_expectation_bound - E[:,ii]) .* (E[:,ii] - lower_expectation_bound)
 
         # Generate probability Lagrangian
-
+        monos_P = monomials(P[ii], 0:lagrange_degree)
         lag_poly_P = @variable(model, variable_type=SOSPoly(monos_P))
         hCubeSOS_P += lag_poly_P * probability_product_set
 
         # Generate expecation Lagrangian
+        monos_E = monomials(E[:, ii], 0:lagrange_degree)
         lag_poly_E = @variable(model, variable_type=SOSPoly(monos_E))
-        hCubeSOS_E += lag_poly_E * expectation_product_set
+        hCubeSOS_E += lag_poly_E * polynomial(expectation_product_set)
 
         # Compute B(f(x))
         barrier_fx = subs(polynomial(Bᵢ), x => fx)
     
         # Martingale
-        martingale += -barrier_fx * P - transpose(polynomial(Bᵢ.A))*E
+        martingale += -barrier_fx * P[ii] - transpose(polynomial(Bᵢ.A))*polynomial(E[:,ii])
 
     end
 
