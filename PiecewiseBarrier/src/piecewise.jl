@@ -178,8 +178,8 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         probability_product_set = (upper_probability_bound - P[ii]) .* (P[ii] - lower_probability_bound)
         
         # Bounds on Eij
-        lower_expectation_bound = polynomial(fx) * lower_probability_bound
-        upper_expectation_bound = polynomial(fx) * upper_probability_bound
+        lower_expectation_bound = fx .* lower_probability_bound
+        upper_expectation_bound = fx .* upper_probability_bound
         expectation_product_set = (upper_expectation_bound - E[:,ii]) .* (E[:,ii] - lower_expectation_bound)
 
         # Generate probability Lagrangian
