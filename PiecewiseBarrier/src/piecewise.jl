@@ -50,6 +50,15 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
 
         current_state_partition = state_partitions[jj]
 
+        """ Probability bounds
+            - Bounds are loaded from .mat file
+            - Structure of type:
+                A = [i, j, p, x]
+                b = [i, j, p]
+            - i: each index of all state partitions
+            - j: current state partition
+            - Both lower and upper bounds on A and b are included
+        """
         probability_bounds = [lower_prob_A[:, jj, 1, :], 
                               lower_prob_b[:, jj, 1],
                               upper_prob_A[:, jj, 1, :], 
