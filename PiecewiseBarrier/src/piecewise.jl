@@ -179,11 +179,15 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     hCubeSOS_P = 0
     hCubeSOS_E = 0
 
+    (lower_probability_A, lower_probability_b, upper_probability_A, upper_probability_b) = probability_bounds
+
+
     for (ii, Bᵢ) in enumerate(barriers)
 
         # Bounds on Pij
-        lower_probability_bound = polynomial(probability_bounds[1][ii]*x) + probability_bounds[2][ii]
-        upper_probability_bound = polynomial(probability_bounds[3][ii]*x) + probability_bounds[4][ii]
+
+        lower_probability_bound = dot(lower_probability_A[ii], x) + lower_probability_b[ii]
+        upper_probability_bound = dot(upper_probability_A[ii], x) + lupper_probability_b[ii]
         probability_product_set = (upper_probability_bound - P[ii]) .* (P[ii] - lower_probability_bound)
         
         # Bounds on Eij
