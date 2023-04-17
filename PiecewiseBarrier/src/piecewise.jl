@@ -57,7 +57,7 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
 
         expectation_constraint!(model, B, B[jj], system, probability_bounds, 
                                 β_parts_var[jj], current_state_partition, lagrange_degree)
-        return 0,0
+
     end
 
     # Define optimization objective
@@ -196,8 +196,8 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         barrier_fx = subs(polynomial(Bᵢ), x => fx)
     
         # Martingale
-        martingale += -barrier_fx * P[ii] - transpose(polynomial(Bᵢ.A))*polynomial(E[:,ii])
-
+        martingale += -barrier_fx * P[ii] - dot(Bᵢ.A, E[:,ii])
+        
     end
 
     # Constraint martingale
