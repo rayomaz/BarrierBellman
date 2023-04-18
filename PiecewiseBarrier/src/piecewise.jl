@@ -219,9 +219,9 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         # Add Pᵤ to martingale condition
     """
     monos_Pᵤ = monomials(P, 0:lagrange_degree)
-    lag_poly_X_Pᵤ = @variable(model, variable_type=Poly(monos_Pᵤ))
+    lag_poly_Pᵤ = @variable(model, variable_type=Poly(monos_Pᵤ))
     unsafety_constraint = dot(lag_poly_X_Pᵤ, sum(P))
-    @constraint(model, lag_poly_X_Pᵤ == 1)
+    @constraint(model, lag_poly_Pᵤ == 1)
     @constraint(model, unsafety_constraint == 1)
     Pᵤ = P[end]
 
