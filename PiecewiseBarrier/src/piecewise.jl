@@ -64,7 +64,7 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
                               upper_prob_A[:, jj, 1, :], 
                               upper_prob_b[:, jj, 1]]
 
-        expectation_constraint!(model, B, B[jj], system, probability_bounds, 
+        expectation_constraint!(model, B, B[jj], system, probability_bounds,
                                 β_parts_var[jj], current_state_partition, lagrange_degree)
 
     end
@@ -153,7 +153,7 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     fx = dynamics(system)
 
     # Martingale terms
-    @polyvar P[1:length(barriers)]
+    @polyvar P[1:(length(barriers) + 1)]        # + 1 P to constraint Pᵤ
     @polyvar E[1:N, 1:length(barriers)]
 
     # Current state partition
@@ -167,7 +167,7 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     for (xi, dim_set) in zip(x, product_set)
         monos = monomials(xi, 0:lagrange_degree)
 
-        # Generate Lagragian for partition bounds
+        # Generate SOS Lagragian for partition bounds
         lag_poly_X = @variable(model, variable_type=SOSPoly(monos))
 
         # Generate SOS polynomials for bounds
@@ -181,15 +181,13 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
 
     (lower_probability_A, lower_probability_b, upper_probability_A, upper_probability_b) = probability_bounds
 
-
     for (ii, Bᵢ) in enumerate(barriers)
 
         # Bounds on Pij
-
         lower_probability_bound = dot(lower_probability_A[ii], x) + lower_probability_b[ii]
         upper_probability_bound = dot(upper_probability_A[ii], x) + upper_probability_b[ii]
         probability_product_set = (upper_probability_bound - P[ii]) .* (P[ii] - lower_probability_bound)
-        
+
         # Bounds on Eij
         lower_expectation_bound = fx .* lower_probability_bound
         upper_expectation_bound = fx .* upper_probability_bound
@@ -213,8 +211,19 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         
     end
 
+    # Pᵤ constraint [probability of unsafety]
+    """ Process:
+        # Generate Polynomial Lagragian for  bound
+    """
+    monos_Pᵤ = monomials(P, 0:lagrange_degree)
+    lag_poly_X_Pᵤ = @variable(model, variable_type=Poly(monos_Pᵤ))
+    unsafety_constraint = dot(lag_poly_X_Pᵤ, sum(P))
+    @constraint(model, lag_poly_X_Pᵤ == 1)
+    @constraint(model, unsafety_constraint == 1)
+    Pᵤ = P[end]
+
     # Constraint martingale
-    martingale_condition_multivariate = martingale + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
+    martingale_condition_multivariate = martingale + Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
     @constraint(model, martingale_condition_multivariate >= 0)
 
 end
