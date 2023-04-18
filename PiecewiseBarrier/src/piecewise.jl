@@ -213,7 +213,10 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
 
     # Pᵤ constraint [probability of unsafety]
     """ Process:
-        # Generate Polynomial Lagragian for  bound
+        # Generate Polynomial Lagragian for bounds on Pᵤ
+        # Constraint Polynomial to equal 1
+        # Constraint dot product between polynomial and Lagrangian to equal 1
+        # Add Pᵤ to martingale condition
     """
     monos_Pᵤ = monomials(P, 0:lagrange_degree)
     lag_poly_X_Pᵤ = @variable(model, variable_type=Poly(monos_Pᵤ))
