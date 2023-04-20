@@ -189,10 +189,21 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         probability_product_set = (upper_probability_bound - P[ii]) .* (P[ii] - lower_probability_bound)
 
         # Bounds on Eij
-        lower_expectation_bound = fx .* lower_probability_bound
-        upper_expectation_bound = fx .* upper_probability_bound
-        expectation_product_set = (upper_expectation_bound - E[:,ii]) .* (E[:,ii] - lower_expectation_bound)
+        exponential_terms = exponential_bounds(system, current_state_partition)
 
+        e_min = exponential_terms[1]
+        e_max = exponential_terms[2]
+
+        constant = 1/(2^(N - 1) * sqrt(2 * π))
+
+        #! note term is 1 for the 1D case
+        #! for N > 1, this term becomes the bounds on the modified product of erf functions
+        term = 1
+
+        lower_expectation_bound = [constant*dot(e_min, term)] + fx .* lower_probability_bound
+        upper_expectation_bound = [constant*dot(e_max, term)] + fx .* upper_probability_bound
+        expectation_product_set = (upper_expectation_bound - E[:,ii]) .* (E[:,ii] - lower_expectation_bound)
+        
         # Generate probability Lagrangian
         monos_P = monomials(P[ii], 0:lagrange_degree)
         lag_poly_P = @variable(model, variable_type=SOSPoly(monos_P))
@@ -220,7 +231,7 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     """
     monos_Pᵤ = monomials(P, 0:lagrange_degree)
     lag_poly_Pᵤ = @variable(model, variable_type=Poly(monos_Pᵤ))
-    unsafety_constraint = dot(lag_poly_X_Pᵤ, sum(P))
+    unsafety_constraint = dot(lag_poly_Pᵤ, sum(P))
     @constraint(model, lag_poly_Pᵤ == 1)
     @constraint(model, unsafety_constraint == 1)
     Pᵤ = P[end]
