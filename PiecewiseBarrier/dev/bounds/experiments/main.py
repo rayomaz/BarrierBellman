@@ -52,18 +52,59 @@ class Runner:
         logger.debug('Number of hypercubes, lower bound = {}'.format(lower_partition.size()))
         logger.debug('Number of hypercubes, upper bound = {}'.format(upper_partition.size()))
 
-        # Create certifiers
-        certifier = GaussianCertifier(*cons, partition, type=self.type, horizon=self.horizon, device=self.device)
-        logger.info(" Certifier created ... ")
+        if self.type == "normal":
+            
+            # Create certifiers
+            certifier = GaussianCertifier(*cons, partition, type=self.type, horizon=self.horizon, device=self.device)
+            logger.info(" Certifier created ... ")
 
-        # Compute the probability bounds of transition from each hypercube to the other 
-        probability_bounds_safe = certifier.probability_bounds()
-        logger.info(" Probability bounds obtained ...")
+            # Compute the probability bounds of transition from each hypercube to the other 
+            probability_bounds_safe = certifier.probability_bounds()
+            logger.info(" Probability bounds obtained ...")
 
-        lower_probability_bounds = probability_bounds_safe.lower
-        upper_probability_bounds = probability_bounds_safe.upper
+            lower_probability_bounds = probability_bounds_safe.lower
+            upper_probability_bounds = probability_bounds_safe.upper
 
-        return lower_partition, upper_partition, lower_probability_bounds, upper_probability_bounds
+            return lower_partition, upper_partition, lower_probability_bounds, upper_probability_bounds
+
+        elif self.type == "safe_set":
+
+            _dimension = lower_partition.size()
+
+            # Compute the probability bounds of transition from each hypercube to the safe set
+
+            lower_safe_set_prob_A_matrix = []
+            lower_safe_set_prob_b_vector = []
+            upper_safe_set_prob_A_matrix = []
+            upper_safe_set_prob_b_vector = []
+
+            for idx in range(_dimension[0]):
+
+                self.config['index'] = idx
+       
+                partition = self.experiment.safe_grid_partition()
+
+                # Create certifiers
+                certifier = GaussianCertifier(*cons, partition, type=self.type, horizon=self.horizon, device=self.device)
+                logger.info(" Certifier created ... ")
+
+                # Compute the probability bounds
+                probability_bounds_safe = certifier.probability_bounds()
+                logger.info(" Probability bounds obtained ...")
+
+                lower_probability_bounds = probability_bounds_safe.lower
+                upper_probability_bounds = probability_bounds_safe.upper
+
+                # Only need P(Xj -> Xs) not P(Xs -> Xj)
+                lower_safe_set_prob_A_matrix.append(lower_probability_bounds[0][0])
+                lower_safe_set_prob_b_vector.append(lower_probability_bounds[0][1])
+                upper_safe_set_prob_A_matrix.append(upper_probability_bounds[0][0])
+                upper_safe_set_prob_b_vector.append(upper_probability_bounds[0][1])
+
+            return torch.cat(lower_safe_set_prob_A_matrix), \
+                   torch.cat(lower_safe_set_prob_b_vector), \
+                   torch.cat(upper_safe_set_prob_A_matrix), \
+                   torch.cat(upper_safe_set_prob_b_vector)
 
 
 def main(args):
@@ -82,7 +123,8 @@ def main(args):
 
     type = "safe_set"
     runner = Runner(args, config, type)
-    lower_partition_safe_set, upper_partition_safe_set, lower_probability_bounds_safe_set, upper_probability_bounds_safe_set = runner.run()
+    lower_safe_set_prob_A_matrix, lower_safe_set_prob_b_vector, \
+          upper_safe_set_prob_A_matrix, upper_safe_set_prob_b_vector  = runner.run()
     logger.info(" Safe set probability bounds obtained ... ")
 
     ''' # First element of the tuple represents the A matrix
@@ -93,8 +135,11 @@ def main(args):
     lower_partition = lower_partition.numpy()
     upper_partition = upper_partition.numpy()
 
-    lower_partition_safe_set = lower_partition_safe_set.numpy()
-    upper_partition_safe_set = upper_partition_safe_set.numpy()
+    # Convert safe set transitions to numpy arrays
+    lower_safe_set_prob_A_matrix = lower_safe_set_prob_A_matrix.numpy()
+    lower_safe_set_prob_b_vector = lower_safe_set_prob_b_vector.numpy()
+    upper_safe_set_prob_A_matrix = upper_safe_set_prob_A_matrix.numpy()
+    upper_safe_set_prob_b_vector = upper_safe_set_prob_b_vector.numpy()
 
     # Separate data in A matrix and b vector (lower and upper)
     # A has shape [i, j, p, x]   (transition from j to i)
@@ -102,34 +147,19 @@ def main(args):
     lower_probability_bounds_A_matrix = lower_probability_bounds[0]
     lower_probability_bounds_b_vector = lower_probability_bounds[1]
 
-    lower_probability_bounds_A_matrix_safe_set = lower_probability_bounds_safe_set[0]
-    lower_probability_bounds_b_vector_safe_set = lower_probability_bounds_safe_set[1]
-
-    # print(lower_probability_bounds_A_matrix.size())
-    # print(lower_probability_bounds_A_matrix_safe_set)
-    # exit()
-
-
     upper_probability_bounds_A_matrix = upper_probability_bounds[0]
     upper_probability_bounds_b_vector = upper_probability_bounds[1]
-
-    upper_probability_bounds_A_matrix_safe_set = upper_probability_bounds_safe_set[0]
-    upper_probability_bounds_b_vector_safe_set = upper_probability_bounds_safe_set[1]
 
     state_space = np.array(config['partitioning']['state_space'])
 
     # Create array dictionary with needed data
     probability_array = {'state_space': state_space, 'lower_partition': lower_partition, 'upper_partition': upper_partition,
                          'lower_probability_bounds_A': lower_probability_bounds_A_matrix.numpy(), 'upper_probability_bounds_A': upper_probability_bounds_A_matrix.numpy(),
-                         'lower_probability_bounds_b': lower_probability_bounds_b_vector.numpy(), 'upper_probability_bounds_b': upper_probability_bounds_b_vector.numpy()}
+                         'lower_probability_bounds_b': lower_probability_bounds_b_vector.numpy(), 'upper_probability_bounds_b': upper_probability_bounds_b_vector.numpy(),
+                         'lower_safe_set_prob_A_matrix': lower_safe_set_prob_A_matrix, 'lower_safe_set_prob_b_vector': lower_safe_set_prob_b_vector,
+                         'upper_safe_set_prob_A_matrix': upper_safe_set_prob_A_matrix, 'upper_safe_set_prob_b_vector': upper_safe_set_prob_b_vector}
 
     scipy.io.savemat('../../../tests/partitions/test/linearsystem_5.mat', probability_array)
-
-    probability_array_safe = {'state_space': state_space, 'lower_partition': lower_partition_safe_set, 'upper_partition': upper_partition_safe_set,
-                         'lower_probability_bounds_A': lower_probability_bounds_A_matrix_safe_set.numpy(), 'upper_probability_bounds_A': upper_probability_bounds_A_matrix_safe_set.numpy(),
-                         'lower_probability_bounds_b': lower_probability_bounds_b_vector_safe_set.numpy(), 'upper_probability_bounds_b': upper_probability_bounds_b_vector_safe_set.numpy()}
-
-    scipy.io.savemat('../../../tests/partitions/test/linearsystem_safe_5.mat', probability_array_safe)
 
     logger.info("Probability data saved to .mat file ... ")
 

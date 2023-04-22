@@ -51,24 +51,8 @@ class GaussianCertifier(nn.Module):
         lower, upper = in_set.lower.split(in_batch_size), in_set.upper.split(in_batch_size)
 
         linear_bounds = []
-        if self.type == "normal":
-            for l, u in tqdm(list(zip(lower, upper)), desc='In'):
-                linear_bounds.append(self.batch_linear_bounds(HyperRectangle(l, u)))
-
-        elif self.type == "safe_set":
-            # Please describe what is going on here. You mix indexing between lower and upper sets,
-            # and it is unclear why the torch.cat is used.
-
-            _dimension = self.partition.safe.lower.size()
-            _lower_bounds_state = self.partition.safe.lower[0]
-            _upper_bounds_state = self.partition.safe.upper[-1]
-            for idx in range(_dimension[0]):
-                for l, u in tqdm(list(zip(lower, upper)), desc='In'):
-                    lower_bound_current = l[idx]
-                    upper_bound_current = u[idx]
-                    l = torch.cat((lower_bound_current.unsqueeze(0), _lower_bounds_state.unsqueeze(0)), dim=0)
-                    u = torch.cat((upper_bound_current.unsqueeze(0), _upper_bounds_state.unsqueeze(0)), dim=0)
-                    linear_bounds.append(self.batch_linear_bounds(HyperRectangle(l, u)))
+        for l, u in tqdm(list(zip(lower, upper)), desc='In'):
+            linear_bounds.append(self.batch_linear_bounds(HyperRectangle(l, u)))
 
         return LinearBounds(
             in_set.cpu(),
