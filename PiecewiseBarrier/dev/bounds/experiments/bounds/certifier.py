@@ -40,10 +40,6 @@ class GaussianCertifier(nn.Module):
     def probability_bounds(self):
         return self.linear_bounds()
 
-    @torch.no_grad()
-    def modifified_erf_bound(self):
-        return self.linear_bounds()
-
     def linear_bounds(self):
         in_batch_size = 1000
         in_set = self.partition.safe

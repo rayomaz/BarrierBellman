@@ -15,16 +15,10 @@ from utils import load_config
 
 logger = logging.getLogger(__name__)
 
-
 # Things to note:
-# 1. if __name__ == "__main__": should be significantly smaller (local vs global scope). I already moved more into main
-#    but that also means main should probably be split into smaller subprocedures/functions.
-# 2. The partition structure should be [i, x], not [x, i].
-# 3. The set definitions in dynamics.py (for each system) should be updated.
-#    We should possibly just remove initial and unsafe set, as they are not relevant for this method.
-# 4. The safe-set type in the certifier is unclear. Please read comment in bounds/certifier.py for further info.
-# 5. Check assumption 1 in certifier. Might need to be replaced by another assumption.
-
+# 1. The set definitions in dynamics.py (for each system) should be updated.
+# 2. The safe-set type in the certifier is unclear. Please read comment in bounds/certifier.py for further info.
+#    Assumption 1 in certifier. Might need to be replaced by another assumption.
 
 class Runner:
     def __init__(self, args, config, type):
@@ -69,6 +63,15 @@ class Runner:
 
         elif self.type == "safe_set":
 
+            """ Describing process here:
+                - The idx defines index for the jth partition
+                - The goal is to compute P(Xj -> Xs)
+                - The approach taken is to con
+
+
+                - This approach leaves the bounds folder unchanged, and only changes the methods in the linear folder
+            """
+
             _dimension = lower_partition.size()
 
             # Compute the probability bounds of transition from each hypercube to the safe set
@@ -82,7 +85,7 @@ class Runner:
 
                 self.config['index'] = idx
        
-                partition = self.experiment.grid_partition()
+                partition = self.experiment.safe_grid_partition()
 
                 # Create certifiers
                 certifier = GaussianCertifier(*cons, partition, type=self.type, horizon=self.horizon, device=self.device)
