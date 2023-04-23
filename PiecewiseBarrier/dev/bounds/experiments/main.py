@@ -82,7 +82,7 @@ class Runner:
 
                 self.config['index'] = idx
        
-                partition = self.experiment.safe_grid_partition()
+                partition = self.experiment.grid_partition()
 
                 # Create certifiers
                 certifier = GaussianCertifier(*cons, partition, type=self.type, horizon=self.horizon, device=self.device)

@@ -3,7 +3,7 @@ import logging
 from bounds.bounds import BarrierBoundModelFactory
 
 from .dynamics import Linear
-from .partitioning import linear_grid_partition, safe_linear_grid_partition
+from .partitioning import linear_grid_partition
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,3 @@ class LinearExperiment:
 
     def grid_partition(self):
         return linear_grid_partition(self.args, self.config, self.dynamics)
-    
-    def safe_grid_partition(self):
-        return safe_linear_grid_partition(self.args, self.config, self.dynamics)
