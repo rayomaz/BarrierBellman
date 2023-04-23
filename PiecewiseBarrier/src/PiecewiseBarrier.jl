@@ -26,6 +26,9 @@ export variables, dynamics, noise_distribution
 
 include("expectation.jl")
 
+include("exponential.jl")
+export exponential_bounds
+
 include("validate.jl")
 
 include("sumofsquares.jl")
