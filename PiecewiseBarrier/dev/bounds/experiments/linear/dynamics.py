@@ -17,31 +17,10 @@ class Linear(ElementWiseLinear, AdditiveGaussianDynamics):
 
         self.sigma = dynamics_config['sigma']
 
-    def near_far(self, x, eps):
-        if eps is not None:
-            lower_x, upper_x = x - eps, x + eps
-
-            near = torch.min(lower_x.abs(), upper_x.abs())
-            far = torch.max(lower_x.abs(), upper_x.abs())
-        else:
-            near, far, center = x, x, x
-
-        return near, far
-
-    def initial(self, x, eps=None):
-        near, far = self.near_far(x, eps)
-
-        return near.norm(dim=-1) <= 0.2
-
     def safe(self, x, eps=None):
         near, far = self.near_far(x, eps)
 
         return far.norm(dim=-1) <= 1.0
-
-    def unsafe(self, x, eps=None):
-        near, far = self.near_far(x, eps)
-
-        return far.norm(dim=-1) > 1.0
 
     def state_space(self, x, eps=None):
         if eps is not None:
