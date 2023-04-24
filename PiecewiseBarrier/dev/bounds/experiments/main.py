@@ -167,8 +167,10 @@ def main(args):
                          'lower_probability_bounds_b': lower_probability_bounds_b_vector.numpy(), 'upper_probability_bounds_b': upper_probability_bounds_b_vector.numpy(),
                          'lower_safe_set_prob_A_matrix': lower_safe_set_prob_A_matrix, 'lower_safe_set_prob_b_vector': lower_safe_set_prob_b_vector,
                          'upper_safe_set_prob_A_matrix': upper_safe_set_prob_A_matrix, 'upper_safe_set_prob_b_vector': upper_safe_set_prob_b_vector}
+    
+    number_hypercubes = config["partitioning"]['num_slices'][0]
 
-    scipy.io.savemat('../../../tests/partitions/test/linearsystem_5.mat', probability_array)
+    scipy.io.savemat('../../../tests/partitions/test/linearsystem_' + str(number_hypercubes) + '.mat', probability_array)
 
     logger.info("Probability data saved to .mat file ... ")
 
