@@ -3,6 +3,7 @@
 clc; clear; close;
 
 load("linearsystem_5.mat")
+% add PiecewiseBarrier/tests/partitions/test/ folder to path 
 
 % Probability distribution on hyperspace
 figure
@@ -12,7 +13,7 @@ grid on
 % Notice: this example is for transition from Xj to Xi
 % where i = j = 1
 
-for jj = 1:1%length(upper_partition)
+for jj = 1:length(upper_partition)
     
     colors = {'b', 'k', 'm', 'r', 'c'};
     for ii = 1:1%length(upper_partition)
@@ -29,16 +30,21 @@ for jj = 1:1%length(upper_partition)
         prob_bound_lower = A_low * x_space + b_low;
         prob_bound_upper = A_up * x_space + b_up;
 
+        % True erf
         prob_true = zeros(1, length(x_space));
         sigma = 0.1;
-        for pp = 1:length(x_space) 
-            mu = 0.95*x_space(pp);
-            prob_true(1, pp) = 1 - normcdf(x_space(pp), mu ,sigma);
+        epsilon = 1e-6;
+        m = 1;      % sys dim
+        const = 1/(2^m);
+        vl = lower_partition(ii);
+        vu = upper_partition(ii);
+        for pp = 1:length(x_space)
+            y = 0.95*x_space(pp);
+            erf_low = (y - vl)/(sigma*sqrt(2));
+            erf_up = (y - vu)/(sigma*sqrt(2));
+            prob_true(pp) = const*(erf(erf_low) - erf(erf_up));
         end
 
-%         plot(x_space, prob_bound_lower, "LineWidth", 2, 'color', colors{ii})
-%         plot(x_space, prob_bound_upper, "LineWidth", 2, 'Color', colors{ii})
-        
         plot(x_space, prob_bound_lower, "LineWidth", 3, 'color', "k")
         plot(x_space, prob_bound_upper, "LineWidth", 3, 'Color', "b")
 
