@@ -100,15 +100,14 @@ class Runner:
 
                 # Only need P(Xj -> Xs) not P(Xs -> Xj)
                 lower_safe_set_prob_A_matrix.append(lower_probability_bounds[0][0])
-                lower_safe_set_prob_b_vector.append(lower_probability_bounds[0][1])
+                lower_safe_set_prob_b_vector.append(lower_probability_bounds[1][1])
                 upper_safe_set_prob_A_matrix.append(upper_probability_bounds[0][0])
-                upper_safe_set_prob_b_vector.append(upper_probability_bounds[0][1])
-
+                upper_safe_set_prob_b_vector.append(upper_probability_bounds[1][1])
+                
             return torch.cat(lower_safe_set_prob_A_matrix), \
                    torch.cat(lower_safe_set_prob_b_vector), \
                    torch.cat(upper_safe_set_prob_A_matrix), \
                    torch.cat(upper_safe_set_prob_b_vector)
-
 
 def main(args):
 
