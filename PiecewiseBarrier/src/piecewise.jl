@@ -64,6 +64,9 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
                               upper_prob_A[:, jj, 1, :], 
                               upper_prob_b[:, jj, 1]]
 
+        #! safe_prob_bounds = define here
+        #! input into expectation constraint                      
+
         expectation_constraint!(model, B, B[jj], system, probability_bounds,
                                 β_parts_var[jj], current_state_partition, lagrange_degree)
 
@@ -181,6 +184,10 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
 
     (lower_probability_A, lower_probability_b, upper_probability_A, upper_probability_b) = probability_bounds
 
+    #! safe_prob_bounds = define here as tuple
+    #! Bounds on Pj - Ps (using martingale)
+    # Pᵤ = P[end]
+
     for (ii, Bᵢ) in enumerate(barriers)
 
         # Bounds on Pij
@@ -222,22 +229,22 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         
     end
 
-    # Pᵤ constraint [probability of unsafety]
-    """ Process:
-        # Generate Polynomial Lagragian for bounds on Pᵤ
-        # Constraint Polynomial to equal 1
-        # Constraint dot product between polynomial and Lagrangian to equal 1
-        # Add Pᵤ to martingale condition
-    """
-    monos_Pᵤ = monomials(P, 0:lagrange_degree)
-    lag_poly_Pᵤ = @variable(model, variable_type=Poly(monos_Pᵤ))
-    unsafety_constraint = dot(lag_poly_Pᵤ, sum(P))
-    @constraint(model, lag_poly_Pᵤ == 1)
-    @constraint(model, unsafety_constraint == 1)
-    Pᵤ = P[end]
-
+    #! Pᵤ constraint [total probability == 1, later!)
+    # """ Process:
+    #     # Generate Polynomial Lagragian for bounds on Pᵤ
+    #     # Constraint Polynomial to equal 1
+    #     # Constraint dot product between polynomial and Lagrangian to equal 1
+    #     # Add Pᵤ to martingale condition
+    # """
+    # monos_Pᵤ = monomials(P, 0:lagrange_degree)
+    # lag_poly_Pᵤ = @variable(model, variable_type=Poly(monos_Pᵤ))
+    # unsafety_constraint = dot(lag_poly_Pᵤ, sum(P))
+    # @constraint(model, lag_poly_Pᵤ == 1)
+    # @constraint(model, unsafety_constraint == 1)
+    
     # Constraint martingale
-    martingale_condition_multivariate = martingale + Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
+    # martingale_condition_multivariate = martingale - Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
+    martingale_condition_multivariate = martingale + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
     @constraint(model, martingale_condition_multivariate >= 0)
 
 end
