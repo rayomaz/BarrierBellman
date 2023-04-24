@@ -12,6 +12,17 @@ class Linear(ElementWiseLinear, AdditiveGaussianDynamics):
             torch.as_tensor(self.sigma)
         )
 
+    def near_far(self, x, eps):
+        if eps is not None:
+            lower_x, upper_x = x - eps, x + eps
+
+            near = torch.min(lower_x.abs(), upper_x.abs())
+            far = torch.max(lower_x.abs(), upper_x.abs())
+        else:
+            near, far, center = x, x, x
+
+        return near, far
+
     def __init__(self, dynamics_config):
         super().__init__(torch.as_tensor([dynamics_config['rate']]))
 
