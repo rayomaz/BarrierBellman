@@ -3,8 +3,9 @@ import abc
 
 class StochasticDynamics(abc.ABC):
 
+    @abc.abstractmethod
     def safe(self, x, eps=None):
-        return ~self.unsafe(x, eps=eps)
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def state_space(self, x, eps=None):
