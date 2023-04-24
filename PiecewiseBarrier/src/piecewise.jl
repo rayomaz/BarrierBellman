@@ -187,6 +187,7 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     #! safe_prob_bounds = define here as tuple
     #! Bounds on Pj - Ps (using martingale)
     # Pᵤ = P[end]
+    #! Notice: to get Pu --> 1 - Ps
 
     for (ii, Bᵢ) in enumerate(barriers)
 
@@ -243,7 +244,7 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     # @constraint(model, unsafety_constraint == 1)
     
     # Constraint martingale
-    # martingale_condition_multivariate = martingale - Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
+    #! martingale_condition_multivariate = martingale - Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
     martingale_condition_multivariate = martingale + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
     @constraint(model, martingale_condition_multivariate >= 0)
 
