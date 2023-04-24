@@ -138,12 +138,6 @@ def main(args):
     lower_partition = lower_partition.numpy()
     upper_partition = upper_partition.numpy()
 
-    # Convert safe set transitions to numpy arrays
-    lower_safe_set_prob_A_matrix = lower_safe_set_prob_A_matrix.numpy()
-    lower_safe_set_prob_b_vector = lower_safe_set_prob_b_vector.numpy()
-    upper_safe_set_prob_A_matrix = upper_safe_set_prob_A_matrix.numpy()
-    upper_safe_set_prob_b_vector = upper_safe_set_prob_b_vector.numpy()
-
     # Separate data in A matrix and b vector (lower and upper)
     # A has shape [i, j, p, x]   (transition from j to i)
     # b has shape [i, j, p]
@@ -154,6 +148,18 @@ def main(args):
     upper_probability_bounds_b_vector = upper_probability_bounds[1]
 
     state_space = np.array(config['partitioning']['state_space'])
+
+    # Convert safe set transitions to numpy arrays
+    lower_safe_set_prob_A_matrix = lower_safe_set_prob_A_matrix.numpy()
+    lower_safe_set_prob_b_vector = lower_safe_set_prob_b_vector.numpy()
+    upper_safe_set_prob_A_matrix = upper_safe_set_prob_A_matrix.numpy()
+    upper_safe_set_prob_b_vector = upper_safe_set_prob_b_vector.numpy()
+
+    # Reshape safe set transitions to shape (2, #hypercubes)
+    lower_safe_set_prob_A_matrix = np.reshape(lower_safe_set_prob_A_matrix, (2, len(lower_partition)))
+    lower_safe_set_prob_b_vector = np.reshape(lower_safe_set_prob_b_vector, (2, len(lower_partition)))
+    upper_safe_set_prob_A_matrix = np.reshape(upper_safe_set_prob_A_matrix, (2, len(lower_partition)))
+    upper_safe_set_prob_b_vector = np.reshape(upper_safe_set_prob_b_vector, (2, len(lower_partition)))
 
     # Create array dictionary with needed data
     probability_array = {'state_space': state_space, 'lower_partition': lower_partition, 'upper_partition': upper_partition,
