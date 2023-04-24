@@ -5,7 +5,7 @@
 """
 
 # Optimization function
-function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bounds, state_partitions, initial_state_partition) where {T, N}
+function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bounds, initial_state_partition) where {T, N}
     # Using Mosek as the SDP solver
     optimizer = optimizer_with_attributes(Mosek.Optimizer,
         "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
@@ -16,6 +16,10 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
     model = SOSModel(optimizer)
 
     # Hyperspace
+    lower_partitions = read(bounds, "lower_partition")
+    upper_partitions = read(bounds, "upper_partition")
+    state_partitions = hcat(lower_partitions, upper_partitions)
+    state_partitions = [Hyperrectangle(low=[low], high=[high]) for (low, high) in eachrow(state_partitions)]
     number_state_hypercubes = length(state_partitions)
 
     # Create probability decision variables eta
