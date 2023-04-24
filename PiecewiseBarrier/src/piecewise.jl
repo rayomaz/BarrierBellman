@@ -233,18 +233,15 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     #! Pᵤ constraint [total probability == 1, later!)
     # """ Process:
     #     # Generate Polynomial Lagragian for bounds on Pᵤ
-    #     # Constraint Polynomial to equal 1
-    #     # Constraint dot product between polynomial and Lagrangian to equal 1
-    #     # Add Pᵤ to martingale condition
+    #     # Constraint dot product(L, sum(P) -1)
+    #     # Subtract from martingale
     # """
     # monos_Pᵤ = monomials(P, 0:lagrange_degree)
     # lag_poly_Pᵤ = @variable(model, variable_type=Poly(monos_Pᵤ))
-    # unsafety_constraint = dot(lag_poly_Pᵤ, sum(P))
-    # @constraint(model, lag_poly_Pᵤ == 1)
-    # @constraint(model, unsafety_constraint == 1)
+    # sum_prob_constraint = dot(lag_poly_Pᵤ, sum(P) - 1)
     
     # Constraint martingale
-    #! martingale_condition_multivariate = martingale - Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
+    #! martingale_condition_multivariate = martingale - Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E - sum_prob_constraint
     martingale_condition_multivariate = martingale + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
     @constraint(model, martingale_condition_multivariate >= 0)
 
