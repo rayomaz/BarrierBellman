@@ -109,6 +109,7 @@ class Runner:
                    torch.cat(upper_safe_set_prob_A_matrix), \
                    torch.cat(upper_safe_set_prob_b_vector)
 
+
 def main(args):
 
     torch.set_default_dtype(torch.float64)
@@ -153,12 +154,6 @@ def main(args):
     lower_safe_set_prob_b_vector = lower_safe_set_prob_b_vector.numpy()
     upper_safe_set_prob_A_matrix = upper_safe_set_prob_A_matrix.numpy()
     upper_safe_set_prob_b_vector = upper_safe_set_prob_b_vector.numpy()
-
-    # Reshape safe set transitions to shape (2, #hypercubes)
-    lower_safe_set_prob_A_matrix = np.reshape(lower_safe_set_prob_A_matrix, (2, len(lower_partition)))
-    lower_safe_set_prob_b_vector = np.reshape(lower_safe_set_prob_b_vector, (2, len(lower_partition)))
-    upper_safe_set_prob_A_matrix = np.reshape(upper_safe_set_prob_A_matrix, (2, len(lower_partition)))
-    upper_safe_set_prob_b_vector = np.reshape(upper_safe_set_prob_b_vector, (2, len(lower_partition)))
 
     # Create array dictionary with needed data
     probability_array = {'state_space': state_space, 'lower_partition': lower_partition, 'upper_partition': upper_partition,
