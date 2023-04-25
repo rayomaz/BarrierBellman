@@ -198,7 +198,18 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         # Bounds on Pij
         lower_probability_bound = dot(lower_probability_A[ii], x) + lower_probability_b[ii]
         upper_probability_bound = dot(upper_probability_A[ii], x) + upper_probability_b[ii]
-        probability_product_set = (upper_probability_bound - P[ii]) .* (P[ii] - lower_probability_bound)
+        probability_set = (upper_probability_bound - P[ii]) * (P[ii] - lower_probability_bound)
+        
+        # Generate probability Lagrangian
+        monos_P = monomials(P[ii], 0:lagrange_degree)
+        lag_poly_P = @variable(model, variable_type=SOSPoly(monos_P))
+        hCubeSOS_P += lag_poly_P * probability_set
+
+        # Compute B(f(x))
+        barrier_fx = subs(polynomial(Bᵢ), x => fx)
+
+        # Martingale
+        martingale -= barrier_fx * P[ii]
 
         # Bounds on Eij
         exponential_terms = exponential_bounds(system, current_state_partition)
@@ -215,23 +226,16 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         lower_expectation_bound = [constant*dot(e_min, term)] + fx .* lower_probability_bound
         upper_expectation_bound = [constant*dot(e_max, term)] + fx .* upper_probability_bound
         expectation_product_set = (upper_expectation_bound - E[:,ii]) .* (E[:,ii] - lower_expectation_bound)
-        
-        # Generate probability Lagrangian
-        monos_P = monomials(P[ii], 0:lagrange_degree)
-        lag_poly_P = @variable(model, variable_type=SOSPoly(monos_P))
-        hCubeSOS_P += lag_poly_P * probability_product_set
 
         # Generate expecation Lagrangian
-        monos_E = monomials(E[:, ii], 0:lagrange_degree)
-        lag_poly_E = @variable(model, variable_type=SOSPoly(monos_E))
-        hCubeSOS_E += lag_poly_E * polynomial(expectation_product_set)
-
-        # Compute B(f(x))
-        barrier_fx = subs(polynomial(Bᵢ), x => fx)
+        for (Ekk, dim_set) in zip(E[:,ii], expectation_product_set)
+            monos_E = monomials(Ekk, 0:lagrange_degree)
+            lag_poly_E = @variable(model, variable_type=SOSPoly(monos_E))
+            hCubeSOS_E += lag_poly_E * polynomial(dim_set)
+        end
     
         # Martingale
-        martingale += -barrier_fx * P[ii] - dot(Bᵢ.A, E[:,ii])
-        
+        martingale -= dot(Bᵢ.A, E[:,ii])
     end
 
     #! Pᵤ constraint [total probability == 1, later!)
