@@ -5,7 +5,7 @@
 """
 
 # Optimization function
-function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bounds, state_partitions, initial_state_partition) where {T, N}
+function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bounds, initial_state_partition) where {T, N}
     # Using Mosek as the SDP solver
     optimizer = optimizer_with_attributes(Mosek.Optimizer,
         "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
@@ -16,6 +16,10 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
     model = SOSModel(optimizer)
 
     # Hyperspace
+    lower_partitions = read(bounds, "lower_partition")
+    upper_partitions = read(bounds, "upper_partition")
+    state_partitions = hcat(lower_partitions, upper_partitions)
+    state_partitions = [Hyperrectangle(low=[low], high=[high]) for (low, high) in eachrow(state_partitions)]
     number_state_hypercubes = length(state_partitions)
 
     # Create probability decision variables eta
@@ -63,6 +67,9 @@ function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bound
                               lower_prob_b[:, jj, 1],
                               upper_prob_A[:, jj, 1, :], 
                               upper_prob_b[:, jj, 1]]
+
+        #! safe_prob_bounds = define here
+        #! input into expectation constraint                      
 
         expectation_constraint!(model, B, B[jj], system, probability_bounds,
                                 β_parts_var[jj], current_state_partition, lagrange_degree)
@@ -181,20 +188,36 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
 
     (lower_probability_A, lower_probability_b, upper_probability_A, upper_probability_b) = probability_bounds
 
+    #! safe_prob_bounds = define here as tuple
+    #! Bounds on Pj - Ps (using martingale)
+    # Pᵤ = P[end]
+    #! Notice: to get Pu --> 1 - Ps
+
+    # Bounds on Eij
+    exponential_terms = exponential_bounds(system, current_state_partition)
+
+    e_min = exponential_terms[1]
+    e_max = exponential_terms[2]
+
+    constant = 1/(2^(N - 1) * sqrt(2 * π))
+
     for (ii, Bᵢ) in enumerate(barriers)
 
         # Bounds on Pij
         lower_probability_bound = dot(lower_probability_A[ii], x) + lower_probability_b[ii]
         upper_probability_bound = dot(upper_probability_A[ii], x) + upper_probability_b[ii]
-        probability_product_set = (upper_probability_bound - P[ii]) .* (P[ii] - lower_probability_bound)
+        probability_set = (upper_probability_bound - P[ii]) * (P[ii] - lower_probability_bound)
+        
+        # Generate probability Lagrangian
+        monos_P = monomials(P[ii], 0:lagrange_degree)
+        lag_poly_P = @variable(model, variable_type=SOSPoly(monos_P))
+        hCubeSOS_P += lag_poly_P * probability_set
 
-        # Bounds on Eij
-        exponential_terms = exponential_bounds(system, current_state_partition)
+        # Compute B(f(x))
+        barrier_fx = subs(polynomial(Bᵢ), x => fx)
 
-        e_min = exponential_terms[1]
-        e_max = exponential_terms[2]
-
-        constant = 1/(2^(N - 1) * sqrt(2 * π))
+        # Martingale
+        martingale -= barrier_fx * P[ii]
 
         #! note term is 1 for the 1D case
         #! for N > 1, this term becomes the bounds on the modified product of erf functions
@@ -203,41 +226,31 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         lower_expectation_bound = [constant*dot(e_min, term)] + fx .* lower_probability_bound
         upper_expectation_bound = [constant*dot(e_max, term)] + fx .* upper_probability_bound
         expectation_product_set = (upper_expectation_bound - E[:,ii]) .* (E[:,ii] - lower_expectation_bound)
-        
-        # Generate probability Lagrangian
-        monos_P = monomials(P[ii], 0:lagrange_degree)
-        lag_poly_P = @variable(model, variable_type=SOSPoly(monos_P))
-        hCubeSOS_P += lag_poly_P * probability_product_set
 
         # Generate expecation Lagrangian
-        monos_E = monomials(E[:, ii], 0:lagrange_degree)
-        lag_poly_E = @variable(model, variable_type=SOSPoly(monos_E))
-        hCubeSOS_E += lag_poly_E * polynomial(expectation_product_set)
-
-        # Compute B(f(x))
-        barrier_fx = subs(polynomial(Bᵢ), x => fx)
+        for (Ekk, dim_set) in zip(E[:,ii], expectation_product_set)
+            monos_E = monomials(Ekk, 0:lagrange_degree)
+            lag_poly_E = @variable(model, variable_type=SOSPoly(monos_E))
+            hCubeSOS_E += lag_poly_E * polynomial(dim_set)
+        end
     
         # Martingale
-        martingale += -barrier_fx * P[ii] - dot(Bᵢ.A, E[:,ii])
-        
+        martingale -= dot(Bᵢ.A, E[:,ii])
     end
 
-    # Pᵤ constraint [probability of unsafety]
-    """ Process:
-        # Generate Polynomial Lagragian for bounds on Pᵤ
-        # Constraint Polynomial to equal 1
-        # Constraint dot product between polynomial and Lagrangian to equal 1
-        # Add Pᵤ to martingale condition
-    """
-    monos_Pᵤ = monomials(P, 0:lagrange_degree)
-    lag_poly_Pᵤ = @variable(model, variable_type=Poly(monos_Pᵤ))
-    unsafety_constraint = dot(lag_poly_Pᵤ, sum(P))
-    @constraint(model, lag_poly_Pᵤ == 1)
-    @constraint(model, unsafety_constraint == 1)
-    Pᵤ = P[end]
-
+    #! Pᵤ constraint [total probability == 1, later!)
+    # """ Process:
+    #     # Generate Polynomial Lagragian for bounds on Pᵤ
+    #     # Constraint dot product(L, sum(P) -1)
+    #     # Subtract from martingale
+    # """
+    # monos_Pᵤ = monomials(P, 0:lagrange_degree)
+    # lag_poly_Pᵤ = @variable(model, variable_type=Poly(monos_Pᵤ))
+    # sum_prob_constraint = dot(lag_poly_Pᵤ, sum(P) - 1)
+    
     # Constraint martingale
-    martingale_condition_multivariate = martingale + Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
+    #! martingale_condition_multivariate = martingale - Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E - sum_prob_constraint
+    martingale_condition_multivariate = martingale + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
     @constraint(model, martingale_condition_multivariate >= 0)
 
 end
