@@ -193,6 +193,14 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     # Pᵤ = P[end]
     #! Notice: to get Pu --> 1 - Ps
 
+    # Bounds on Eij
+    exponential_terms = exponential_bounds(system, current_state_partition)
+
+    e_min = exponential_terms[1]
+    e_max = exponential_terms[2]
+
+    constant = 1/(2^(N - 1) * sqrt(2 * π))
+
     for (ii, Bᵢ) in enumerate(barriers)
 
         # Bounds on Pij
@@ -210,14 +218,6 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
 
         # Martingale
         martingale -= barrier_fx * P[ii]
-
-        # Bounds on Eij
-        exponential_terms = exponential_bounds(system, current_state_partition)
-
-        e_min = exponential_terms[1]
-        e_max = exponential_terms[2]
-
-        constant = 1/(2^(N - 1) * sqrt(2 * π))
 
         #! note term is 1 for the 1D case
         #! for N > 1, this term becomes the bounds on the modified product of erf functions
