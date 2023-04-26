@@ -1,12 +1,12 @@
 {
-  "system": "population_partial",
+  "system": "linear",
   "dynamics": {
     "sigma": [0.1],
     "rate": 0.95,
     "horizon": 1
   },
   "partitioning": {
-    "state_space": [-1.0, 1.0],
+    "state_space": [-0.25, 0.25],
     "method": "grid",
     "num_slices": [5] 
   }
