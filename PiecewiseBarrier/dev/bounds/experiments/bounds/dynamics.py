@@ -2,15 +2,10 @@ import abc
 
 
 class StochasticDynamics(abc.ABC):
+
     @abc.abstractmethod
-    def initial(self, x, eps=None):
-        raise NotImplementedError()
-
     def safe(self, x, eps=None):
-        return ~self.unsafe(x, eps=eps)
-
-    def unsafe(self, x, eps=None):
-        return ~self.safe(x, eps=eps)
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def state_space(self, x, eps=None):

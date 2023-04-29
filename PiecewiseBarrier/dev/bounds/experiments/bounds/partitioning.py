@@ -38,12 +38,10 @@ class SubPartition(nn.Module):
 
 
 class Partition(nn.Module):
-    def __init__(self, initial, safe, unsafe, state_space=None):
+    def __init__(self, safe, state_space=None):
         super().__init__()
 
-        self.initial = self.convert(initial)
         self.safe = self.convert(safe)
-        self.unsafe = self.convert(unsafe)
         self.state_space = self.convert(state_space)
 
     @staticmethod
@@ -56,17 +54,13 @@ class Partition(nn.Module):
             return SubPartition(partitions)
 
     def __len__(self):
-        return len(self.initial) + \
-               len(self.safe) + \
-               len(self.unsafe) + \
+         return len(self.safe) + \
                (len(self.state_space) if self.state_space else 0)
 
     def __getitem__(self, idx):
-        initial_idx, safe_idx, unsafe_idx, state_space_idx = idx
+        safe_idx, state_space_idx = idx
 
         return Partition(
-            self.initial[initial_idx],
             self.safe[safe_idx],
-            self.unsafe[unsafe_idx],
             self.state_space[state_space_idx] if self.state_space else None,
         )
