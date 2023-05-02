@@ -4,6 +4,9 @@ using SumOfSquares
 using MultivariatePolynomials, DynamicPolynomials
 const MP = MultivariatePolynomials
 
+using MultivariateBases
+const MB = MultivariateBases
+
 using MosekTools
 using LazySets
 using StatsBase
@@ -36,6 +39,7 @@ export sos_barrier
 
 include("barrier.jl")
 
+include("certificate.jl")
 include("piecewise.jl")
 export piecewise_barrier
 

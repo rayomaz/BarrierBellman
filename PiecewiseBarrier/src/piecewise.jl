@@ -251,6 +251,7 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     # Constraint martingale
     #! martingale_condition_multivariate = martingale - Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E - sum_prob_constraint
     martingale_condition_multivariate = martingale + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
-    @constraint(model, martingale_condition_multivariate >= 0)
+    certificate = InterregionRemovedNewton(SOSCone(), MB.MonomialBasis, x, [P; vec(E)])
+    @constraint(model, martingale_condition_multivariate >= 0, certificate = certificate)
 
 end
