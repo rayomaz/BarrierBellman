@@ -8,6 +8,6 @@
   "partitioning": {
     "state_space": [-0.25, 0.25],
     "method": "grid",
-    "num_slices": [5] 
+    "num_slices": [100] 
   }
 }
