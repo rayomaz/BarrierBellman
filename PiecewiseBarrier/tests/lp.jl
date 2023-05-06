@@ -19,7 +19,7 @@ initial_state_partition = 50
 # Optimize
 @time b, beta = constant_barrier(bounds, initial_state_partition)
 
-# data = Dict("b" => b, "beta" => beta)
+data = Dict("b" => b, "beta" => beta)
 
-# # Save the dictionary in a .mat file
-# matwrite("barrier_100.mat", data)
+# Save the dictionary in a .mat file
+matwrite("barrier_100.mat", data)
