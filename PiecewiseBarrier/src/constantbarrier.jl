@@ -18,9 +18,6 @@ function constant_barrier(bounds, initial_state_partition)
     state_partitions = [Hyperrectangle(low=[low], high=[high]) for (low, high) in eachrow(state_partitions)]
     number_state_hypercubes = length(state_partitions)
 
-    # Create probability decision variables η
-    # @variable(model, η >= ϵ)
-
     # Create optimization variables
     @variable(model, b[1:number_state_hypercubes])    
     @constraint(model, b .>= ϵ)
@@ -30,7 +27,6 @@ function constant_barrier(bounds, initial_state_partition)
     @variable(model, ϵ <= β_parts_var[1:number_state_hypercubes] <= 1 - ϵ)
     @variable(model, β)
     @constraint(model, β_parts_var .<= β)
-    # @constraint(model, β_parts_var[initial_state_partition] <= η)
 
     """ Probability bounds
     """
@@ -50,9 +46,7 @@ function constant_barrier(bounds, initial_state_partition)
     # Define optimization objective
     time_horizon = 1
     η = b[initial_state_partition]
-    # @objective(model, Min, η + sum(β_parts_var) + sum(b))         # Method 2
-    # @objective(model, Min, η + sum(β_parts_var))                  # Method 1
-    @objective(model, Min, η + β)          # Method 0
+    @objective(model, Min, η + β * time_horizon)
 
     println("Objective made")
 
