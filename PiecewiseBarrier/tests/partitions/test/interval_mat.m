@@ -2,7 +2,7 @@
 
 clc; clear; close;
 
-filename = "linearsystem_10.mat";
+filename = "linearsystem_2000.mat";
 
 load(filename)
 
