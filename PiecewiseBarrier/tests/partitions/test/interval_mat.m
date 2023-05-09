@@ -2,20 +2,27 @@
 
 clc; clear; close;
 
-filename = "linearsystem_2000.mat";
+filename = "state_partitions.txt";
 
 load(filename)
 
 % Probability distribution on hyperspace
-hypercubes = length(upper_partition);
+hypercubes = length(state_partitions);
 prob_transition_lower = zeros(hypercubes, hypercubes);
 prob_transition_upper = zeros(hypercubes, hypercubes);
 prob_unsafe_upper = zeros(1, hypercubes);
 prob_unsafe_lower = zeros(1, hypercubes);
 
+lower_partition = state_partitions(:, 1);
+upper_partition = state_partitions(:, 2);
+
 for zz = 1:2
 
     for jj = 1:hypercubes 
+
+        refine = 1e6;
+        x_space = linspace(lower_partition(jj), ...
+                           upper_partition(jj), refine);
         
         for ii = 1:hypercubes 
     
@@ -24,11 +31,7 @@ for zz = 1:2
             elseif zz == 2 
                 p_ij = false;             % Transition Xj to Xs
             end
-    
-            refine = 100;
-            x_space = linspace(lower_partition(jj), ...
-                               upper_partition(jj), refine);
-    
+
             % True erf
             prob_true = zeros(1, length(x_space));
             sigma = 0.1;
@@ -70,11 +73,11 @@ for zz = 1:2
 end
 
 
-save(filename,"prob_transition_upper", ...
-              "prob_transition_lower", ...
-              "prob_unsafe_lower", ... 
-              "prob_unsafe_upper", ...
-              '-append')
-
+% save(filename,"prob_transition_upper", ...
+%               "prob_transition_lower", ...
+%               "prob_unsafe_lower", ... 
+%               "prob_unsafe_upper", ...
+%               '-append')
+% 
 
 

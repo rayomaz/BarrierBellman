@@ -2,7 +2,7 @@
 
 julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "f74653f361e869bc801f56250df63988aba78285"
+project_hash = "1a6195e494db4a04c147c40dee18ae6321c61860"
 
 [[deps.AbstractAlgebra]]
 deps = ["GroupsCore", "InteractiveUtils", "LinearAlgebra", "MacroTools", "Markdown", "Random", "RandomExtensions", "SparseArrays", "Test"]
@@ -564,7 +564,7 @@ uuid = "8bc5a954-2dfc-11e9-10e6-cd969bffa420"
 version = "0.3.3"
 
 [[deps.PiecewiseBarrier]]
-deps = ["Combinatorics", "Distributions", "Dualization", "DynamicPolynomials", "GLPK", "JuMP", "LaTeXStrings", "LazySets", "LinearAlgebra", "MosekTools", "MultivariateBases", "MultivariatePolynomials", "MutableArithmetics", "Optim", "StatsBase", "SumOfSquares"]
+deps = ["Combinatorics", "Distributions", "Dualization", "DynamicPolynomials", "GLPK", "JuMP", "LaTeXStrings", "LazySets", "LinearAlgebra", "MosekTools", "MultivariatePolynomials", "Optim", "SpecialFunctions", "StatsBase", "SumOfSquares"]
 path = ".."
 uuid = "a06fe262-dd7d-4c83-aa2f-7afdb1a09a89"
 version = "0.1.0"

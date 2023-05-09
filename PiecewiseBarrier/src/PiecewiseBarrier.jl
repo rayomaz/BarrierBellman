@@ -17,6 +17,7 @@ using Optim
 using JuMP
 import JuMP.@variable
 using LaTeXStrings
+using SpecialFunctions: erf
 
 include("constants.jl")
 
