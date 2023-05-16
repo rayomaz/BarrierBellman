@@ -172,7 +172,7 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     product_set = (x_k_upper - x) .* (x - x_k_lower)
 
     # Semi-algebraic set for current partition only
-    hCubeSOS_X = 0  
+    hCubeSOS_X = 0
 
     for (xi, dim_set) in zip(x, product_set)
         monos = monomials(xi, 0:lagrange_degree)
@@ -254,6 +254,6 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     # Constraint martingale
     #! martingale_condition_multivariate = martingale - Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E - sum_prob_constraint
     martingale_condition_multivariate = martingale + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
-    certificate = InterregionRemovedNewton(SOSCone(), MB.MonomialBasis, x, vcat(P, vec(E)))
+    certificate = InterregionRemovedNewton(cone_type(), MB.MonomialBasis, x, vcat(P, vec(E)))
     @constraint(model, martingale_condition_multivariate in cone_type(), certificate = certificate)
 end
