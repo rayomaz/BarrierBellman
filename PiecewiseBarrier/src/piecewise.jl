@@ -4,6 +4,9 @@
 
 """
 
+poly_type = SOSPoly
+cone_type = SOSCone
+
 # Optimization function
 function piecewise_barrier(system::AdditiveGaussianPolynomialSystem{T, N}, bounds, initial_state_partition) where {T, N}
     # Using Mosek as the SDP solver
@@ -113,7 +116,7 @@ function nonnegativity_constraint!(model, barrier, system, region, lagrange_degr
     for (xi, dim_set) in zip(x, product_set)
         # Lagragian multiplier
         monos = monomials(xi, 0:lagrange_degree)
-        lag_poly_positive = @variable(model, variable_type=SOSPoly(monos))
+        lag_poly_positive = @variable(model, variable_type=poly_type(monos))
 
         # Specify initial range
         positive_set += lag_poly_positive * dim_set
@@ -122,7 +125,7 @@ function nonnegativity_constraint!(model, barrier, system, region, lagrange_degr
     barrier_set_nonnegative = polynomial(barrier) - positive_set
 
     # Non-negative in Xᵢ ⊂ ℝⁿ 
-    @constraint(model, barrier_set_nonnegative >= 0)
+    @constraint(model, barrier_set_nonnegative in cone_type())
 end
 
 function initial_constraint!(model, barrier, system, region, η, lagrange_degree)
@@ -139,7 +142,7 @@ function initial_constraint!(model, barrier, system, region, η, lagrange_degree
     for (xi, dim_set) in zip(x, product_set)
         # Lagragian multiplier
         monos = monomials(xi, 0:lagrange_degree)
-        lag_poly_initial = @variable(model, variable_type=SOSPoly(monos))
+        lag_poly_initial = @variable(model, variable_type=poly_type(monos))
 
         # Specify initial range
         initial_state += lag_poly_initial * dim_set
@@ -147,7 +150,7 @@ function initial_constraint!(model, barrier, system, region, η, lagrange_degree
 
     # Add constraint to model
     _barrier_initial = -polynomial(barrier) + η - initial_state
-    @constraint(model, _barrier_initial >= 0)
+    @constraint(model, _barrier_initial in cone_type())
 end
 
 function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussianPolynomialSystem{T, N}, probability_bounds, 
@@ -175,7 +178,7 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         monos = monomials(xi, 0:lagrange_degree)
 
         # Generate SOS Lagragian for partition bounds
-        lag_poly_X = @variable(model, variable_type=SOSPoly(monos))
+        lag_poly_X = @variable(model, variable_type=poly_type(monos))
 
         # Generate SOS polynomials for bounds
         hCubeSOS_X += lag_poly_X * dim_set
@@ -210,7 +213,7 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         
         # Generate probability Lagrangian
         monos_P = monomials(P[ii], 0:lagrange_degree)
-        lag_poly_P = @variable(model, variable_type=SOSPoly(monos_P))
+        lag_poly_P = @variable(model, variable_type=poly_type(monos_P))
         hCubeSOS_P += lag_poly_P * probability_set
 
         # Compute B(f(x))
@@ -230,7 +233,7 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
         # Generate expecation Lagrangian
         for (Ekk, dim_set) in zip(E[:,ii], expectation_product_set)
             monos_E = monomials(Ekk, 0:lagrange_degree)
-            lag_poly_E = @variable(model, variable_type=SOSPoly(monos_E))
+            lag_poly_E = @variable(model, variable_type=poly_type(monos_E))
             hCubeSOS_E += lag_poly_E * polynomial(dim_set)
         end
     
@@ -251,7 +254,6 @@ function expectation_constraint!(model, barriers, Bⱼ, system::AdditiveGaussian
     # Constraint martingale
     #! martingale_condition_multivariate = martingale - Pᵤ + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E - sum_prob_constraint
     martingale_condition_multivariate = martingale + polynomial(Bⱼ) + βⱼ - hCubeSOS_X - hCubeSOS_P - hCubeSOS_E
-    certificate = InterregionRemovedNewton(SOSCone(), MB.MonomialBasis, x, [P; vec(E)])
-    @constraint(model, martingale_condition_multivariate >= 0, certificate = certificate)
-
+    certificate = InterregionRemovedNewton(SOSCone(), MB.MonomialBasis, x, vcat(P, vec(E)))
+    @constraint(model, martingale_condition_multivariate in cone_type(), certificate = certificate)
 end

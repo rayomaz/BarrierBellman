@@ -19,13 +19,15 @@ function SumOfSquares.Certificate.gram_basis(certificate::InterregionRemovedNewt
             tuple(),
         ) for group in monomial_groups]
 
-    reduced_monomials = vcat(reduced_monomials...)
-    unique!(reduced_monomials)
+    return B[MB.basis_covering_monomials(B, group) for group in reduced_monomials]
 
-    return MB.basis_covering_monomials(
-        B,
-        reduced_monomials,
-    )
+    # reduced_monomials = vcat(reduced_monomials...)
+    # unique!(reduced_monomials)
+
+    # return MB.basis_covering_monomials(
+    #     B,
+    #     reduced_monomials,
+    # )
 end
 function SumOfSquares.Certificate.gram_basis_type(::Type{<:InterregionRemovedNewton{CT,BT}}) where {CT,BT}
     return BT
