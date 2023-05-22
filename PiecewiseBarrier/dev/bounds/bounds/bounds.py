@@ -135,7 +135,7 @@ class ErfDiff(nn.Module):
         super().__init__()
 
         self.loc, self.scale = loc, scale
-        self.lower, self.upper = lower.unsqueeze(1), upper.unsqueeze(1)
+        self.lower, self.upper = lower, upper
 
     def forward(self, x):
         return erf_diff(self.loc, self.scale, self.lower, self.upper, x)

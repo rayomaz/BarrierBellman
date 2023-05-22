@@ -1,11 +1,8 @@
 import logging
 from argparse import ArgumentParser
 
+import h5py as h5py
 import torch
-import os
-
-import numpy as np
-import scipy.io
 
 from bounds.certifier import GaussianCertifier
 from linear.linear import LinearExperiment
@@ -15,158 +12,131 @@ from utils import load_config
 
 logger = logging.getLogger(__name__)
 
-# Things to note:
-# 1. The set definitions in dynamics.py (for each system) should be updated.
-# 2. The safe-set type in the certifier is unclear. Please read comment in bounds/certifier.py for further info.
-#    Assumption 1 in certifier. Might need to be replaced by another assumption.
+
+def experiment_builder(args, config):
+    if config['system'] == 'linear':
+        return LinearExperiment(args, config)
+    else:
+        raise ValueError(f'System "{config["system"]}" not defined')
+
 
 class Runner:
-    def __init__(self, args, config, type):
+    """
+    A class to construct the experiment and certifier, call the certifier to retrieve bounds, and save bounds to
+    a .hdf5 file.
+    """
+
+    def __init__(self, args, config, construct_experiment=experiment_builder):
         self.args = args
         self.config = config
-        self.experiment = LinearExperiment(self.args, self.config)
-        self.type = type
-            
-    @property
-    def horizon(self):
-        return self.config['dynamics']['horizon']
+        self.experiment = construct_experiment(self.args, self.config)
 
     @property
     def device(self):
         return self.args.device
 
+    @property
+    def safe_set(self):
+        return self.experiment.dynamics.safe_set
+
     def run(self):
 
-        logger.info(" Called on certifier ... ")
+        # Cons is a name from Lisp for order pairs, which allows shortened form unpacking. Nothing major.
         cons = self.experiment.dynamics, self.experiment.factory
+
         partition = self.experiment.grid_partition()
+        logger.debug(f'Number of hypercubes = {len(partition)}')
 
-        lower_partition, upper_partition = partition.safe.lower, partition.safe.upper 
+        # Create certifiers
+        certifier = GaussianCertifier(*cons, partition, device=self.device)
+        logger.info('Certifier created ... ')
 
-        logger.debug('Number of hypercubes, lower bound = {}'.format(lower_partition.size()))
-        logger.debug('Number of hypercubes, upper bound = {}'.format(upper_partition.size()))
+        # Compute the probability bounds of transition from each hypercube to each other
+        probability_bounds = certifier.regular_probability_bounds()
+        logger.info('Regular probability bounds obtained ...')
 
-        if self.type == "normal":
-            
-            # Create certifiers
-            certifier = GaussianCertifier(*cons, partition, type=self.type, horizon=self.horizon, device=self.device)
-            logger.info(" Certifier created ... ")
+        # Compute the probability bounds of transition from each hypercube to the safe set
+        unsafe_probability_bounds = certifier.unsafe_probability_bounds()
+        logger.info('Unsafe probability bounds obtained ...')
 
-            # Compute the probability bounds of transition from each hypercube to the other 
-            probability_bounds_safe = certifier.probability_bounds()
-            logger.info(" Probability bounds obtained ...")
+        number_hypercubes = self.config["partitioning"]['num_slices'][0]
 
-            lower_probability_bounds = probability_bounds_safe.lower
-            upper_probability_bounds = probability_bounds_safe.upper
+        with h5py.File('../../../tests/partitions/linearsystem_' + str(number_hypercubes) + '.hdf5', 'w') as f:
+            safe_set = f.create_group('safe_set')
+            safe_set.create_dataset('lower', data=self.safe_set[0])
+            safe_set.create_dataset('upper', data=self.safe_set[1])
 
-            return lower_partition, upper_partition, lower_probability_bounds, upper_probability_bounds
+            partitioning = f.create_group('partitioning')
+            partitioning.create_dataset('lower', data=partition.lower.numpy(), compression='gzip')
+            partitioning.create_dataset('upper', data=partition.upper.numpy(), compression='gzip')
 
-        elif self.type == "safe_set":
+            # Separate data in A matrix and b vector (lower and upper)
+            # A has shape [i, j, p, x]   (transition from j to i)
+            # b has shape [i, j, p]
+            prob_bounds = f.create_group('prob_bounds')
 
-            """ Describing process here:
-                - The idx defines index for the jth partition
-                - The goal is to compute P(Xj -> Xs)
-                - The approach taken is to con
+            lower_prob_bounds = prob_bounds.create_group('lower')
+            lower_prob_bounds.create_dataset('A', data=probability_bounds.lower[0].numpy(), compression='gzip')
+            lower_prob_bounds['A'].dims[0].label = 'i'
+            lower_prob_bounds['A'].dims[1].label = 'j'
+            lower_prob_bounds['A'].dims[2].label = 'p'
+            lower_prob_bounds['A'].dims[3].label = 'x'
 
+            lower_prob_bounds.create_dataset('b', data=probability_bounds.lower[1].numpy(), compression='gzip')
+            lower_prob_bounds['b'].dims[0].label = 'i'
+            lower_prob_bounds['b'].dims[1].label = 'j'
+            lower_prob_bounds['b'].dims[2].label = 'p'
 
-                - This approach leaves the bounds folder unchanged, and only changes the methods in the linear folder
-            """
+            upper_prob_bounds = prob_bounds.create_group('upper')
 
-            _dimension = lower_partition.size()
+            upper_prob_bounds.create_dataset('A', data=probability_bounds.upper[0].numpy(), compression='gzip')
+            upper_prob_bounds['A'].dims[0].label = 'i'
+            upper_prob_bounds['A'].dims[1].label = 'j'
+            upper_prob_bounds['A'].dims[2].label = 'p'
+            upper_prob_bounds['A'].dims[3].label = 'x'
 
-            # Compute the probability bounds of transition from each hypercube to the safe set
+            upper_prob_bounds.create_dataset('b', data=probability_bounds.upper[1].numpy(), compression='gzip')
+            upper_prob_bounds['b'].dims[0].label = 'i'
+            upper_prob_bounds['b'].dims[1].label = 'j'
+            upper_prob_bounds['b'].dims[2].label = 'p'
 
-            lower_safe_set_prob_A_matrix = []
-            lower_safe_set_prob_b_vector = []
-            upper_safe_set_prob_A_matrix = []
-            upper_safe_set_prob_b_vector = []
+            # Separate data in A matrix and b vector (lower and upper)
+            # A has shape [j, p, x]   (transition from j to u)
+            # b has shape [j, p]
+            unsafe_prob_bounds = f.create_group('unsafe_prob_bounds')
 
-            for idx in range(_dimension[0]):
+            unsafe_lower_prob_bounds = unsafe_prob_bounds.create_group('lower')
 
-                self.config['index'] = idx
-       
-                partition = self.experiment.safe_grid_partition()
+            unsafe_lower_prob_bounds.create_dataset('A', data=unsafe_probability_bounds.lower[0].numpy(), compression='gzip')
+            unsafe_lower_prob_bounds['A'].dims[0].label = 'j'
+            unsafe_lower_prob_bounds['A'].dims[1].label = 'p'
+            unsafe_lower_prob_bounds['A'].dims[2].label = 'x'
 
-                # Create certifiers
-                certifier = GaussianCertifier(*cons, partition, type=self.type, horizon=self.horizon, device=self.device)
-                logger.info(" Certifier created ... ")
+            unsafe_lower_prob_bounds.create_dataset('b', data=unsafe_probability_bounds.lower[1].numpy(), compression='gzip')
+            unsafe_lower_prob_bounds['b'].dims[0].label = 'j'
+            unsafe_lower_prob_bounds['b'].dims[1].label = 'p'
 
-                # Compute the probability bounds
-                probability_bounds_safe = certifier.probability_bounds()
-                logger.info(" Probability bounds obtained ...")
+            unsafe_upper_prob_bounds = unsafe_prob_bounds.create_group('upper')
 
-                lower_probability_bounds = probability_bounds_safe.lower
-                upper_probability_bounds = probability_bounds_safe.upper
+            unsafe_upper_prob_bounds.create_dataset('A', data=unsafe_probability_bounds.upper[0].numpy(), compression='gzip')
+            unsafe_upper_prob_bounds['A'].dims[0].label = 'j'
+            unsafe_upper_prob_bounds['A'].dims[1].label = 'p'
+            unsafe_upper_prob_bounds['A'].dims[2].label = 'x'
 
-                # Only need P(Xj -> Xs) not P(Xs -> Xj)
-                lower_safe_set_prob_A_matrix.append(lower_probability_bounds[0][1])
-                lower_safe_set_prob_b_vector.append(lower_probability_bounds[1][1])
-                upper_safe_set_prob_A_matrix.append(upper_probability_bounds[0][1])
-                upper_safe_set_prob_b_vector.append(upper_probability_bounds[1][1])
+            unsafe_upper_prob_bounds.create_dataset('b', data=unsafe_probability_bounds.upper[1].numpy(), compression='gzip')
+            unsafe_upper_prob_bounds['b'].dims[0].label = 'j'
+            unsafe_upper_prob_bounds['b'].dims[1].label = 'p'
 
-            return torch.cat(lower_safe_set_prob_A_matrix), \
-                   torch.cat(lower_safe_set_prob_b_vector), \
-                   torch.cat(upper_safe_set_prob_A_matrix), \
-                   torch.cat(upper_safe_set_prob_b_vector)
+        logger.info("Probability data saved to file ... ")
 
 
 def main(args):
 
-    torch.set_default_dtype(torch.float64)
+    config = load_config(args.config_path)
 
-    script_dir = os.path.dirname(__file__)
-    file_path = os.path.join(script_dir, 'linear.json')
-
-    config = load_config(file_path)
-    logger.info(" Called runner ... ")
-    type = "normal"
-    runner = Runner(args, config, type)
-    lower_partition, upper_partition, lower_probability_bounds, upper_probability_bounds = runner.run()
-    logger.info(" Regular probability bounds obtained ... ")
-
-    type = "safe_set"
-    runner = Runner(args, config, type)
-    lower_safe_set_prob_A_matrix, lower_safe_set_prob_b_vector, \
-          upper_safe_set_prob_A_matrix, upper_safe_set_prob_b_vector  = runner.run()
-    logger.info(" Safe set probability bounds obtained ... ")
-
-    ''' # First element of the tuple represents the A matrix
-        # Second element of the tuple represents the b vector
-        + Together these make up the linear bounds '''
-
-    # Convert torch to numpy arrays 
-    lower_partition = lower_partition.numpy()
-    upper_partition = upper_partition.numpy()
-
-    # Separate data in A matrix and b vector (lower and upper)
-    # A has shape [i, j, p, x]   (transition from j to i)
-    # b has shape [i, j, p]
-    lower_probability_bounds_A_matrix = lower_probability_bounds[0]
-    lower_probability_bounds_b_vector = lower_probability_bounds[1]
-
-    upper_probability_bounds_A_matrix = upper_probability_bounds[0]
-    upper_probability_bounds_b_vector = upper_probability_bounds[1]
-
-    state_space = np.array(config['partitioning']['state_space'])
-
-    # Convert safe set transitions to numpy arrays
-    lower_safe_set_prob_A_matrix = lower_safe_set_prob_A_matrix.numpy()
-    lower_safe_set_prob_b_vector = lower_safe_set_prob_b_vector.numpy()
-    upper_safe_set_prob_A_matrix = upper_safe_set_prob_A_matrix.numpy()
-    upper_safe_set_prob_b_vector = upper_safe_set_prob_b_vector.numpy()
-
-    # Create array dictionary with needed data
-    probability_array = {'state_space': state_space, 'lower_partition': lower_partition, 'upper_partition': upper_partition,
-                         'lower_probability_bounds_A': lower_probability_bounds_A_matrix.numpy(), 'upper_probability_bounds_A': upper_probability_bounds_A_matrix.numpy(),
-                         'lower_probability_bounds_b': lower_probability_bounds_b_vector.numpy(), 'upper_probability_bounds_b': upper_probability_bounds_b_vector.numpy(),
-                         'lower_safe_set_prob_A_matrix': lower_safe_set_prob_A_matrix, 'lower_safe_set_prob_b_vector': lower_safe_set_prob_b_vector,
-                         'upper_safe_set_prob_A_matrix': upper_safe_set_prob_A_matrix, 'upper_safe_set_prob_b_vector': upper_safe_set_prob_b_vector}
-    
-    number_hypercubes = config["partitioning"]['num_slices'][0]
-
-    scipy.io.savemat('../../../tests/partitions/test/linearsystem_' + str(number_hypercubes) + '.mat', probability_array)
-
-    logger.info("Probability data saved to .mat file ... ")
+    logger.info('Called runner ... ')
+    runner = Runner(args, config)
+    runner.run()
 
 
 def parse_arguments():
@@ -174,19 +144,13 @@ def parse_arguments():
     parser.add_argument('--device', choices=list(map(torch.device, ['cuda', 'cpu'])), type=torch.device, default='cpu', help='Select device for tensor operations.')
     parser.add_argument('--config-path', type=str, help='Path to configuration of experiment.')
     parser.add_argument('--log-file', type=str, help='Path to log file.')
-    parser.add_argument('--space', type=str, choices=['equivalent_space', 'modified_space'], default='equivalent_space')
-    # Here equivalent space means the state space ranges in all dimensions are similar
 
     return parser.parse_args()
 
 
 if __name__ == '__main__':
-
-    # Define parsing arguments
     args = parse_arguments()
     configure_logging(args.log_file)
 
-    # Set default torch float64
     torch.set_default_dtype(torch.float64)
-
     main(args)
