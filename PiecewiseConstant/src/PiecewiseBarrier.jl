@@ -4,6 +4,8 @@ using LinearAlgebra, StatsBase, Combinatorics, SpecialFunctions: erf
 using JuMP, HiGHS, Optim, NLopt, Ipopt
 using Distributed
 
+const MatlabFile = Union{MatlabHDF5File, Matlabv4File, Matlabv5File}
+
 # include("probabilities.jl")
 # export transition_probabilities
 

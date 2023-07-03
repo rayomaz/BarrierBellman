@@ -5,9 +5,7 @@
 """
 
 # Optimization function
-const MatlabFile = Union{MatlabHDF5File, Matlabv4File, Matlabv5File}
 function dual_constant_barrier(probabilities::MatlabFile)
-
     # Load probability matrices
     prob_lower = read(probabilities, "matrix_prob_lower")
     prob_upper = read(probabilities, "matrix_prob_upper")

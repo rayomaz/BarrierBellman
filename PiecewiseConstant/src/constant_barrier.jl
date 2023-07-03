@@ -4,15 +4,19 @@
 
 """
 
-# Optimization function
-function constant_barrier(probabilities, obstacle)
-
+function constant_barrier(probabilities::MatlabFile, obstacle)
     # Load probability matrices
-    matrix_prob_upper = read(probabilities, "matrix_prob_lower")
-    matrix_prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_lower")
+    prob_upper = read(probabilities, "matrix_prob_lower")
+    prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_lower")
+
+    return constant_barrier(prob_upper, prob_unsafe_upper, obstacle)
+end
+
+# Optimization function
+function constant_barrier(prob_upper, prob_unsafe_upper, obstacle)
     
     # Number of hypercubes
-    number_hypercubes = length(matrix_prob_unsafe_upper)
+    number_hypercubes = length(prob_unsafe_upper)
 
     # Number of hypercubes
     initial_state_partition = Int(round(number_hypercubes/2))
@@ -39,8 +43,8 @@ function constant_barrier(probabilities, obstacle)
     @constraint(model, β_parts_var .<= β)
 
     # Construct barriers
-    Threads.@threads for jj = 1:number_hypercubes
-          probability_bounds = [matrix_prob_upper[jj, :], matrix_prob_unsafe_upper[jj]]
+    for jj = 1:number_hypercubes
+          probability_bounds = [prob_upper[jj, :], prob_unsafe_upper[jj]]
           expectation_constraint!(model, b, jj, probability_bounds, β_parts_var[jj])
     end
 

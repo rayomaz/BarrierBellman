@@ -4,8 +4,17 @@
 
 """
 
-function post_compute_beta(b, probabilities)
+function post_compute_beta(b, probabilities::MatlabFile)
+    # Bounds
+    prob_lower = read(probabilities, "matrix_prob_lower")
+    prob_upper = read(probabilities, "matrix_prob_upper")
+    prob_unsafe_lower = read(probabilities, "matrix_prob_unsafe_lower")
+    prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")
 
+    return post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper)
+end
+
+function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper)
     # Using HiGHS as the LP solver
     optimizer = optimizer_with_attributes(HiGHS.Optimizer)
     model = Model(optimizer)
@@ -21,16 +30,10 @@ function post_compute_beta(b, probabilities)
     @variable(model, β)
     @constraint(model, β_parts_var .<= β)
     
-    # Bounds
-    matrix_prob_lower = read(probabilities, "matrix_prob_lower")
-    matrix_prob_upper = read(probabilities, "matrix_prob_upper")
-    matrix_prob_unsafe_lower = read(probabilities, "matrix_prob_unsafe_lower")
-    matrix_prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")
-    
     for jj in eachindex(b)
 
         # Establish accuracy
-        val_low, val_up = accuracy_threshold(matrix_prob_unsafe_lower[jj], matrix_prob_unsafe_upper[jj])
+        val_low, val_up = accuracy_threshold(prob_unsafe_lower[jj], prob_unsafe_upper[jj])
 
         # Constraint Pᵤ
         @constraint(model, val_low <= Pᵤ[jj] <= val_up)
@@ -45,7 +48,7 @@ function post_compute_beta(b, probabilities)
         for ii in eachindex(b)
 
                 # Establish accuracy
-                val_low, val_up = accuracy_threshold(matrix_prob_lower[jj, ii], matrix_prob_upper[jj, ii])
+                val_low, val_up = accuracy_threshold(prob_lower[jj, ii], prob_upper[jj, ii])
 
                 # Constraint Pⱼ → Pᵢ (Plower ≤ Pᵢ ≤ Pupper)
                 add_constraint_to_model!(model, p[jj, ii], val_low, val_up)
