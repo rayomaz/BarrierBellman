@@ -44,23 +44,23 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
         dual_expectation_constraint!(model, b, jj, probability_bounds, β_parts_var[jj])
     end
 
-    println("Synthesizing barries ... ")
+    # println("Synthesizing barries ... ")
 
     # Define optimization objective
     time_horizon = 1
     η = b[initial_state_partition]
     @objective(model, Min, η + β * time_horizon)
 
-    println("Objective made ... ")
+    # println("Objective made ... ")
 
     # Optimize model
     JuMP.optimize!(model)
 
     # Barrier certificate
     b = value.(b)
-    for Bⱼ in b
-        println(Bⱼ)
-    end
+    # for Bⱼ in b
+    #     println(Bⱼ)
+    # end
 
     # Print optimal values
     β_values = value.(β_parts_var)

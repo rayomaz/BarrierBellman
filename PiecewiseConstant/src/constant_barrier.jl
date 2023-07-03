@@ -6,8 +6,8 @@
 
 function constant_barrier(probabilities::MatlabFile, obstacle)
     # Load probability matrices
-    prob_upper = read(probabilities, "matrix_prob_lower")
-    prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_lower")
+    prob_upper = read(probabilities, "matrix_prob_upper")
+    prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")
 
     return constant_barrier(prob_upper, prob_unsafe_upper, obstacle)
 end
@@ -64,7 +64,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
     β_values = value.(β_parts_var)
     max_β = maximum(β_values)
     η = value.(b[initial_state_partition])
-    # println("Solution: [η = $(value(η)), β = $max_β]")
+    println("Solution: [η = $(value(η)), β = $max_β]")
 
     # Print model summary and number of constraints
     # println("")
@@ -81,10 +81,11 @@ function expectation_constraint!(model, b, jj, probability_bounds, βⱼ)
     * ∑B[f(x)]*p(x) + Pᵤ <= B(x) + β: expanded in summations
     """
 
-    # Construct piecewise martingale constraint
-    martingale = AffExpr(0)
-
     (prob_upper, prob_unsafe) = probability_bounds
+
+    # Construct piecewise martingale constraint
+    # Transition to unsafe set
+    exp = AffExpr(0)
 
     # Barrier jth partition
     Bⱼ = b[jj]
@@ -92,13 +93,10 @@ function expectation_constraint!(model, b, jj, probability_bounds, βⱼ)
     # Bounds on Eᵢⱼ
     @inbounds for (Bᵢ, P̅ᵢ) in zip(b, prob_upper)
         # Martingale
-        add_to_expression!(martingale, -P̅ᵢ, Bᵢ)
+        add_to_expression!(exp, P̅ᵢ, Bᵢ)
     end
 
-    # Transition to unsafe set
-    add_to_expression!(martingale, -prob_unsafe)
-
     # Constraint martingale
-    @constraint(model, martingale + Bⱼ + βⱼ >= 0)
+    @constraint(model, exp + prob_unsafe <= Bⱼ + βⱼ)
 end
 
