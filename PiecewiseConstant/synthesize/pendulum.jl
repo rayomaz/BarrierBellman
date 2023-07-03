@@ -12,8 +12,8 @@ using MAT
 # System
 system_flag = "pendulum"
 number_hypercubes = 120
-probabilities = "/models/" * system_flag * "/probability_data_"  * string(number_hypercubes) * ".mat"
-probabilities = matopen(pwd()*probabilities)
+probabilities = "models/" * system_flag * "/probability_data_"  * string(number_hypercubes) * ".mat"
+probabilities = matopen(probabilities)
 
 # Optimize: method 1 (revise beta values)
 # @time b, beta = constant_barrier(probabilities)
