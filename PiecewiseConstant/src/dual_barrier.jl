@@ -97,12 +97,12 @@ function dual_expectation_constraint!(model, b, jj, probability_bounds, βⱼ)
     rhs = Bⱼ + βⱼ
 
     # Construct identity matrix     H → dim([#num hypercubes + 1]) to account for Pᵤ
-    H = [-Matrix(1.0I, length(b) + 1, length(b) + 1);
-         Matrix(1.0I, length(b) + 1, length(b) + 1);
+    H = [-I;
+         I;
          ones(1, length(b) + 1);
          -ones(1, length(b) + 1)]
 
-    # Setup c vector: [b 1]
+    # Setup c vector: [b; 1]
     c = [b; 1]
 
     h = [-prob_lower; -prob_unsafe_lower; 

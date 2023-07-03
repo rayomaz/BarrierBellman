@@ -41,8 +41,8 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
         # Constraint ∑i=1 →k pᵢ + Pᵤ == 1
         @constraint(model, sum(p) + Pᵤ == 1)
 
-        # Setup martingale (-∑i=1 →k bᵢ⋅pᵢ - Pᵤ + bⱼ + βⱼ ≥ 0)
-        martingale = @expression(model, b[jj] + β - Pᵤ)
+        # Setup expectation (-∑i=1 →k bᵢ⋅pᵢ - Pᵤ + bⱼ + βⱼ ≥ 0)
+        exp = AffExpr(0)
 
         @inbounds for ii in eachindex(b)
             # Establish accuracy
@@ -51,10 +51,10 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
             # Constraint Pⱼ → Pᵢ (Plower ≤ Pᵢ ≤ Pupper)
             @constraint(model, val_low <= p[ii] <= val_up)
                 
-            add_to_expression!(martingale, -b[ii], p[ii])
+            add_to_expression!(exp, b[ii], p[ii])
         end
 
-        @constraint(model, martingale == 0)
+        @constraint(model, exp + Pᵤ <= b[jj] + β)
 
         # Define optimization objective
         @objective(model, Min, β)
