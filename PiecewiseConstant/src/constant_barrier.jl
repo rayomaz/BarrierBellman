@@ -57,9 +57,9 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle)
     JuMP.optimize!(model)
 
     # Barrier certificate
-    for jj in 1:number_hypercubes
-        certificate = value.(b[jj])
-        println(certificate)
+    b = value.(b)
+    for Bⱼ in b
+        println(Bⱼ)
     end
 
     # Print optimal values
@@ -69,9 +69,9 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle)
     println("Solution: [η = $(value(η)), β = $max_β]")
 
     # Print model summary and number of constraints
-    println("")
-    println(" Number of constraints ", sum(num_constraints(model, F, S) for (F, S) in list_of_constraint_types(model)))
-    println("")
+    # println("")
+    # println(" Number of constraints ", sum(num_constraints(model, F, S) for (F, S) in list_of_constraint_types(model)))
+    # println("")
 
     return value.(b), β_values
 

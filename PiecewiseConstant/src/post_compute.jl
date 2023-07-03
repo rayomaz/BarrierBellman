@@ -81,9 +81,9 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
     # Print model summary and number of constraints
     # println("")
     # println(solution_summary(model))
-    println("")
-    println(" Number of constraints ", sum(num_constraints(model, F, S) for (F, S) in list_of_constraint_types(model)))
-    println("")
+    # println("")
+    # println(" Number of constraints ", sum(num_constraints(model, F, S) for (F, S) in list_of_constraint_types(model)))
+    # println("")
 
     return β_values
 
