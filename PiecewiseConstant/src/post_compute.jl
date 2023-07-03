@@ -6,8 +6,8 @@
 
 function post_compute_beta(b, probabilities)
 
-    # Using GLPK as the LP solver
-    optimizer = optimizer_with_attributes(GLPK.Optimizer)
+    # Using HiGHS as the LP solver
+    optimizer = optimizer_with_attributes(HiGHS.Optimizer)
     model = Model(optimizer)
 
     # Create optimization variables

@@ -1,18 +1,8 @@
-module PiecewiseBarrier
+module PiecewiseConstant
 
-using LazySets
-using StatsBase
-using Combinatorics
-using LinearAlgebra
-using GLPK
-using Optim
-using JuMP
-import JuMP.@variable
-using SpecialFunctions: erf
-using NLopt
-using Ipopt
+using LinearAlgebra, StatsBase, Combinatorics, SpecialFunctions: erf
+using JuMP, HiGHS, Optim, NLopt, Ipopt
 using Distributed
-# using 
 
 # include("probabilities.jl")
 # export transition_probabilities
@@ -26,4 +16,4 @@ export post_compute_beta
 include("dual_barrier.jl")
 export dual_constant_barrier
 
-end # module PiecewiseBarrier
+end # module PiecewiseConstant

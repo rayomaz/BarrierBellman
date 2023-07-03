@@ -17,8 +17,8 @@ function constant_barrier(probabilities, obstacle)
     # Number of hypercubes
     initial_state_partition = Int(round(number_hypercubes/2))
 
-    # Using GLPK as the LP solver
-    optimizer = optimizer_with_attributes(GLPK.Optimizer)
+    # Using HiGHS as the LP solver
+    optimizer = optimizer_with_attributes(HiGHS.Optimizer)
     model = Model(optimizer)
 
     # Create optimization variables

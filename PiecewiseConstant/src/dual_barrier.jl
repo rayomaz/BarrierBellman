@@ -5,22 +5,28 @@
 """
 
 # Optimization function
-function dual_constant_barrier(probabilities)
+const MatlabFile = Union{MatlabHDF5File, Matlabv4File, Matlabv5File}
+function dual_constant_barrier(probabilities::MatlabFile)
 
     # Load probability matrices
-    matrix_prob_lower = read(probabilities, "matrix_prob_lower")
-    matrix_prob_upper = read(probabilities, "matrix_prob_upper")
-    matrix_prob_unsafe_lower = read(probabilities, "matrix_prob_unsafe_lower")
-    matrix_prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")
+    prob_lower = read(probabilities, "matrix_prob_lower")
+    prob_upper = read(probabilities, "matrix_prob_upper")
+    prob_unsafe_lower = read(probabilities, "matrix_prob_unsafe_lower")
+    prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")
+
+    return dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper)
+end
+
+function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper)
     
     # Number of hypercubes
-    number_hypercubes = length(matrix_prob_unsafe_upper)
+    number_hypercubes = length(prob_unsafe_upper)
 
     # Number of hypercubes
     initial_state_partition = Int(round(number_hypercubes/2))
 
-    # Using GLPK as the LP solver
-    optimizer = optimizer_with_attributes(GLPK.Optimizer)
+    # Using HiGHS as the LP solver
+    optimizer = optimizer_with_attributes(HiGHS.Optimizer)
     model = Model(optimizer)
 
     # Create optimization variables
@@ -36,10 +42,10 @@ function dual_constant_barrier(probabilities)
 
     # Construct barriers
     for jj = 1:number_hypercubes
-          probability_bounds = [matrix_prob_lower[jj, :],
-                                matrix_prob_upper[jj, :],
-                                matrix_prob_unsafe_lower[jj],
-                                matrix_prob_unsafe_upper[jj]]
+          probability_bounds = [prob_lower[jj, :],
+                                prob_upper[jj, :],
+                                prob_unsafe_lower[jj],
+                                prob_unsafe_upper[jj]]
           dual_expectation_constraint!(model, b, jj, probability_bounds, β_parts_var[jj])
     end
 
