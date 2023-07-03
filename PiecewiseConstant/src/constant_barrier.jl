@@ -73,8 +73,6 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle)
     println("Solution: [η = $(value(η)), β = $max_β]")
 
     # Print model summary and number of constraints
-    # println("")
-    # println(solution_summary(model))
     println("")
     println(" Number of constraints ", sum(num_constraints(model, F, S) for (F, S) in list_of_constraint_types(model)))
     println("")
@@ -90,27 +88,26 @@ function expectation_constraint!(model, b, jj, probability_bounds, βⱼ)
     """
 
     # Construct piecewise martingale constraint
-    martingale = 0
+    martingale = AffExpr(0)
 
     (prob_upper, prob_unsafe) = probability_bounds
 
     # Barrier jth partition
     Bⱼ = b[jj]
 
-    # Bounds on Eij
-    for ii in eachindex(b)
+    # Bounds on Eᵢⱼ
+    for (Bᵢ, P̅ᵢ) in zip(b, prob_upper)
 
         # Martingale
-        martingale -= b[ii] * prob_upper[ii]
+        add_to_expression!(martingale, -P̅ᵢ, Bᵢ)
 
     end
 
     # Transition to unsafe set
-    martingale -= prob_unsafe
+    add_to_expression!(martingale, -prob_unsafe)
 
     # Constraint martingale
-    martingale_condition_multivariate = martingale + Bⱼ + βⱼ
-    @constraint(model, martingale_condition_multivariate >= 0)
+    @constraint(model, martingale + Bⱼ + βⱼ >= 0)
 
 end
 

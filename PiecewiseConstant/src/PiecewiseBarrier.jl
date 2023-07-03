@@ -6,9 +6,6 @@ using Distributed
 
 const MatlabFile = Union{MatlabHDF5File, Matlabv4File, Matlabv5File}
 
-# include("probabilities.jl")
-# export transition_probabilities
-
 include("constant_barrier.jl")
 export constant_barrier
 
