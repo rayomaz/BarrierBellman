@@ -6,7 +6,7 @@
 
 # Import packages
 using Revise, BenchmarkTools
-using PiecewiseBarrier
+using PiecewiseConstant
 using MAT
 
 # System
