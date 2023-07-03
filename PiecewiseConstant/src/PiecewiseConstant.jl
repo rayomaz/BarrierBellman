@@ -3,9 +3,11 @@ module PiecewiseConstant
 using LinearAlgebra, StatsBase, Combinatorics
 using SpecialFunctions: erf
 using JuMP, HiGHS, Optim, NLopt, Ipopt
+using LazySets, Polyhedra, CDDLib
 using Distributed
+using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5
 
-const MatlabFile = Union{MatlabHDF5File, Matlabv4File, Matlabv5File}
+const MatlabFile = Union{MAT_v4.Matlabv4File, MAT_v5.Matlabv5File, MAT_HDF5.MatlabHDF5File}
 
 include("constant_barrier.jl")
 export constant_barrier
