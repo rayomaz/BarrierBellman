@@ -35,7 +35,7 @@ function dual_constant_barrier(probabilities)
     @constraint(model, β_parts_var .<= β)
 
     # Construct barriers
-    Threads.@threads for jj = 1:number_hypercubes
+    for jj = 1:number_hypercubes
           probability_bounds = [matrix_prob_lower[jj, :],
                                 matrix_prob_upper[jj, :],
                                 matrix_prob_unsafe_lower[jj],
@@ -96,14 +96,18 @@ function dual_expectation_constraint!(model, b, jj, probability_bounds, βⱼ)
     rhs = Bⱼ + βⱼ
 
     # Construct identity matrix     H → dim([#num hypercubes + 1]) to account for Pᵤ
-    H = [Matrix(1.0I, length(b) + 1, length(b) + 1);
-         Matrix(1.0I, length(b) + 1, length(b) + 1)]
+    H = [-Matrix(1.0I, length(b) + 1, length(b) + 1);
+         Matrix(1.0I, length(b) + 1, length(b) + 1);
+         ones(1, length(b) + 1);
+         -ones(1, length(b) + 1)]
 
     # Setup c vector: [b 1]
     c = [b; 1]
 
-    h = [prob_lower; prob_unsafe_lower; 
-         prob_upper; prob_unsafe_upper]
+    h = [-prob_lower; -prob_unsafe_lower; 
+         prob_upper; prob_unsafe_upper;
+         [1];
+         [-1]]
     
     # Define assynmetric constraint [Dual approach]
     asymmetric_dual_constraint!(model, c, rhs, H, h)

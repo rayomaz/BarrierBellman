@@ -12,9 +12,10 @@ using SpecialFunctions: erf
 using NLopt
 using Ipopt
 using Distributed
+# using 
 
-include("probabilities.jl")
-export transition_probabilities
+# include("probabilities.jl")
+# export transition_probabilities
 
 include("constant_barrier.jl")
 export constant_barrier

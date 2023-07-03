@@ -4,11 +4,6 @@
 
 """
 
-# Start julia with multiple threads
-# julia --threads 16
-# cd("PiecewiseBarrier/tests/")
-# ] activate .
-
 # Import packages
 using Revise, BenchmarkTools
 using PiecewiseBarrier
@@ -21,8 +16,8 @@ probabilities = "/models/" * system_flag * "/probability_data_"  * string(number
 probabilities = matopen(pwd()*probabilities)
 
 # Optimize: method 1 (revise beta values)
-@time b, beta = constant_barrier(probabilities)
-@time beta_updated = post_compute_beta(b, probabilities)
+# @time b, beta = constant_barrier(probabilities)
+# @time beta_updated = post_compute_beta(b, probabilities)
 
 # Optimize: method 2 (dual approach)
-# @time b_dual, beta_dual = dual_constant_barrier(probabilities)
+@time b_dual, beta_dual = dual_constant_barrier(probabilities)
