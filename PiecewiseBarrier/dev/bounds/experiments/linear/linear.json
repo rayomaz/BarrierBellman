@@ -1,0 +1,13 @@
+{
+  "system": "linear",
+  "dynamics": {
+    "dim": 1,
+    "sigma": [0.1],
+    "rate": 0.95,
+    "safe_set": [[-0.25], [0.25]]
+  },
+  "partitioning": {
+    "method": "grid",
+    "num_slices": [100]
+  }
+}

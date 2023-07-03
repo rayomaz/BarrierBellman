@@ -7,3 +7,4 @@ tqdm
 bound_propagation
 cvxpy
 mosek==9.3.21
+h5py

@@ -17,6 +17,10 @@ struct AdditiveGaussianPolynomialSystem{T, N} <: AbstractDiscreteTimeStochasticS
     σ
 end
 
+AdditiveGaussianPolynomialSystem{N}(x, fx, σ) where {N} = AdditiveGaussianPolynomialSystem{Float64, N}(x, fx, σ)
+AdditiveGaussianPolynomialSystem(x::MP.AbstractVariable, fx, σ) = AdditiveGaussianPolynomialSystem{1}(x, fx, σ)
+AdditiveGaussianPolynomialSystem(x, fx, σ) = AdditiveGaussianPolynomialSystem{length(x)}(x, fx, σ)
+
 variables(system::AdditiveGaussianPolynomialSystem) = vectorize(system.x)
 dynamics(system::AdditiveGaussianPolynomialSystem) = vectorize(system.fx)
 noise_distribution(system::AdditiveGaussianPolynomialSystem) = vectorize(system.σ)

@@ -5,16 +5,8 @@
 """
 
 # Sum of squares optimization function
-function sos_barrier(system, state_space, state_partitions,
-                     initial_state_partition)                               
-
-    # Using Mosek as the SDP solver
-    optimizer = optimizer_with_attributes(Mosek.Optimizer,
-        "MSK_DPAR_INTPNT_TOL_STEP_SIZE" => 1e-6,
-        "MSK_IPAR_OPTIMIZER" => 0,
-        "MSK_IPAR_BI_CLEAN_OPTIMIZER" => 0,
-        "MSK_IPAR_NUM_THREADS" => 16,
-        "MSK_IPAR_PRESOLVE_USE" => 0)
+function sos_barrier(optimizer, system, state_space, state_partitions,
+                     initial_state_partition)
     model = SOSModel(optimizer)
     
     # Fetch state space variables

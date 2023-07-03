@@ -74,7 +74,6 @@ def configure_logging(log_file):
             }
         LOGGING_CONFIG['loggers']['']['handlers'].append('file')
         LOGGING_CONFIG['loggers']['__main__']['handlers'].append('file')
-        LOGGING_CONFIG['loggers']['population']['handlers'].append('file')
 
     # Run once at startup:
     logging.config.dictConfig(LOGGING_CONFIG)
