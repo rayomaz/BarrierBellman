@@ -24,8 +24,8 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
     initial_state_partition = Int(round(number_hypercubes/2))
 
     # Using HiGHS as the LP solver
-    optimizer = optimizer_with_attributes(HiGHS.Optimizer)
-    model = Model(optimizer)
+    model = Model(HiGHS.Optimizer)
+    set_silent(model)
 
     # Create optimization variables
     @variable(model, b[1:number_hypercubes] >= ϵ)

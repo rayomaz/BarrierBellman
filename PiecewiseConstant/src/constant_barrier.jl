@@ -22,14 +22,14 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
     initial_state_partition = Int(round(number_hypercubes/2))
 
     # Using HiGHS as the LP solver
-    optimizer = optimizer_with_attributes(HiGHS.Optimizer)
-    model = Model(optimizer)
+    model = Model(HiGHS.Optimizer)
+    set_silent(model)
 
     # Create optimization variables
     @variable(model, b[1:number_hypercubes] >= ϵ)    
 
     # Obstacle barrier
-    @constraint(model, b[obstacle] == 1)
+    # @constraint(model, b[obstacle] == 1)
 
     # Create probability decision variables β
     @variable(model, ϵ <= β_parts_var[1:number_hypercubes] <= 1 - ϵ)
@@ -42,36 +42,36 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
         expectation_constraint!(model, b, jj, probability_bounds, β_parts_var[jj])
     end
 
-    println("Synthesizing barries ... ")
+    # println("Synthesizing barries ... ")
 
     # Define optimization objective
     time_horizon = 1
     η = b[initial_state_partition]
     @objective(model, Min, η + β * time_horizon)
 
-    println("Objective made ... ")
+    # println("Objective made ... ")
 
     # Optimize model
     JuMP.optimize!(model)
 
     # Barrier certificate
     b = value.(b)
-    for Bⱼ in b
-        println(Bⱼ)
-    end
+    # for Bⱼ in b
+    #     println(Bⱼ)
+    # end
 
     # Print optimal values
     β_values = value.(β_parts_var)
     max_β = maximum(β_values)
     η = value.(b[initial_state_partition])
-    println("Solution: [η = $(value(η)), β = $max_β]")
+    # println("Solution: [η = $(value(η)), β = $max_β]")
 
     # Print model summary and number of constraints
     # println("")
     # println(" Number of constraints ", sum(num_constraints(model, F, S) for (F, S) in list_of_constraint_types(model)))
     # println("")
 
-    return value.(b), β_values
+    return b, β_values
 
 end
 
