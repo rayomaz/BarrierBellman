@@ -27,7 +27,7 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
     # Create probability decision variables β
     @variable(model, ϵ <= β_parts_var[1:number_hypercubes] <= 1 - ϵ)
     @variable(model, β)
-    @constraint(model, β_parts_var <= β)
+    @constraint(model, β_parts_var .<= β)
     
     for jj in eachindex(b)
 
