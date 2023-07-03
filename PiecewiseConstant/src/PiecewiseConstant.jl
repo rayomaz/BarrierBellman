@@ -1,6 +1,7 @@
 module PiecewiseConstant
 
-using LinearAlgebra, StatsBase, Combinatorics, SpecialFunctions: erf
+using LinearAlgebra, StatsBase, Combinatorics
+using SpecialFunctions: erf
 using JuMP, HiGHS, Optim, NLopt, Ipopt
 using Distributed
 
