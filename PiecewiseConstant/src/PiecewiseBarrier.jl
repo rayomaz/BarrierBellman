@@ -4,9 +4,6 @@ using LinearAlgebra, StatsBase, Combinatorics, SpecialFunctions: erf
 using JuMP, HiGHS, Optim, NLopt, Ipopt
 using Distributed
 
-# include("probabilities.jl")
-# export transition_probabilities
-
 include("constant_barrier.jl")
 export constant_barrier
 
