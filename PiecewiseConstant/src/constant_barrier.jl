@@ -37,7 +37,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
     @constraint(model, β_parts_var .<= β)
 
     # Construct barriers
-    for jj = 1:number_hypercubes
+    @inbounds for jj in eachindex(b)
         probability_bounds = [prob_upper[jj, :], prob_unsafe_upper[jj]]
         expectation_constraint!(model, b, jj, probability_bounds, β_parts_var[jj])
     end
@@ -90,7 +90,7 @@ function expectation_constraint!(model, b, jj, probability_bounds, βⱼ)
     Bⱼ = b[jj]
 
     # Bounds on Eᵢⱼ
-    for (Bᵢ, P̅ᵢ) in zip(b, prob_upper)
+    @inbounds for (Bᵢ, P̅ᵢ) in zip(b, prob_upper)
         # Martingale
         add_to_expression!(martingale, -P̅ᵢ, Bᵢ)
     end

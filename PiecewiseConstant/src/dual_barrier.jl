@@ -36,12 +36,12 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
     @constraint(model, β_parts_var .<= β)
 
     # Construct barriers
-    for jj = 1:number_hypercubes
-          probability_bounds = [prob_lower[jj, :],
-                                prob_upper[jj, :],
-                                prob_unsafe_lower[jj],
-                                prob_unsafe_upper[jj]]
-          dual_expectation_constraint!(model, b, jj, probability_bounds, β_parts_var[jj])
+    @inbounds for jj in eachindex(b)
+        probability_bounds = [prob_lower[jj, :],
+                            prob_upper[jj, :],
+                            prob_unsafe_lower[jj],
+                            prob_unsafe_upper[jj]]
+        dual_expectation_constraint!(model, b, jj, probability_bounds, β_parts_var[jj])
     end
 
     println("Synthesizing barries ... ")
