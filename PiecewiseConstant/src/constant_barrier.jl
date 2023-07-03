@@ -13,7 +13,7 @@ function constant_barrier(probabilities::MatlabFile, obstacle)
 end
 
 # Optimization function
-function constant_barrier(prob_upper, prob_unsafe_upper, obstacle)
+function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
     
     # Number of hypercubes
     number_hypercubes = length(prob_unsafe_upper)
@@ -26,9 +26,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle)
     model = Model(optimizer)
 
     # Create optimization variables
-    ϵ = 1e-6
-    @variable(model, b[1:number_hypercubes])    
-    @constraint(model, b .>= ϵ)
+    @variable(model, b[1:number_hypercubes] >= ϵ)    
 
     # Obstacle barrier
     @constraint(model, b[obstacle] == 1)
@@ -36,12 +34,12 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle)
     # Create probability decision variables β
     @variable(model, ϵ <= β_parts_var[1:number_hypercubes] <= 1 - ϵ)
     @variable(model, β)
-    @constraint(model, β_parts_var .<= β)
+    @constraint(model, β_parts_var <= β)
 
     # Construct barriers
     for jj = 1:number_hypercubes
-          probability_bounds = [prob_upper[jj, :], prob_unsafe_upper[jj]]
-          expectation_constraint!(model, b, jj, probability_bounds, β_parts_var[jj])
+        probability_bounds = [prob_upper[jj, :], prob_unsafe_upper[jj]]
+        expectation_constraint!(model, b, jj, probability_bounds, β_parts_var[jj])
     end
 
     println("Synthesizing barries ... ")
@@ -93,10 +91,8 @@ function expectation_constraint!(model, b, jj, probability_bounds, βⱼ)
 
     # Bounds on Eᵢⱼ
     for (Bᵢ, P̅ᵢ) in zip(b, prob_upper)
-
         # Martingale
         add_to_expression!(martingale, -P̅ᵢ, Bᵢ)
-
     end
 
     # Transition to unsafe set
@@ -104,6 +100,5 @@ function expectation_constraint!(model, b, jj, probability_bounds, βⱼ)
 
     # Constraint martingale
     @constraint(model, martingale + Bⱼ + βⱼ >= 0)
-
 end
 

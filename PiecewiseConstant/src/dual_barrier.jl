@@ -15,7 +15,7 @@ function dual_constant_barrier(probabilities::MatlabFile)
     return dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper)
 end
 
-function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper)
+function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper; ϵ=1e-6)
     
     # Number of hypercubes
     number_hypercubes = length(prob_unsafe_upper)
@@ -28,15 +28,12 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
     model = Model(optimizer)
 
     # Create optimization variables
-    ϵ = 1e-6
-    @variable(model, b[1:number_hypercubes])    
-    @constraint(model, b .>= ϵ)
-    @constraint(model, b .<= 1 - ϵ)
+    @variable(model, b[1:number_hypercubes] >= ϵ)
 
     # Create probability decision variables β
     @variable(model, ϵ <= β_parts_var[1:number_hypercubes] <= 1 - ϵ)
     @variable(model, β)
-    @constraint(model, β_parts_var .<= β)
+    @constraint(model, β_parts_var <= β)
 
     # Construct barriers
     for jj = 1:number_hypercubes
