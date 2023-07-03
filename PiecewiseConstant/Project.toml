@@ -1,4 +1,4 @@
-name = "PiecewiseBarrier"
+name = "PiecewiseConstant"
 uuid = "a06fe262-dd7d-4c83-aa2f-7afdb1a09a89"
 authors = ["rmazouz <rayan.mazouz@colorado.edu>"]
 version = "0.1.0"
