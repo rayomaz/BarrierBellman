@@ -29,10 +29,6 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle)
     ϵ = 1e-6
     @variable(model, b[1:number_hypercubes])    
     @constraint(model, b .>= ϵ)
-    @constraint(model, b .<= 1 - ϵ)
-
-    # Obstacle
-    @constraint(model, b[obstacle] == 25)
 
     # Obstacle barrier
     @constraint(model, b[obstacle] == 1)
