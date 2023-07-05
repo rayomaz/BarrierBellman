@@ -63,7 +63,7 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
         JuMP.optimize!(model)
     
         # Print optimal values
-        @inbounds β_parts[jj] = value(β)
+        @inbounds β_parts[jj] = max(value(β), 0)
     end
 
     max_β = maximum(β_parts)
