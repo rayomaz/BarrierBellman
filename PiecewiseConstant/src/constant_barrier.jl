@@ -23,7 +23,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     set_silent(model)
 
     # Create optimization variables
-    @variable(model, b[1:number_hypercubes], lower_bound=ϵ, upper_bound = 1-ϵ)   
+    @variable(model, b[1:number_hypercubes], lower_bound=ϵ, upper_bound=1)   
 
     # Obstacle barrier
     if !isnothing(obstacle_regions)
@@ -35,7 +35,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     @constraint(model, b[initial_regions] .≤ η)
 
     # Create probability decision variables β
-    @variable(model, β_parts_var[1:number_hypercubes], lower_bound=ϵ, upper_bound=1 - ϵ)
+    @variable(model, β_parts_var[1:number_hypercubes], lower_bound=ϵ, upper_bound=1)
     @variable(model, β)
     @constraint(model, β_parts_var .<= β)
 

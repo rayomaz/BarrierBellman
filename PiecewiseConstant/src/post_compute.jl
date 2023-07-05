@@ -26,8 +26,8 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
 
         # Create optimization variables
         number_hypercubes = length(b)
-        @variable(model, p[1:number_hypercubes]) 
-        @variable(model, Pᵤ)    
+        @variable(model, p[1:number_hypercubes], lower_bound=0, upper_bound=1) 
+        @variable(model, Pᵤ, lower_bound=0, upper_bound=1)    
 
         # Create probability decision variables β
         @variable(model, β)

@@ -26,7 +26,7 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
 
     # Create optimization variables
     # @variable(model, b[1:number_hypercubes] >= ϵ)
-    @variable(model, b[1:number_hypercubes], lower_bound=ϵ, upper_bound = 1-ϵ)   
+    @variable(model, b[1:number_hypercubes], lower_bound=ϵ, upper_bound=1)   
 
 
     # Obstacle barrier
@@ -39,7 +39,7 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
     @constraint(model, b[initial_regions] .≤ η)
 
     # Create probability decision variables β
-    @variable(model, β_parts_var[1:number_hypercubes], lower_bound = ϵ, upper_bound = 1 - ϵ)
+    @variable(model, β_parts_var[1:number_hypercubes], lower_bound=ϵ, upper_bound=1)
     @variable(model, β)
     @constraint(model, β_parts_var .<= β)
 
