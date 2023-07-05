@@ -54,10 +54,10 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
             add_to_expression!(exp, b[ii], p[ii])
         end
 
-        @constraint(model, exp + Pᵤ <= b[jj] + β)
+        @constraint(model, exp + Pᵤ == b[jj] + β)
 
         # Define optimization objective
-        @objective(model, Min, β)
+        @objective(model, Max, β)
     
         # Optimize model
         JuMP.optimize!(model)
@@ -70,7 +70,6 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
     println("Solution: [β = $max_β]")
 
     return β_parts
-
 end
 
 function accuracy_threshold(val_low, val_up)

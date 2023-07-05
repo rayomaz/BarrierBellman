@@ -26,13 +26,17 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
     set_silent(model)
 
     # Create optimization variables
-    @variable(model, b[1:number_hypercubes] >= ϵ)    
+    @variable(model, b[1:number_hypercubes], lower_bound=ϵ)    
 
     # Obstacle barrier
     # @constraint(model, b[obstacle] == 1)
 
+    # Initial set
+    @variable(model, η, lower_bound=ϵ)
+    @constraint(model, b[initial_state_partition] ≤ η)
+
     # Create probability decision variables β
-    @variable(model, ϵ <= β_parts_var[1:number_hypercubes] <= 1 - ϵ)
+    @variable(model, β_parts_var[1:number_hypercubes], lower_bound=ϵ, upper_bound=1 - ϵ)
     @variable(model, β)
     @constraint(model, β_parts_var .<= β)
 
@@ -46,7 +50,6 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
 
     # Define optimization objective
     time_horizon = 1
-    η = b[initial_state_partition]
     @objective(model, Min, η + β * time_horizon)
 
     # println("Objective made ... ")
@@ -56,6 +59,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
 
     # Barrier certificate
     b = value.(b)
+    η = value(η)
     # for Bⱼ in b
     #     println(Bⱼ)
     # end
