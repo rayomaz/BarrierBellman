@@ -67,7 +67,7 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
     end
 
     max_β = maximum(β_parts)
-    println("Solution: [β = $max_β]")
+    println("Solution updated beta: [β = $max_β]")
 
     return β_parts
 end

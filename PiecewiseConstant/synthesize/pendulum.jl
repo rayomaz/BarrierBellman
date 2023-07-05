@@ -26,3 +26,5 @@ probabilities = matopen(probabilities)
 # jj = 10
 # sum_probabilities(jj, probabilities)
 # sum_barrier_probabilities(jj, b, beta, probabilities)
+
+println("\n Pendulum model verified.")

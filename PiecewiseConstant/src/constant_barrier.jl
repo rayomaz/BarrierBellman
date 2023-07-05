@@ -65,7 +65,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     β_values = value.(β_parts_var)
     max_β = maximum(β_values)
     η = value(η)
-    println("Solution: [η = $(value(η)), β = $max_β]")
+    println("Solution upper bound approach: [η = $(value(η)), β = $max_β]")
 
     # Print model summary and number of constraints
     # println("")

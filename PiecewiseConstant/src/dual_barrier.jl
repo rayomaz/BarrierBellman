@@ -25,7 +25,9 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
     set_silent(model)
 
     # Create optimization variables
-    @variable(model, b[1:number_hypercubes] >= ϵ)
+    # @variable(model, b[1:number_hypercubes] >= ϵ)
+    @variable(model, b[1:number_hypercubes], lower_bound=ϵ, upper_bound = 1-ϵ)   
+
 
     # Obstacle barrier
     if !isnothing(obstacle_regions)
@@ -70,7 +72,7 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
     β_values = value.(β_parts_var)
     max_β = maximum(β_values)
     η = value(η)
-    println("Solution: [η = $(value(η)), β = $max_β]")
+    println("Solution dual approach: [η = $(value(η)), β = $max_β]")
 
     # Print model summary and number of constraints
     # println("")
