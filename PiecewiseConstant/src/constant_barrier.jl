@@ -4,22 +4,19 @@
 
 """
 
-function constant_barrier(probabilities::MatlabFile, obstacle)
+function constant_barrier(probabilities::MatlabFile, args...; kwargs...)
     # Load probability matrices
     prob_upper = read(probabilities, "matrix_prob_upper")
     prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")
 
-    return constant_barrier(prob_upper, prob_unsafe_upper, obstacle)
+    return constant_barrier(prob_upper, prob_unsafe_upper, args...; kwargs...)
 end
 
 # Optimization function
-function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
+function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(Int, length(prob_unsafe_upper) / 2), obstacle_regions=nothing; time_horizon=1, ϵ=1e-6)
     
     # Number of hypercubes
     number_hypercubes = length(prob_unsafe_upper)
-
-    # Number of hypercubes
-    initial_state_partition = Int(round(number_hypercubes/2))
 
     # Using HiGHS as the LP solver
     model = Model(HiGHS.Optimizer)
@@ -29,11 +26,13 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
     @variable(model, b[1:number_hypercubes], lower_bound=ϵ)    
 
     # Obstacle barrier
-    # @constraint(model, b[obstacle] == 1)
+    if !isnothing(obstacle_regions)
+        @constraint(model, b[obstacle_regions] == 1)
+    end
 
     # Initial set
     @variable(model, η, lower_bound=ϵ)
-    @constraint(model, b[initial_state_partition] ≤ η)
+    @constraint(model, b[initial_regions] .≤ η)
 
     # Create probability decision variables β
     @variable(model, β_parts_var[1:number_hypercubes], lower_bound=ϵ, upper_bound=1 - ϵ)
@@ -43,13 +42,12 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
     # Construct barriers
     @inbounds for jj in eachindex(b)
         probability_bounds = [prob_upper[jj, :], prob_unsafe_upper[jj]]
-        expectation_constraint!(model, b, jj, probability_bounds, β_parts_var[jj])
+        expectation_constraint!(model, b, probability_bounds, b[jj], β_parts_var[jj])
     end
 
     # println("Synthesizing barries ... ")
 
     # Define optimization objective
-    time_horizon = 1
     @objective(model, Min, η + β * time_horizon)
 
     # println("Objective made ... ")
@@ -59,7 +57,6 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
 
     # Barrier certificate
     b = value.(b)
-    η = value(η)
     # for Bⱼ in b
     #     println(Bⱼ)
     # end
@@ -67,7 +64,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
     # Print optimal values
     β_values = value.(β_parts_var)
     max_β = maximum(β_values)
-    η = value.(b[initial_state_partition])
+    η = value(η)
     println("Solution: [η = $(value(η)), β = $max_β]")
 
     # Print model summary and number of constraints
@@ -79,7 +76,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
 
 end
 
-function expectation_constraint!(model, b, jj, probability_bounds, βⱼ) 
+function expectation_constraint!(model, b, probability_bounds, Bⱼ, βⱼ) 
 
     """ Barrier martingale condition
     * ∑B[f(x)]*p(x) + Pᵤ <= B(x) + β: expanded in summations
@@ -90,9 +87,6 @@ function expectation_constraint!(model, b, jj, probability_bounds, βⱼ)
     # Construct piecewise martingale constraint
     # Transition to unsafe set
     exp = AffExpr(0)
-
-    # Barrier jth partition
-    Bⱼ = b[jj]
 
     # Bounds on Eᵢⱼ
     @inbounds for (Bᵢ, P̅ᵢ) in zip(b, prob_upper)
