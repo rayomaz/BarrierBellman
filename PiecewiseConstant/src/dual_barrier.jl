@@ -94,24 +94,21 @@ function dual_expectation_constraint!(model, b, probability_bounds, Bⱼ, βⱼ)
         prob_unsafe_lower,
         prob_unsafe_upper) = probability_bounds
 
-    # Barrier jth partition
-    Bⱼ = b[jj]
-
     # Add RHS dual constraint
     rhs = Bⱼ + βⱼ
 
     # Construct identity matrix     H → dim([#num hypercubes + 1]) to account for Pᵤ
-    H = [-I
-        I
-        -ones(1, length(b) + 1)
+    H = [-I;
+        I;
+        -ones(1, length(b) + 1);
         ones(1, length(b) + 1)]
 
     # Setup c vector: [b; 1]
     c = [b; 1]
 
-    h = [-prob_lower -prob_unsafe_lower
-        prob_upper prob_unsafe_upper
-        [-1]
+    h = [-prob_lower; -prob_unsafe_lower;
+        prob_upper; prob_unsafe_upper;
+        [-1];
         [1]]
 
     # Define assynmetric constraint [Dual approach]
