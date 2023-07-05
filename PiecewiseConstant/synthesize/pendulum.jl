@@ -20,7 +20,7 @@ probabilities = matopen(probabilities)
 @time beta_updated = post_compute_beta(b, probabilities)
 
 # Optimize: method 2 (dual approach)
-# @time b_dual, beta_dual = dual_constant_barrier(probabilities)
+@time b_dual, beta_dual = dual_constant_barrier(probabilities)
 
 # Sanity checks
 # jj = 10

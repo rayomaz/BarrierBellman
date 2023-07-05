@@ -89,6 +89,14 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
     #     println(io, β_values)
     # end
 
+    # if isfile("probabilities/barrier_dual.txt") == true
+    #     rm("probabilities/barrier_dual.txt")
+    # end
+
+    # open("probabilities/barrier_dual.txt", "a") do io
+    #     println(io, b)
+    # end
+
 
     return b, β_values
 

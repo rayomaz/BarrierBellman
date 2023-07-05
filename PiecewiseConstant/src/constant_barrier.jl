@@ -81,6 +81,14 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     #     println(io, β_values)
     # end
 
+    # if isfile("probabilities/barrier.txt") == true
+    #     rm("probabilities/barrier.txt")
+    # end
+
+    # open("probabilities/barrier.txt", "a") do io
+    #     println(io, b)
+    # end
+
     return b, β_values
 
 end

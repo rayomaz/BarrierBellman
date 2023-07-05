@@ -1,24 +1,21 @@
 %% Plotting beta distribution
 
-clc; clear; close all
+% clc; clear; close all
 
 % Read data files
 data_hyper = load('../models/pendulum/partition_data_120.mat');
 partitions = data_hyper.partitions;
-stringData_certificate = read_file('../probabilities/beta.txt');
-stringData_updated = read_file('../probabilities/beta_updated.txt');
-stringData_dual = read_file('../probabilities/beta_dual.txt');
+stringData_certificate = read_file('../probabilities/barrier.txt');
+stringData_dual = read_file('../probabilities/barrier_dual.txt');
 
 %% Read probability values from data files
-array_prob_certificate = extract_data(stringData_certificate);
-array_prob_updated = extract_data(stringData_updated);
-array_prob_dual = extract_data(stringData_dual);
-max_prob_certificate = max(array_prob_certificate);
+array_certificate = extract_data(stringData_certificate);
+array_dual = extract_data(stringData_dual);
+max_prob_certificate = 1;
 
 %% Plot the grid and probability distribution
-plot_certifcate = plot_data(array_prob_certificate, partitions, max_prob_certificate, "Upper bound");
-plot_updated = plot_data(array_prob_updated, partitions, max_prob_certificate, "Update");
-plot_dual = plot_data(array_prob_dual, partitions, max_prob_certificate, "Dual");
+plot_certifcate = plot_data(array_certificate, partitions, max_prob_certificate, "Upper bound");
+plot_dual = plot_data(array_dual, partitions, max_prob_certificate, "Dual");
 
 %% Functions
 function stringData = read_file(file_name)
@@ -97,8 +94,8 @@ function plots = plot_data(array_prob, partitions, max_prob, title_type)
 
     xlabel("$\theta$ (rad)", 'Interpreter','latex', "FontSize", 25)
     ylabel('$\dot{\theta}$ (rad/s)', 'Interpreter','latex', "FontSize", 25)
-    ylabel(a,'Pr','Rotation',0, 'Interpreter','latex', "FontSize", 25);
-    title("Beta", title_type)
+    ylabel(a,'B','Rotation',0, 'Interpreter','latex', "FontSize", 25);
+    title("Barrier", title_type)
     set(gcf,'color','w');
     set(gca,'FontSize',20)
     xlim([x1_min x1_max])
