@@ -26,7 +26,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, obstacle; ϵ=1e-6)
     set_silent(model)
 
     # Create optimization variables
-    @variable(model, b[1:number_hypercubes], lower_bound=ϵ)    
+    @variable(model, b[1:number_hypercubes], lower_bound=ϵ, upper_bound = 1-ϵ)   
 
     # Obstacle barrier
     # @constraint(model, b[obstacle] == 1)
