@@ -80,6 +80,15 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
     # println("")
     # println(" Number of constraints ", sum(num_constraints(model, F, S) for (F, S) in list_of_constraint_types(model)))
 
+    # # Print beta values to txt file
+    # if isfile("probabilities/beta_dual.txt") == true
+    #     rm("probabilities/beta_dual.txt")
+    # end
+
+    # open("probabilities/beta_dual.txt", "a") do io
+    #     println(io, β_values)
+    # end
+
 
     return b, β_values
 

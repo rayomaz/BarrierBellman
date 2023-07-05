@@ -26,8 +26,8 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
 
         # Create optimization variables
         number_hypercubes = length(b)
-        @variable(model, p[1:number_hypercubes], lower_bound=0, upper_bound=1) 
-        @variable(model, Pᵤ, lower_bound=0, upper_bound=1)    
+        @variable(model, p[1:number_hypercubes]) 
+        @variable(model, Pᵤ)    
 
         # Create probability decision variables β
         @variable(model, β)
@@ -68,6 +68,15 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
 
     max_β = maximum(β_parts)
     println("Solution updated beta: [β = $max_β]")
+
+    # # Print beta values to txt file
+    # if isfile("probabilities/beta_updated.txt") == true
+    #     rm("probabilities/beta_updated.txt")
+    # end
+
+    # open("probabilities/beta_updated.txt", "a") do io
+    #     println(io, β_parts)
+    # end
 
     return β_parts
 end

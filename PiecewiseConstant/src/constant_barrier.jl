@@ -72,6 +72,15 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     # println(" Number of constraints ", sum(num_constraints(model, F, S) for (F, S) in list_of_constraint_types(model)))
     # println("")
 
+    # # Print beta values to txt file
+    # if isfile("probabilities/beta.txt") == true
+    #     rm("probabilities/beta.txt")
+    # end
+
+    # open("probabilities/beta.txt", "a") do io
+    #     println(io, β_values)
+    # end
+
     return b, β_values
 
 end
