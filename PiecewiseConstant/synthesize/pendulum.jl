@@ -21,3 +21,8 @@ probabilities = matopen(probabilities)
 
 # Optimize: method 2 (dual approach)
 @time b_dual, beta_dual = dual_constant_barrier(probabilities)
+
+# Sanity checks
+# jj = 10
+# sum_probabilities(jj, probabilities)
+# sum_barrier_probabilities(jj, b, beta, probabilities)
