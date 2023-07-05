@@ -3,7 +3,6 @@ clc; clear; close all
 
 % Load data files
 data_hyper = load('../models/pendulum/partition_data_120.mat');
-prob_data_hyper = load('../models/pendulum/probability_data_120.mat');
 
 % Define state space
 partitions = data_hyper.partitions;
