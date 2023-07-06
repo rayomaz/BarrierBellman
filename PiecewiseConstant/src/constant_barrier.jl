@@ -23,7 +23,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     set_silent(model)
 
     # Create optimization variables
-    @variable(model, b[1:number_hypercubes], lower_bound=ϵ, upper_bound=1)   
+    @variable(model, b[1:number_hypercubes], lower_bound=ϵ)   
 
     # Obstacle barrier
     if !isnothing(obstacle_regions)
@@ -35,7 +35,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     @constraint(model, b[initial_regions] .≤ η)
 
     # Create probability decision variables β
-    @variable(model, β_parts_var[1:number_hypercubes], lower_bound=ϵ, upper_bound=1)
+    @variable(model, β_parts_var[1:number_hypercubes], lower_bound=ϵ)
     @variable(model, β)
     @constraint(model, β_parts_var .<= β)
 
@@ -73,21 +73,21 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     # println("")
 
     # # Print beta values to txt file
-    # if isfile("probabilities/beta.txt") == true
-    #     rm("probabilities/beta.txt")
-    # end
+    if isfile("probabilities/beta.txt") == true
+        rm("probabilities/beta.txt")
+    end
 
-    # open("probabilities/beta.txt", "a") do io
-    #     println(io, β_values)
-    # end
+    open("probabilities/beta.txt", "a") do io
+        println(io, β_values)
+    end
 
-    # if isfile("probabilities/barrier.txt") == true
-    #     rm("probabilities/barrier.txt")
-    # end
+    if isfile("probabilities/barrier.txt") == true
+        rm("probabilities/barrier.txt")
+    end
 
-    # open("probabilities/barrier.txt", "a") do io
-    #     println(io, b)
-    # end
+    open("probabilities/barrier.txt", "a") do io
+        println(io, b)
+    end
 
     return b, β_values
 

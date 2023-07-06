@@ -11,7 +11,7 @@ stringData_dual = read_file('../probabilities/barrier_dual.txt');
 %% Read probability values from data files
 array_certificate = extract_data(stringData_certificate);
 array_dual = extract_data(stringData_dual);
-max_prob_certificate = 1;
+max_prob_certificate = 7;
 
 %% Plot the grid and probability distribution
 plot_certifcate = plot_data(array_certificate, partitions, max_prob_certificate, "Upper bound");

@@ -18,6 +18,7 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
     number_hypercubes = length(b)
     
     β_parts = Vector{Float64}(undef, number_hypercubes)
+    # p_values = Vector{Float64}(number_hypercubes, number_hypercubes)
 
     Threads.@threads for jj in eachindex(b)
         # Using HiGHS as the LP solver
@@ -64,19 +65,20 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
     
         # Print optimal values
         @inbounds β_parts[jj] = max(value(β), 0)
+        # @inbounds p_values[jj, :] = p_val
     end
 
     max_β = maximum(β_parts)
     println("Solution updated beta: [β = $max_β]")
 
-    # # Print beta values to txt file
-    # if isfile("probabilities/beta_updated.txt") == true
-    #     rm("probabilities/beta_updated.txt")
-    # end
+    # Print beta values to txt file
+    if isfile("probabilities/beta_updated.txt") == true
+        rm("probabilities/beta_updated.txt")
+    end
 
-    # open("probabilities/beta_updated.txt", "a") do io
-    #     println(io, β_parts)
-    # end
+    open("probabilities/beta_updated.txt", "a") do io
+        println(io, β_parts)
+    end
 
     return β_parts
 end

@@ -12,7 +12,7 @@ using MAT
 # System
 system_flag = "pendulum"
 number_hypercubes = 120
-probabilities = "models/" * system_flag * "/probability_data_"  * string(number_hypercubes) * ".mat"
+probabilities = "models/" * system_flag * "/probability_data_"  * string(number_hypercubes) * "_sigma_" *string(σ) * ".mat"
 probabilities = matopen(probabilities)
 
 # Optimize: method 1 (revise beta values)
@@ -20,11 +20,12 @@ probabilities = matopen(probabilities)
 @time beta_updated = post_compute_beta(b, probabilities)
 
 # Optimize: method 2 (dual approach)
-@time b_dual, beta_dual = dual_constant_barrier(probabilities)
+# @time b_dual, beta_dual = dual_constant_barrier(probabilities)
 
 # Sanity checks
-# jj = 10
-# sum_probabilities(jj, probabilities)
-# sum_barrier_probabilities(jj, b, beta, probabilities)
+# for jj = 1:120
+#     sum_probabilities(jj, probabilities)
+#     # sum_barrier_probabilities(jj, b, beta, probabilities)
+# end
 
 println("\n Pendulum model verified.")
