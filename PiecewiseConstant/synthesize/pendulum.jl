@@ -12,6 +12,7 @@ using MAT
 # System
 system_flag = "pendulum"
 number_hypercubes = 120
+σ = 0.01
 probabilities = "models/" * system_flag * "/probability_data_"  * string(number_hypercubes) * "_sigma_" *string(σ) * ".mat"
 probabilities = matopen(probabilities)
 
@@ -20,7 +21,7 @@ probabilities = matopen(probabilities)
 @time beta_updated = post_compute_beta(b, probabilities)
 
 # Optimize: method 2 (dual approach)
-# @time b_dual, beta_dual = dual_constant_barrier(probabilities)
+@time b_dual, beta_dual = dual_constant_barrier(probabilities)
 
 # Sanity checks
 # for jj = 1:120

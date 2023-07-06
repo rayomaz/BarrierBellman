@@ -21,16 +21,13 @@ function sum_probabilities(jj, prob_lower, prob_upper, prob_unsafe_lower, prob_u
     if PU_upper < 1
         print("Warning upper:" , jj)
     end
-    if PU_upper <1.8
-        print("Warning upper:" , jj)
-    end
 
     PU_lower = sum(prob_lower[jj, :]) + prob_unsafe_lower[jj]
     if PU_lower > 1
         print("Warning lower:" , jj)
     end
 
-    # println("Sum upper/lower bounds: ", PU_upper, ", ", PU_lower)
+    println("Sum upper/lower bounds: ", PU_upper, ", ", PU_lower)
 
 end
 

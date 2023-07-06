@@ -21,7 +21,7 @@ export post_compute_beta
 include("dual_barrier.jl")
 export dual_constant_barrier
 
-include("utils.jl")
+include("tests.jl")
 export sum_probabilities, sum_barrier_probabilities
 
 end # module PiecewiseConstant
