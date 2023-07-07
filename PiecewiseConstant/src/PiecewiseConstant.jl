@@ -22,7 +22,7 @@ export AbstractDiscreteTimeStochasticSystem, AdditiveGaussianPolynomialSystem
 export variables, dynamics, noise_distribution
 
 include("probabilities.jl")
-export transition_probabilities
+export linear_transition_probabilities, neural_transition_probabilities
 
 include("constant_barrier.jl")
 export constant_barrier

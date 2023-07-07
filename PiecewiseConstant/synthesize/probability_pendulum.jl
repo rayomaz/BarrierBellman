@@ -20,7 +20,7 @@ file = matopen(pwd()*filename)
 
 # Optimize
 σ = 0.10
-@time probability_bounds = transition_probabilities(file, number_hypercubes, σ)
+@time probability_bounds = neural_transition_probabilities(file, number_hypercubes, σ)
 
 # Extract probability data
 (matrix_prob_lower, 

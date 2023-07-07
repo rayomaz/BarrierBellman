@@ -6,7 +6,45 @@
 
 """
 
-function transition_probabilities(file, number_hypercubes, σ)
+function linear_transition_probabilities(system, state_partitions)
+
+    # Construct barriers
+    println("Computing transition probabilities ... ")
+
+    # Pre-generate probability matrices (parallel computation)
+    matrix_prob_lower = zeros(number_hypercubes, number_hypercubes)
+    matrix_prob_upper = zeros(number_hypercubes, number_hypercubes)
+    matrix_prob_unsafe_lower = zeros(1, number_hypercubes)
+    matrix_prob_unsafe_upper = zeros(1, number_hypercubes)
+
+    for jj = 1:number_hypercubes
+
+        """ Probability bounds
+            - P(j → i)
+            - P(j → Xᵤ)
+        """
+
+        prob_lower, prob_upper = linear_probability_distribution(system, state_partitions, jj, "transition_j_to_i")
+        prob_unsafe_lower, prob_unsafe_upper = linear_probability_distribution(system, state_partitions, jj, "transition_unsafe")
+
+        # Build matrices in parallel format
+        matrix_prob_lower[jj, :] = prob_lower
+        matrix_prob_upper[jj, :] = prob_upper
+        matrix_prob_unsafe_lower[jj] = prob_unsafe_lower
+        matrix_prob_unsafe_upper[jj] = prob_unsafe_upper
+
+    end
+
+    # Save probability values in tuple
+    prob_bounds = (matrix_prob_lower, 
+                   matrix_prob_upper,
+                   matrix_prob_unsafe_lower,
+                   matrix_prob_unsafe_upper)
+
+    return prob_bounds
+end
+
+function neural_transition_probabilities(file, number_hypercubes, σ)
 
     # Extract hypercube data (avoid using float64 for precision issues)
     state_partitions = read(file, "partitions")
@@ -95,7 +133,7 @@ function linear_probability_distribution(system, state_partitions, jj, type)
         v_l = low(state_partitions[1])
         v_u = high(state_partitions[end])
 
-        P_min, P_max = optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initial)
+        P_min, P_max = linear_optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initial)
 
         # Convert to transition unsafe set
         return (1 - P_max), (1 - P_min)

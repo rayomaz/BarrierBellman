@@ -31,6 +31,13 @@ initial_state_partition = Int(round(length(state_partitions)/2))
 # Optimize
 # @time b, beta = constant_barrier(system, state_partitions, initial_state_partition)
 
+# Optimize: method 1 (revise beta values)
+# @time b, beta = constant_barrier(probabilities)
+# @time beta_updated = post_compute_beta(b, probabilities)
+
+# # Optimize: method 2 (dual approach)
+# @time b_dual, beta_dual = dual_constant_barrier(probabilities)
+
 # data = Dict("b" => b, "beta" => beta)
 
 # # Save the dictionary in a .mat file
