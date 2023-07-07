@@ -59,6 +59,51 @@ function transition_probabilities(file, number_hypercubes, σ)
     return prob_bounds
 end
 
+function transition_probabilities_linear(state_partitions, dynamics, σ)
+
+    # Construct barriers
+    println("Computing transition probabilities ... ")
+
+    # Pre-generate probability matrices (parallel computation)
+    matrix_prob_lower = zeros(number_hypercubes, number_hypercubes)
+    matrix_prob_upper = zeros(number_hypercubes, number_hypercubes)
+    matrix_prob_unsafe_lower = zeros(1, number_hypercubes)
+    matrix_prob_unsafe_upper = zeros(1, number_hypercubes)
+
+    for jj = 1:number_hypercubes
+
+        """ Probability bounds
+            - P(j → i)
+            - P(j → Xᵤ)
+        """
+        neural_bounds = (transpose(M_upper[jj, :, :]), 
+                         transpose(M_lower[jj, :, :]),
+                         b_upper[jj,:], 
+                         b_lower[jj,:])
+
+        prob_lower, prob_upper = probability_distribution(neural_bounds::Tuple{LinearAlgebra.Transpose{Float64, Matrix{Float64}}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Vector{Float64}, Vector{Float64}},  
+                                                                    σ::Float64, state_partitions:: Array{Float64, 3}, jj::Int64, "transition_j_to_i"::String)
+        prob_unsafe_lower, prob_unsafe_upper = probability_distribution(neural_bounds::Tuple{LinearAlgebra.Transpose{Float64, Matrix{Float64}}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Vector{Float64}, Vector{Float64}},  
+                                                                    σ::Float64, state_partitions:: Array{Float64, 3}, jj::Int64, "transition_unsafe"::String)
+
+        # Build matrices in parallel format
+        matrix_prob_lower[jj, :] = prob_lower
+        matrix_prob_upper[jj, :] = prob_upper
+        matrix_prob_unsafe_lower[jj] = prob_unsafe_lower
+        matrix_prob_unsafe_upper[jj] = prob_unsafe_upper
+
+    end
+
+    # Save probability values in tuple
+    prob_bounds = (matrix_prob_lower, 
+                   matrix_prob_upper,
+                   matrix_prob_unsafe_lower,
+                   matrix_prob_unsafe_upper)
+
+    return prob_bounds
+end
+
+
 
 # Transition probability, P(qᵢ | x ∈ qⱼ), based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
 function probability_distribution(neural_bounds::Tuple{LinearAlgebra.Transpose{Float64, Matrix{Float64}}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Vector{Float64}, Vector{Float64}},
