@@ -12,7 +12,7 @@ using MAT
 # System
 system_flag = "linear"
 number_hypercubes = 5
-σ = 0.1
+σ = 0.01
 probabilities = "models/" * system_flag * "/probability_data_"  * string(number_hypercubes) * "_sigma_" *string(σ) * ".mat"
 probabilities = matopen(probabilities)
 
@@ -24,9 +24,9 @@ probabilities = matopen(probabilities)
 @time b_dual, beta_dual = dual_constant_barrier(probabilities)
 
 # Sanity checks
-# for jj = 1:120
-#     sum_probabilities(jj, probabilities)
-#     # sum_barrier_probabilities(jj, b, beta, probabilities)
-# end
+for jj = 1:5
+    sum_probabilities(jj, probabilities)
+    # sum_barrier_probabilities(jj, b, beta, probabilities)
+end
 
 println("\n Linear model verified.")
