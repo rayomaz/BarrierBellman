@@ -1,6 +1,6 @@
 """ Functions to compute :
 
-    Transition probabilities P(qᵢ | x ∈ qⱼ) for Neural Network Model
+    Transition probabilities P(qᵢ | x ∈ qⱼ) for Linear Systems and Neural Network Models
 
     © Rayan Mazouz
 
@@ -10,6 +10,9 @@ function linear_transition_probabilities(system, state_partitions)
 
     # Construct barriers
     println("Computing transition probabilities ... ")
+
+    # Size definition
+    number_hypercubes = length(state_partitions)
 
     # Pre-generate probability matrices (parallel computation)
     matrix_prob_lower = zeros(number_hypercubes, number_hypercubes)
