@@ -37,9 +37,9 @@ function transition_probabilities(file, number_hypercubes, σ)
                          b_upper[jj,:], 
                          b_lower[jj,:])
 
-        prob_lower, prob_upper = probability_distribution(neural_bounds::Tuple{LinearAlgebra.Transpose{Float64, Matrix{Float64}}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Vector{Float64}, Vector{Float64}},  
+        prob_lower, prob_upper = neural_probability_distribution(neural_bounds::Tuple{LinearAlgebra.Transpose{Float64, Matrix{Float64}}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Vector{Float64}, Vector{Float64}},  
                                                                     σ::Float64, state_partitions:: Array{Float64, 3}, jj::Int64, "transition_j_to_i"::String)
-        prob_unsafe_lower, prob_unsafe_upper = probability_distribution(neural_bounds::Tuple{LinearAlgebra.Transpose{Float64, Matrix{Float64}}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Vector{Float64}, Vector{Float64}},  
+        prob_unsafe_lower, prob_unsafe_upper = neural_probability_distribution(neural_bounds::Tuple{LinearAlgebra.Transpose{Float64, Matrix{Float64}}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Vector{Float64}, Vector{Float64}},  
                                                                     σ::Float64, state_partitions:: Array{Float64, 3}, jj::Int64, "transition_unsafe"::String)
 
         # Build matrices in parallel format
@@ -58,55 +58,54 @@ function transition_probabilities(file, number_hypercubes, σ)
 
     return prob_bounds
 end
-
-function transition_probabilities_linear(state_partitions, dynamics, σ)
-
-    # Construct barriers
-    println("Computing transition probabilities ... ")
-
-    # Pre-generate probability matrices (parallel computation)
-    matrix_prob_lower = zeros(number_hypercubes, number_hypercubes)
-    matrix_prob_upper = zeros(number_hypercubes, number_hypercubes)
-    matrix_prob_unsafe_lower = zeros(1, number_hypercubes)
-    matrix_prob_unsafe_upper = zeros(1, number_hypercubes)
-
-    for jj = 1:number_hypercubes
-
-        """ Probability bounds
-            - P(j → i)
-            - P(j → Xᵤ)
-        """
-        neural_bounds = (transpose(M_upper[jj, :, :]), 
-                         transpose(M_lower[jj, :, :]),
-                         b_upper[jj,:], 
-                         b_lower[jj,:])
-
-        prob_lower, prob_upper = probability_distribution(neural_bounds::Tuple{LinearAlgebra.Transpose{Float64, Matrix{Float64}}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Vector{Float64}, Vector{Float64}},  
-                                                                    σ::Float64, state_partitions:: Array{Float64, 3}, jj::Int64, "transition_j_to_i"::String)
-        prob_unsafe_lower, prob_unsafe_upper = probability_distribution(neural_bounds::Tuple{LinearAlgebra.Transpose{Float64, Matrix{Float64}}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Vector{Float64}, Vector{Float64}},  
-                                                                    σ::Float64, state_partitions:: Array{Float64, 3}, jj::Int64, "transition_unsafe"::String)
-
-        # Build matrices in parallel format
-        matrix_prob_lower[jj, :] = prob_lower
-        matrix_prob_upper[jj, :] = prob_upper
-        matrix_prob_unsafe_lower[jj] = prob_unsafe_lower
-        matrix_prob_unsafe_upper[jj] = prob_unsafe_upper
-
-    end
-
-    # Save probability values in tuple
-    prob_bounds = (matrix_prob_lower, 
-                   matrix_prob_upper,
-                   matrix_prob_unsafe_lower,
-                   matrix_prob_unsafe_upper)
-
-    return prob_bounds
-end
-
-
 
 # Transition probability, P(qᵢ | x ∈ qⱼ), based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
-function probability_distribution(neural_bounds::Tuple{LinearAlgebra.Transpose{Float64, Matrix{Float64}}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Vector{Float64}, Vector{Float64}},
+function linear_probability_distribution(system, state_partitions, jj, type)
+
+    # Identify current hypercube
+    hypercubeⱼ = state_partitions[jj]
+    x_lower = low(hypercubeⱼ)
+    x_upper = high(hypercubeⱼ)
+    x_initial = 1/2 * (x_lower + x_upper)
+
+    if type == "transition_j_to_i"
+
+        hyper = length(state_partitions)
+        prob_transition_lower = zeros(1, hyper);
+        prob_transition_upper = zeros(1, hyper);
+
+        for ii = 1:hyper
+
+            # Hypercube bounds
+            hypercubeᵢ = state_partitions[ii]
+            v_l = low(hypercubeᵢ)
+            v_u = high(hypercubeᵢ)
+
+            P_min, P_max = linear_optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initial)
+
+            prob_transition_lower[ii] = P_min
+            prob_transition_upper[ii] = P_max
+
+        end
+
+        return prob_transition_lower, prob_transition_upper
+
+    elseif type == "transition_unsafe"
+
+        v_l = low(state_partitions[1])
+        v_u = high(state_partitions[end])
+
+        P_min, P_max = optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initial)
+
+        # Convert to transition unsafe set
+        return (1 - P_max), (1 - P_min)
+
+    end
+
+end
+
+# Transition probability, P(qᵢ | x ∈ qⱼ), based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
+function neural_probability_distribution(neural_bounds::Tuple{LinearAlgebra.Transpose{Float64, Matrix{Float64}}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Vector{Float64}, Vector{Float64}},
                                   σ::Float64, state_partitions::Array{Float64, 3}, jj::Int64, type::String)
 
     # Hypercube bounds
@@ -217,6 +216,37 @@ function neural_optimize_prod_of_erf(neural_bounds::Tuple{LinearAlgebra.Transpos
 
 end
 
+function linear_optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initial)
+
+    # Fetch state space, noise and dynamics
+    σ = noise_distribution(system)
+    fx = dynamics(system)
+
+    # Loop for f(y, q), Proposition 3, http://dx.doi.org/10.1145/3302504.3311805
+    m = length(fx)
+    if m > 1
+        error("Specify dynamics ... ")
+    end
+
+    # Gradient descent on log-concave function: 
+    inner_optimizer = GradientDescent()
+
+    erf_low(x) = (0.95*x[1] - v_l[m]) / (σ[1] * sqrt(2))
+    erf_up(x)  = (0.95*x[1] - v_u[m]) / (σ[1] * sqrt(2))
+
+    f(x) = 1/(2^m)*(erf(erf_low(x)) - erf(erf_up(x)))
+    g(x) = -f(x)
+
+    # Obtain min-max on P
+    results_min = Optim.optimize(f, x_lower, x_upper, x_initial, Fminbox(inner_optimizer))
+    P_min = results_min.minimum
+
+    results_max = Optim.optimize(g, x_lower, x_upper, x_initial, Fminbox(inner_optimizer))
+    P_max = -results_max.minimum
+
+    return P_min, P_max
+
+end
 
 function gradient_descent(model_gradient, m, vector_erf_vars, type)
 
