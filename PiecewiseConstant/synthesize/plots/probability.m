@@ -7,6 +7,8 @@ partitions = load('../models/linear/state_partitions.txt');
 data_hyper = load('../models/linear/probability_data_5_sigma_0.01.mat');
 prob_lower = data_hyper.matrix_prob_lower;
 prob_upper = data_hyper.matrix_prob_upper;
+prob_unsafe_lower = data_hyper.matrix_prob_unsafe_lower;
+prob_unsafe_upper = data_hyper.matrix_prob_unsafe_upper;
 
 figure
 hold on
@@ -17,7 +19,7 @@ grid on
 for jj = 1:length(partitions)
     
     colors = {'b', 'k', 'm', 'r', 'c'};
-    for ii = 3%1:1%length(partitions)
+    for ii = 1%1:1%length(partitions)
     
         x_space = linspace(min(partitions(jj, :)), max(partitions(jj, :)), 1000);
         
@@ -61,5 +63,7 @@ title("Probability distribution")
 set(gcf,'color','w');
 set(gca,'FontSize',14)
 
+prob_upper = [prob_upper, prob_unsafe_upper'];
+prob_lower = [prob_lower, prob_unsafe_lower'];
 
 

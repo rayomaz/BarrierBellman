@@ -31,7 +31,7 @@ elseif system == "linear"
 
     % Adding text
     fontSize = 16;  % Adjust the font size as needed
-    text(0, 0.28, 'Upper bound', 'Color', 'red', 'FontSize', fontSize);
+    text(0, 0.30, 'Upper bound', 'Color', 'red', 'FontSize', fontSize);
     text(0, 0.25, "Dual", 'Color', 'blue', 'FontSize', fontSize);
 end
 
