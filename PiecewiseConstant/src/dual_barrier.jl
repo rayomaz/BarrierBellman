@@ -26,7 +26,7 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
 
     # Create optimization variables
     # @variable(model, b[1:number_hypercubes] >= ϵ)
-    @variable(model, b[1:number_hypercubes], lower_bound=ϵ)   
+    @variable(model, b[1:number_hypercubes], lower_bound=ϵ, upper_bound=1)   
 
 
     # Obstacle barrier
@@ -80,22 +80,22 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
     # println("")
     # println(" Number of constraints ", sum(num_constraints(model, F, S) for (F, S) in list_of_constraint_types(model)))
 
-    # Print beta values to txt file
-    if isfile("probabilities/beta_dual.txt") == true
-        rm("probabilities/beta_dual.txt")
-    end
+    # # Print beta values to txt file
+    # if isfile("probabilities/beta_dual.txt") == true
+    #     rm("probabilities/beta_dual.txt")
+    # end
 
-    open("probabilities/beta_dual.txt", "a") do io
-        println(io, β_values)
-    end
+    # open("probabilities/beta_dual.txt", "a") do io
+    #     println(io, β_values)
+    # end
 
-    if isfile("probabilities/barrier_dual.txt") == true
-        rm("probabilities/barrier_dual.txt")
-    end
+    # if isfile("probabilities/barrier_dual.txt") == true
+    #     rm("probabilities/barrier_dual.txt")
+    # end
 
-    open("probabilities/barrier_dual.txt", "a") do io
-        println(io, b)
-    end
+    # open("probabilities/barrier_dual.txt", "a") do io
+    #     println(io, b)
+    # end
 
     return b, β_values
 
