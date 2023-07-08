@@ -23,7 +23,11 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     set_silent(model)
 
     # Create optimization variables
-    @variable(model, b[1:number_hypercubes], lower_bound=ϵ)   
+    @variable(model, b[1:number_hypercubes], lower_bound=ϵ, upper_bound=1) 
+    
+    # Decision on Pᵤ 
+    # @variable(model, dᵤ, lower_bound=1) 
+    dᵤ = 1.0
 
     # Obstacle barrier
     if !isnothing(obstacle_regions)
@@ -42,7 +46,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     # Construct barriers
     @inbounds for jj in eachindex(b)
         probability_bounds = [prob_upper[jj, :], prob_unsafe_upper[jj]]
-        expectation_constraint!(model, b, probability_bounds, b[jj], β_parts_var[jj])
+        expectation_constraint!(model, b, probability_bounds, dᵤ, b[jj], β_parts_var[jj])
     end
 
     # println("Synthesizing barries ... ")
@@ -65,7 +69,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     β_values = value.(β_parts_var)
     max_β = maximum(β_values)
     η = value(η)
-    println("Solution upper bound approach: [η = $(value(η)), β = $max_β]")
+    println("Solution upper bound approach: [η = $(value(η)), β = $max_β], d = $(value(d))")
 
     # Print model summary and number of constraints
     # println("")
@@ -73,27 +77,27 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     # println("")
 
     # # Print beta values to txt file
-    if isfile("probabilities/beta.txt") == true
-        rm("probabilities/beta.txt")
-    end
+    # if isfile("probabilities/beta.txt") == true
+    #     rm("probabilities/beta.txt")
+    # end
 
-    open("probabilities/beta.txt", "a") do io
-        println(io, β_values)
-    end
+    # open("probabilities/beta.txt", "a") do io
+    #     println(io, β_values)
+    # end
 
-    if isfile("probabilities/barrier.txt") == true
-        rm("probabilities/barrier.txt")
-    end
+    # if isfile("probabilities/barrier.txt") == true
+    #     rm("probabilities/barrier.txt")
+    # end
 
-    open("probabilities/barrier.txt", "a") do io
-        println(io, b)
-    end
+    # open("probabilities/barrier.txt", "a") do io
+    #     println(io, b)
+    # end
 
     return b, β_values
 
 end
 
-function expectation_constraint!(model, b, probability_bounds, Bⱼ, βⱼ) 
+function expectation_constraint!(model, b, probability_bounds, d,  Bⱼ, βⱼ) 
 
     """ Barrier martingale condition
     * ∑B[f(x)]*p(x) + Pᵤ <= B(x) + β: expanded in summations
@@ -112,6 +116,6 @@ function expectation_constraint!(model, b, probability_bounds, Bⱼ, βⱼ)
     end
 
     # Constraint martingale
-    @constraint(model, exp + prob_unsafe <= Bⱼ + βⱼ)
+    @constraint(model, exp + dᵤ*prob_unsafe <= Bⱼ + βⱼ)
 end
 
