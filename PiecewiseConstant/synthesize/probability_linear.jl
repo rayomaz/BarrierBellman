@@ -16,8 +16,8 @@ using MAT
 
 # System
 @polyvar x
-fx = 0.95 * x
-σ = 0.05
+fx = 1.05 * x
+σ = 0.01
 
 system = AdditiveGaussianPolynomialSystem{Float64, 1}(x, fx, σ)
 
