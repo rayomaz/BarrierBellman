@@ -263,6 +263,10 @@ function linear_optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initi
     σ = noise_distribution(system)
     fx = dynamics(system)
 
+    fx_string = string(fx[1])
+    fx_string = replace(fx_string, "*x" => "")
+    fx_float = parse(Float64, fx_string)
+
     # Loop for f(y, q), Proposition 3, http://dx.doi.org/10.1145/3302504.3311805
     m = length(fx)
     if m > 1
@@ -272,8 +276,9 @@ function linear_optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initi
     # Gradient descent on log-concave function: 
     inner_optimizer = GradientDescent()
 
-    erf_low(x) = (0.95*x[1] - v_l[m]) / (σ[1] * sqrt(2))
-    erf_up(x)  = (0.95*x[1] - v_u[m]) / (σ[1] * sqrt(2))
+    # print("Note: needs to be automated! Double check dynamics here")
+    erf_low(x) = (fx_float*x[1] - v_l[m]) / (σ[1] * sqrt(2))
+    erf_up(x)  = (fx_float*x[1] - v_u[m]) / (σ[1] * sqrt(2))
 
     f(x) = 1/(2^m)*(erf(erf_low(x)) - erf(erf_up(x)))
     g(x) = -f(x)
