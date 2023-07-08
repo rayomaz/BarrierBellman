@@ -69,7 +69,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     β_values = value.(β_parts_var)
     max_β = maximum(β_values)
     η = value(η)
-    println("Solution upper bound approach: [η = $(value(η)), β = $max_β], d = $(value(d))")
+    println("Solution upper bound approach: [η = $(value(η)), β = $max_β]")
 
     # Print model summary and number of constraints
     # println("")
@@ -97,7 +97,7 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
 
 end
 
-function expectation_constraint!(model, b, probability_bounds, d,  Bⱼ, βⱼ) 
+function expectation_constraint!(model, b, probability_bounds, dᵤ,  Bⱼ, βⱼ) 
 
     """ Barrier martingale condition
     * ∑B[f(x)]*p(x) + Pᵤ <= B(x) + β: expanded in summations
