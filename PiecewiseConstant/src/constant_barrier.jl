@@ -25,9 +25,9 @@ function constant_barrier(prob_upper, prob_unsafe_upper, initial_regions=round(I
     # Create optimization variables
     @variable(model, b[1:number_hypercubes], lower_bound=ϵ, upper_bound=1) 
     
-    # Decision on Pᵤ 
+    # Decision on Pᵤ [Note: optimizer chosen dᵤ = 1.0 automatically]
     # @variable(model, dᵤ, lower_bound=1) 
-    dᵤ = 1.0
+    dᵤ = 1.0 
 
     # Obstacle barrier
     if !isnothing(obstacle_regions)
