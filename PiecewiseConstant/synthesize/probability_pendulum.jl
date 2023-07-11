@@ -19,7 +19,7 @@ filename = "/models/" * system_flag * "/partition_data_"  * string(number_hyperc
 file = matopen(pwd()*filename)
 
 # Optimize
-σ = 0.01
+σ = 0.05
 @time probability_bounds = neural_transition_probabilities(file, number_hypercubes, σ)
 
 # Extract probability data
