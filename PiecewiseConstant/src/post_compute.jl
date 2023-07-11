@@ -4,7 +4,7 @@
 
 """
 
-function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-6)
+function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities})
     β_parts = Vector{Float64}(undef, length(B))
     p_distribution = Matrix{Float64}(undef, length(B), length(B) + 1)
 
@@ -16,38 +16,24 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-
         set_silent(model)
 
         # Create optimization variables
-        @variable(model, P[eachindex(regions)], lower_bound=0, upper_bound=1) 
-        @variable(model, Pᵤ, lower_bound=0, upper_bound=1)    
+        # Since we are bounding the variables by constants, we can do so on creation
+        P̲, P̅ = prob_lower(Xⱼ), prob_upper(Xⱼ)
+        val_low, val_up = min.(P̲, P̅), max.(P̲, P̅)
+        @variable(model, val_low[ii] <= P[ii=eachindex(regions)] <= val_up[ii]) 
+
+        P̲ᵤ, P̅ᵤ = prob_unsafe_lower(Xⱼ), prob_unsafe_upper(Xⱼ)
+        val_low, val_up = min(P̲ᵤ, P̅ᵤ), max(P̲ᵤ, P̅ᵤ)
+        @variable(model, Pᵤ, lower_bound=val_low, upper_bound=val_up)    
 
         # Create probability decision variables β
         @variable(model, β)
 
-        # Establish accuracy
-        P̲ᵤ, P̅ᵤ = prob_unsafe_lower(Xⱼ), prob_unsafe_upper(Xⱼ)
-        val_low, val_up = accuracy_threshold(P̲ᵤ, P̅ᵤ)
-
-        # Constraint Pᵤ
-        @constraint(model, val_low <= Pᵤ <= val_up)
-
         # Constraint ∑i=1 →k pᵢ + Pᵤ == 1
         @constraint(model, sum(P) + Pᵤ == 1)
 
-        # Setup expectation (-∑i=1 →k bᵢ⋅pᵢ - Pᵤ + bⱼ + βⱼ ≥ 0)
-        exp = AffExpr(0)
-
-        P̲, P̅ = prob_lower(Xⱼ), prob_upper(Xⱼ)
-        @inbounds for (Bᵢ, P̲ᵢ, P̅ᵢ, Pᵢ) in zip(B, P̲, P̅, P)
-            # Establish accuracy
-            val_low, val_up = accuracy_threshold(P̲ᵢ, P̅ᵢ)
-
-            # Constraint Pⱼ → Pᵢ (Plower ≤ Pᵢ ≤ Pupper)
-            @constraint(model, val_low <= Pᵢ <= val_up)
+        # Setup expectation (∑i=1→k Bᵢ⋅Pᵢ + Pᵤ ≤ Bⱼ + βⱼ)
+        @constraint(model, dot(B, P) + Pᵤ == Bⱼ + β)
                 
-            add_to_expression!(exp, Bᵢ, Pᵢ)
-        end
-
-        @constraint(model, exp + Pᵤ == Bⱼ + β)
-
         # Define optimization objective
         @objective(model, Max, β)
     
