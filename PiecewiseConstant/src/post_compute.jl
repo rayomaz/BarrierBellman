@@ -33,7 +33,7 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities})
 
         # Setup expectation (∑i=1→k Bᵢ⋅Pᵢ + Pᵤ ≤ Bⱼ + βⱼ)
         @constraint(model, dot(B, P) + Pᵤ == Bⱼ + β)
-                
+
         # Define optimization objective
         @objective(model, Max, β)
     
@@ -42,7 +42,6 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities})
     
         # Print optimal values
         @inbounds β_parts[jj] = max(value(β), 0)
-        # @inbounds p_values[jj, :] = p_val
 
         p_values = [value.(P); [value(Pᵤ)]]
         p_distribution[jj, :] = p_values
@@ -64,11 +63,62 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities})
     return β_parts, p_distribution
 end
 
-function accuracy_threshold(val_low, val_up)
+function accelerated_post_compute_beta(B, regions::Vector{<:RegionWithProbabilities})
+    # Don't ask. It's not pretty... But it's fast!
 
-    if val_up < val_low
-        val_up = val_low
+    β_parts = Vector{Float64}(undef, length(B))
+
+    thread_specific_model = JuMP.Model[]
+    resize!(empty!(thread_specific_model), Threads.nthreads())
+
+    for i in 1:Threads.nthreads()
+        # Using HiGHS as the LP solver
+        model = Model(HiGHS.Optimizer)
+        set_silent(model)
+
+        # Create optimization variables
+        @variable(model, P[ii=eachindex(regions)], lower_bound=0, upper_bound=1) 
+        @variable(model, Pᵤ, lower_bound=0, upper_bound=1)
+
+        # Constraint ∑i=1 →k pᵢ + Pᵤ == 1
+        @constraint(model, sum(P) + Pᵤ == 1)
+
+        # Define optimization objective
+        @objective(model, Max, dot(B, P) + Pᵤ)
+
+        thread_specific_model[i] = model
     end
 
-    return val_low, val_up
+
+    Threads.@threads :static for jj in eachindex(regions)
+        Xⱼ, Bⱼ = regions[jj], B[jj]
+
+        model = thread_specific_model[Threads.threadid()]
+
+        P̲, P̅ = prob_lower(Xⱼ), prob_upper(Xⱼ)
+        val_low, val_up = min.(P̲, P̅), max.(P̲, P̅)
+
+        P = model[:P]
+        set_lower_bound.(P, val_low)
+        set_upper_bound.(P, val_up)
+
+        P̲ᵤ, P̅ᵤ = prob_unsafe_lower(Xⱼ), prob_unsafe_upper(Xⱼ)
+        val_low, val_up = min(P̲ᵤ, P̅ᵤ), max(P̲ᵤ, P̅ᵤ)
+
+        Pᵤ = model[:Pᵤ]
+        set_lower_bound(Pᵤ, val_low)
+        set_upper_bound(Pᵤ, val_up)
+
+        # Optimize model
+        JuMP.optimize!(model)
+    
+        # Print optimal values
+        @inbounds β_parts[jj] = max(objective_value(model) - Bⱼ, 0)
+    end
+
+    max_β = maximum(β_parts)
+   
+    println("Solution updated beta: [β = $max_β]")
+
+    return β_parts
 end

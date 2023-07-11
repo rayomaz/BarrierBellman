@@ -31,7 +31,7 @@ include("constant_barrier.jl")
 export constant_barrier
 
 include("post_compute.jl")
-export post_compute_beta
+export post_compute_beta, accelerated_post_compute_beta
 
 include("dual_barrier.jl")
 export dual_constant_barrier
