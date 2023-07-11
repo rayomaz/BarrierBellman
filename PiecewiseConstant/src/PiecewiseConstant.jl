@@ -14,16 +14,15 @@ const MP = MultivariatePolynomials
 
 const MB = MultivariateBases
 
-include("utility.jl")
-export vectorize, state_space_generation
-
 include("region.jl")
+export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper
+
+include("utility.jl")
+export vectorize, state_space_generation, read_regions
 
 include("system.jl")
 export AbstractDiscreteTimeStochasticSystem, AdditiveGaussianPolynomialSystem
 export variables, dynamics, noise_distribution
-
-include("region.jl")
 
 include("probabilities.jl")
 export linear_transition_probabilities, neural_transition_probabilities

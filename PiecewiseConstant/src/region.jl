@@ -1,5 +1,3 @@
-export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper
-
 struct RegionWithProbabilities{T, S<:LazySet{T}}
     region::S
     transition_to_other_regions::Tuple{Vector{T}, Vector{T}}
