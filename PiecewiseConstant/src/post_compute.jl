@@ -89,3 +89,12 @@ function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_un
 
     return β_parts, p_distribution
 end
+
+function accuracy_threshold(val_low, val_up)
+
+    if val_up < val_low
+        val_up = val_low
+    end
+
+    return val_low, val_up
+end
