@@ -1,23 +1,41 @@
 %% Plotting beta distribution
 
-% clc; clear; close all
+clc; clear; close all
 
 % Read data files
-data_hyper = load('../models/pendulum/partition_data_120.mat');
-partitions = data_hyper.partitions;
+
+system = "linear"; % "pendulum", "cartpole", etc.
+
+if system == "pendulum"
+    data_hyper = load('../models/pendulum/partition_data_120.mat');
+    partitions = data_hyper.partitions;
+elseif system == "linear"
+    partitions = load('../models/linear/state_partitions.txt');
+end
+
 stringData_certificate = read_file('../probabilities/barrier.txt');
 stringData_dual = read_file('../probabilities/barrier_dual.txt');
 
-%% Read probability values from data files
+% Read probability values from data files
 array_certificate = extract_data(stringData_certificate);
 array_dual = extract_data(stringData_dual);
-max_prob_certificate = 1;
+max_certificate = max(array_certificate);
 
-%% Plot the grid and probability distribution
-plot_certifcate = plot_data(array_certificate, partitions, max_prob_certificate, "Upper bound");
-plot_dual = plot_data(array_dual, partitions, max_prob_certificate, "Dual");
+% Plot the grid and probability distribution
+if system == "pendulum"
+    plot_certifcate = plot_data(array_certificate, partitions, max_certificate, "Upper bound");
+    plot_dual = plot_data(array_dual, partitions, max_certificate, "Dual");
+elseif system == "linear"
+    plot_certifcate = plot_data_linear_1D(array_certificate, partitions, "Upper bound");
+    plot_dual = plot_data_linear_1D(array_dual, partitions, "Dual"); 
 
-%% Functions
+    % Adding text
+    fontSize = 16;  % Adjust the font size as needed
+    text(0, 0.30, 'Upper bound', 'Color', 'red', 'FontSize', fontSize);
+    text(0, 0.25, "Dual", 'Color', 'blue', 'FontSize', fontSize);
+end
+
+% Functions
 function stringData = read_file(file_name)
     FID = fopen(file_name);
     data = textscan(FID,'%s');
@@ -45,6 +63,42 @@ function array_prob = extract_data(stringData)
     
     end
 
+end
+
+function plots = plot_data_linear_1D(array_prob, partitions, title_type)
+
+    if title_type == "Upper bound"
+        figure
+        hold on
+    elseif title_type == "Dual"
+        hold on
+        grid on
+    end
+    
+    for jj = 1:length(partitions)
+
+        parts = partitions(jj, :, :);
+
+        x_low = parts(1);
+        x_up = parts(2);
+
+        x_range = linspace(x_low, x_up, 100);
+        p_range = array_prob(jj)*ones(1, length(x_range));
+
+        if title_type == "Upper bound"
+            plots = plot(x_range, p_range, 'r*', "LineWidth", 3);
+        elseif title_type == "Dual"
+            plots = plot(x_range, p_range, 'b+', "LineWidth", 3);
+        end
+        
+    end
+   
+    xlabel("$x$", 'Interpreter','latex', "FontSize", 25)
+    ylabel('$B$', 'Interpreter','latex', "FontSize", 25)
+    title("Barrier")
+    set(gcf,'color','w');
+    set(gca,'FontSize',20)
+    
 end
 
 function plots = plot_data(array_prob, partitions, max_prob, title_type)
@@ -102,5 +156,6 @@ function plots = plot_data(array_prob, partitions, max_prob, title_type)
     ylim([x2_min x2_max])
     
 end
+
 
 

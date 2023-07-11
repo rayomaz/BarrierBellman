@@ -11,7 +11,11 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
     set_silent(model)
 
     # Create optimization variables
-    @variable(model, B[eachindex(regions)], lower_bound=ϵ, upper_bound=1)   
+    @variable(model, B[eachindex(regions)], lower_bound=ϵ, upper_bound=1)
+    
+    # Decision on Pᵤ [Note: optimizer chosen dᵤ = 1.0 automatically]
+    # @variable(model, dᵤ, lower_bound=1) 
+    dᵤ = 1.0 
 
     # Create probability decision variables η and β
     @variable(model, η, lower_bound=ϵ)
@@ -31,7 +35,7 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
             @constraint(model, Bⱼ == 1)
         end
 
-        expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
+        expectation_constraint!(model, B, dᵤ, Xⱼ, Bⱼ, βⱼ)
     end
 
     # println("Synthesizing barries ... ")
@@ -79,7 +83,7 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
 
 end
 
-function expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ) 
+function expectation_constraint!(model, B, dᵤ, Xⱼ, Bⱼ, βⱼ)
 
     """ Barrier martingale condition
     * ∑B[f(x)]*p(x) + Pᵤ <= B(x) + β: expanded in summations
@@ -98,6 +102,6 @@ function expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
     end
 
     # Constraint martingale
-    @constraint(model, exp + P̅ᵤ  <= Bⱼ + βⱼ)
+    @constraint(model, exp + dᵤ * P̅ᵤ <= Bⱼ + βⱼ)
 end
 

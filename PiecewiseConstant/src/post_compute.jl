@@ -6,6 +6,7 @@
 
 function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-6)
     β_parts = Vector{Float64}(undef, length(B))
+    p_distribution = Matrix{Float64}(undef, length(B), length(B) + 1)
 
     Threads.@threads for jj in eachindex(regions)
         Xⱼ, Bⱼ = regions[jj], B[jj]
@@ -55,12 +56,17 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-
     
         # Print optimal values
         @inbounds β_parts[jj] = max(value(β), 0)
+        # @inbounds p_values[jj, :] = p_val
+
+        p_values = [value.(p); [value(Pᵤ)]]
+        p_distribution[jj, :] = p_values
     end
 
     max_β = maximum(β_parts)
+   
     println("Solution updated beta: [β = $max_β]")
 
-    # # Print beta values to txt file
+    # Print beta values to txt file
     # if isfile("probabilities/beta_updated.txt") == true
     #     rm("probabilities/beta_updated.txt")
     # end
@@ -69,7 +75,7 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-
     #     println(io, β_parts)
     # end
 
-    return β_parts
+    return β_parts, p_distribution
 end
 
 function accuracy_threshold(val_low, val_up)

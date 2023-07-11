@@ -78,7 +78,6 @@ function dual_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initi
 
 
     return B, β_values
-
 end
 
 function dual_expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ) 
