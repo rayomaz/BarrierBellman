@@ -5,51 +5,33 @@
 """
 
 # Optimization function
-function dual_constant_barrier(probabilities::MatlabFile)
-    # Load probability matrices
-    prob_lower = read(probabilities, "matrix_prob_lower")
-    prob_upper = read(probabilities, "matrix_prob_upper")
-    prob_unsafe_lower = read(probabilities, "matrix_prob_unsafe_lower")
-    prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")
-
-    return dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper)
-end
-
-function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper, initial_regions=round(Int, length(prob_unsafe_upper) / 2), obstacle_regions=nothing; time_horizon=1, ϵ=1e-6)
-
-    # Number of hypercubes
-    number_hypercubes = length(prob_unsafe_upper)
-
+function dual_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1, ϵ=1e-6)
     # Using HiGHS as the LP solver
     model = Model(HiGHS.Optimizer)
     set_silent(model)
 
     # Create optimization variables
-    # @variable(model, b[1:number_hypercubes] >= ϵ)
-    @variable(model, b[1:number_hypercubes], lower_bound=ϵ, upper_bound=1)   
+    @variable(model, B[eachindex(regions)], lower_bound=ϵ, upper_bound=1)   
 
-
-    # Obstacle barrier
-    if !isnothing(obstacle_regions)
-        @constraint(model, b[obstacle_regions] == 1)
-    end
-
-    # Initial set
+    # Create probability decision variables η and β
     @variable(model, η, lower_bound = ϵ)
-    @constraint(model, b[initial_regions] .≤ η)
-
-    # Create probability decision variables β
-    @variable(model, β_parts_var[1:number_hypercubes], lower_bound=ϵ, upper_bound=1)
+    @variable(model, β_parts[eachindex(regions)], lower_bound=ϵ)
     @variable(model, β)
-    @constraint(model, β_parts_var .<= β)
+    @constraint(model, β_parts .<= β)
 
     # Construct barriers
-    @inbounds for jj in eachindex(b)
-        probability_bounds = [prob_lower[jj, :],
-            prob_upper[jj, :],
-            prob_unsafe_lower[jj],
-            prob_unsafe_upper[jj]]
-        dual_expectation_constraint!(model, b, probability_bounds, b[jj], β_parts_var[jj])
+    @inbounds for (Xⱼ, Bⱼ, βⱼ) in zip(regions, B, β_parts)
+        # Initial set
+        if !isempty(region(Xⱼ) ∩ initial_region)
+            @constraint(model, Bⱼ .≤ η)
+        end
+
+        # Obstacle
+        if !isempty(region(Xⱼ) ∩ obstacle_region)
+            @constraint(model, Bⱼ == 1)
+        end
+
+        dual_expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
     end
 
     # println("Synthesizing barries ... ")
@@ -63,13 +45,10 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
     JuMP.optimize!(model)
 
     # Barrier certificate
-    b = value.(b)
-    # for Bⱼ in b
-    #     println(Bⱼ)
-    # end
+    B = value.(B)
 
     # Print optimal values
-    β_values = value.(β_parts_var)
+    β_values = value.(β_parts)
     max_β = maximum(β_values)
     η = value(η)
     println("Solution dual approach: [η = $(value(η)), β = $max_β]")
@@ -98,37 +77,33 @@ function dual_constant_barrier(prob_lower, prob_upper, prob_unsafe_lower, prob_u
     # end
 
 
-    return b, β_values
+    return B, β_values
 
 end
 
-function dual_expectation_constraint!(model, b, probability_bounds, Bⱼ, βⱼ) 
+function dual_expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ) 
 
     """ Barrier martingale condition
     * ∑B[f(x)]*p(x) + Pᵤ <= B(x) + β: expanded in summations
     """
 
-    (prob_lower,
-        prob_upper,
-        prob_unsafe_lower,
-        prob_unsafe_upper) = probability_bounds
+
+    P̅, P̅ᵤ = prob_upper(Xⱼ), prob_unsafe_upper(Xⱼ)
+    P̲, P̲ᵤ = prob_lower(Xⱼ), prob_unsafe_lower(Xⱼ)
 
     # Add RHS dual constraint
-    rhs = Bⱼ + βⱼ
+    rhs = @expression(model, Bⱼ + βⱼ)
 
     # Construct identity matrix     H → dim([#num hypercubes + 1]) to account for Pᵤ
     H = [-I;
         I;
-        -ones(1, length(b) + 1);
-        ones(1, length(b) + 1)]
+        -ones(1, length(B) + 1);
+        ones(1, length(B) + 1)]
 
     # Setup c vector: [b; 1]
-    c = [b; 1]
+    c = [B; 1]
 
-    h = [-prob_lower; -prob_unsafe_lower;
-        prob_upper; prob_unsafe_upper;
-        [-1];
-        [1]]
+    h = [-P̲; -P̲ᵤ; P̅; P̅ᵤ; [-1]; [1]]
 
     # Define assynmetric constraint [Dual approach]
     asymmetric_dual_constraint!(model, c, rhs, H, h)

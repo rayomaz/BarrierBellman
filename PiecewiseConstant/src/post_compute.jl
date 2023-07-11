@@ -4,57 +4,48 @@
 
 """
 
-function post_compute_beta(b, probabilities::MatlabFile)
-    # Bounds
-    prob_lower = read(probabilities, "matrix_prob_lower")
-    prob_upper = read(probabilities, "matrix_prob_upper")
-    prob_unsafe_lower = read(probabilities, "matrix_prob_unsafe_lower")
-    prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")
+function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-6)
+    β_parts = Vector{Float64}(undef, length(B))
 
-    return post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper)
-end
+    Threads.@threads for jj in eachindex(regions)
+        Xⱼ, Bⱼ = regions[jj], B[jj]
 
-function post_compute_beta(b, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper; ϵ=1e-6)
-    number_hypercubes = length(b)
-    
-    β_parts = Vector{Float64}(undef, number_hypercubes)
-
-    Threads.@threads for jj in eachindex(b)
         # Using HiGHS as the LP solver
         model = Model(HiGHS.Optimizer)
         set_silent(model)
 
         # Create optimization variables
-        number_hypercubes = length(b)
-        @variable(model, p[1:number_hypercubes], lower_bound=0, upper_bound=1) 
+        @variable(model, P[eachindex(regions)], lower_bound=0, upper_bound=1) 
         @variable(model, Pᵤ, lower_bound=0, upper_bound=1)    
 
         # Create probability decision variables β
         @variable(model, β)
 
         # Establish accuracy
-        val_low, val_up = accuracy_threshold(prob_unsafe_lower[jj], prob_unsafe_upper[jj])
+        P̲ᵤ, P̅ᵤ = prob_unsafe_lower(Xⱼ), prob_unsafe_upper(Xⱼ)
+        val_low, val_up = accuracy_threshold(P̲ᵤ, P̅ᵤ)
 
         # Constraint Pᵤ
         @constraint(model, val_low <= Pᵤ <= val_up)
 
         # Constraint ∑i=1 →k pᵢ + Pᵤ == 1
-        @constraint(model, sum(p) + Pᵤ == 1)
+        @constraint(model, sum(P) + Pᵤ == 1)
 
         # Setup expectation (-∑i=1 →k bᵢ⋅pᵢ - Pᵤ + bⱼ + βⱼ ≥ 0)
         exp = AffExpr(0)
 
-        @inbounds for ii in eachindex(b)
+        P̲, P̅ = prob_lower(Xⱼ), prob_upper(Xⱼ)
+        @inbounds for (Bᵢ, P̲ᵢ, P̅ᵢ, Pᵢ) in zip(B, P̲, P̅, P)
             # Establish accuracy
-            val_low, val_up = accuracy_threshold(prob_lower[jj, ii], prob_upper[jj, ii])
+            val_low, val_up = accuracy_threshold(P̲ᵢ, P̅ᵢ)
 
             # Constraint Pⱼ → Pᵢ (Plower ≤ Pᵢ ≤ Pupper)
-            @constraint(model, val_low <= p[ii] <= val_up)
+            @constraint(model, val_low <= Pᵢ <= val_up)
                 
-            add_to_expression!(exp, b[ii], p[ii])
+            add_to_expression!(exp, Bᵢ, Pᵢ)
         end
 
-        @constraint(model, exp + Pᵤ == b[jj] + β)
+        @constraint(model, exp + Pᵤ == Bⱼ + β)
 
         # Define optimization objective
         @objective(model, Max, β)
