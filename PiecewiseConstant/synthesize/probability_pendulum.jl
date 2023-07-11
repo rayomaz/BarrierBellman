@@ -14,12 +14,12 @@ using MAT
 
 # System
 system_flag = "pendulum"
-number_hypercubes = 120
+number_hypercubes = 480
 filename = "/models/" * system_flag * "/partition_data_"  * string(number_hypercubes) * ".mat"
 file = matopen(pwd()*filename)
 
 # Optimize
-σ = 0.05
+σ = 0.10
 @time probability_bounds = neural_transition_probabilities(file, number_hypercubes, σ)
 
 # Extract probability data

@@ -12,7 +12,7 @@ using MAT
 # System
 system_flag = "pendulum"
 number_hypercubes = 120
-σ = 0.01
+σ = 0.10
 probabilities = "models/" * system_flag * "/probability_data_"  * string(number_hypercubes) * "_sigma_" *string(σ) * ".mat"
 probabilities = matopen(probabilities)
 
