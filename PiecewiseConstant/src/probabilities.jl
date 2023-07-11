@@ -284,9 +284,19 @@ function linear_optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initi
     g(x) = -f(x)
 
     # Obtain min-max on P
-    results_min = Optim.optimize(f, x_lower, x_upper, x_initial, Fminbox(inner_optimizer))
-    P_min = results_min.minimum
+    erf_lower = erf( (fx_float*x_lower[1] - v_l[m]) / (σ[1] * sqrt(2)) )
+    erf_higher = erf( (fx_float*x_lower[1] - v_u[m]) / (σ[1] * sqrt(2)) )
 
+    P_min_lower =   1/(2^m)*(erf_lower - erf_higher)
+
+    erf_lower = erf( (fx_float*x_upper[1] - v_l[m]) / (σ[1] * sqrt(2)) )
+    erf_higher = erf( (fx_float*x_upper[1] - v_u[m]) / (σ[1] * sqrt(2)) )
+
+    P_min_upper =   1/(2^m)*(erf_lower - erf_higher)
+             
+    P_min = min(P_min_lower, P_min_upper)
+
+    # Gradient descent to find max
     results_max = Optim.optimize(g, x_lower, x_upper, x_initial, Fminbox(inner_optimizer))
     P_max = -results_max.minimum
 
