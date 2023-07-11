@@ -58,7 +58,7 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-
         @inbounds β_parts[jj] = max(value(β), 0)
         # @inbounds p_values[jj, :] = p_val
 
-        p_values = [value.(p); [value(Pᵤ)]]
+        p_values = [value.(P); [value(Pᵤ)]]
         p_distribution[jj, :] = p_values
     end
 
