@@ -51,7 +51,7 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
     β_values = value.(β_parts)
     max_β = maximum(β_values)
     η = value(η)
-    # println("Solution upper bound approach: [η = $(value(η)), β = $max_β]")
+    println("Solution upper bound approach: [η = $(value(η)), β = $max_β]")
 
     # Print model summary and number of constraints
     # println("")

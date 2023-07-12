@@ -9,17 +9,21 @@ function read_regions(partitions::Vector{<:LazySet}, probabilities::MatlabFile)
     # Load probability matrices
     prob_lower = read(probabilities, "matrix_prob_lower")
     prob_upper = read(probabilities, "matrix_prob_upper")
-    prob_unsafe_lower = read(probabilities, "matrix_prob_unsafe_lower")'
-    prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")'
+    prob_unsafe_lower = read(probabilities, "matrix_prob_unsafe_lower")
+    prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")
+
+    # I am almost certain that this is supposed to be column by column (as we've talked about previously).
+    # The caveat is that this implies that the upper bounds for the pendulum model are wrong (at least one region with sum(P̅) + P̅ᵤ < 1).
+    # The interesting part is that the beta update is significantly better when this is corrected, and the dual also shows a better result.
 
     regions = [
         RegionWithProbabilities(region, (copy(P̲), copy(P̅)), (copy(P̲ᵤ[1]), copy(P̅ᵤ[1])))
          for (region, P̲, P̅, P̲ᵤ, P̅ᵤ) in zip(
             partitions,
-            eachrow(prob_lower),
-            eachrow(prob_upper),
-            eachrow(prob_unsafe_lower),
-            eachrow(prob_unsafe_upper)
+            eachcol(prob_lower),
+            eachcol(prob_upper),
+            eachcol(prob_unsafe_lower),
+            eachcol(prob_unsafe_upper)
         )]
 
     return regions
