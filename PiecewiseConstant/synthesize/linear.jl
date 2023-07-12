@@ -18,7 +18,7 @@ probabilities = matopen(probabilities)
 regions = [Interval(-0.25, -0.15), Interval(-0.15, -0.05), Interval(-0.05, 0.05), Interval(0.05, 0.15), Interval(0.15, 0.25)]
 regions = read_regions(regions, probabilities)
 
-initial_region = Interval(0.0, 0.05)
+initial_region = Interval(-0.05, 0.05)
 obstacle_region = EmptySet(1)
 
 # Optimize: method 1 (revise beta values)
