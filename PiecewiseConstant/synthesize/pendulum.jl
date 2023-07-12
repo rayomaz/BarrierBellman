@@ -25,6 +25,7 @@ obstacle_region = EmptySet(2)
 # Optimize: method 1 (revise beta values)
 @time B, beta = constant_barrier(regions, initial_region, obstacle_region)
 @time beta_updated, p_distribution = post_compute_beta(B, regions)
+# @btime beta_updated = accelerated_post_compute_beta(B, regions)
 
 # Optimize: method 2 (dual approach)
 @time B_dual, beta_dual = dual_constant_barrier(regions, initial_region, obstacle_region)

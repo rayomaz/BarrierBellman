@@ -4,12 +4,8 @@
 
 """
 
-function read_regions(partitions::MatlabFile, probabilities::MatlabFile)
-    # Load partition matrices
-    regions = read(partitions, "partitions")
-    regions_lower = regions[:, 1, :]
-    regions_upper = regions[:, 2, :]
-
+read_regions(partitions::MatlabFile, probabilities) = read_regions(load_regions(partitions), probabilities)
+function read_regions(partitions::Vector{<:LazySet}, probabilities::MatlabFile)
     # Load probability matrices
     prob_lower = read(probabilities, "matrix_prob_lower")
     prob_upper = read(probabilities, "matrix_prob_upper")
@@ -17,11 +13,9 @@ function read_regions(partitions::MatlabFile, probabilities::MatlabFile)
     prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")'
 
     regions = [
-        RegionWithProbabilities(
-            Hyperrectangle(low=X̲, high=X̅), (copy(P̲), copy(P̅)), (copy(P̲ᵤ[1]), copy(P̅ᵤ[1]))
-        ) for (X̲, X̅, P̲, P̅, P̲ᵤ, P̅ᵤ) in zip(
-            eachrow(regions_lower),
-            eachrow(regions_upper),
+        RegionWithProbabilities(region, (copy(P̲), copy(P̅)), (copy(P̲ᵤ[1]), copy(P̅ᵤ[1])))
+         for (region, P̲, P̅, P̲ᵤ, P̅ᵤ) in zip(
+            partitions,
             eachrow(prob_lower),
             eachrow(prob_upper),
             eachrow(prob_unsafe_lower),
@@ -29,6 +23,14 @@ function read_regions(partitions::MatlabFile, probabilities::MatlabFile)
         )]
 
     return regions
+end
+
+function load_regions(partitions::MatlabFile)
+    regions = read(partitions, "partitions")
+    regions_lower = regions[:, 1, :]
+    regions_upper = regions[:, 2, :]
+
+    return [Hyperrectangle(low=X̲, high=X̅) for (X̲, X̅) in zip(eachrow(regions_lower), eachrow(regions_upper))]
 end
 
 vectorize(x::Vector) = x
