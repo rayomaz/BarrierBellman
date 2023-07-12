@@ -13,7 +13,13 @@ function read_regions(partitions::Vector{<:LazySet}, probabilities::MatlabFile)
     prob_unsafe_upper = read(probabilities, "matrix_prob_unsafe_upper")
 
     # I am almost certain that this is supposed to be column by column (as we've talked about previously).
-    # The caveat is that this implies that the upper bounds for the pendulum model are wrong (at least one region with sum(P̅) + P̅ᵤ < 1).
+    
+    # The bounds for the pendulum model are wrong. The matrix [P̅; P̅ᵤ] is the (upper bound) extended
+    # transition matrix where j is the "start" region and i is the "end" region. This means each column must sum to >= 1.
+    # Each column correspond to starting in region j going to all other regions including Xᵤ. Clearly, the union of these regions is ℝⁿ,
+    # hence this column represents an upper bound for T(ℝⁿ | x), x ∈ Xⱼ. Thus each column should sum to >= 1. A similar argument can be
+    # made for each row except we don't include starting from Xᵤ. Hence, each row _can_ sum to less than 1.
+
     # The interesting part is that the beta update is significantly better when this is corrected, and the dual also shows a better result.
 
     regions = [
