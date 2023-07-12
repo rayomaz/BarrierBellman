@@ -73,7 +73,7 @@ function dual_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initi
     # end
 
     # open("probabilities/barrier_dual.txt", "a") do io
-    #     println(io, b)
+    #     println(io, B)
     # end
 
 

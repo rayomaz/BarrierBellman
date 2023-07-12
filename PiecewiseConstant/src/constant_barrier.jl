@@ -72,7 +72,7 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
     # end
 
     # open("probabilities/barrier.txt", "a") do io
-    #     println(io, b)
+    #     println(io, B)
     # end
 
     return B, β_values
