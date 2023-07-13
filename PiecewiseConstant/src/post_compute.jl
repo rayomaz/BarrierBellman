@@ -68,32 +68,26 @@ function accelerated_post_compute_beta(B, regions::Vector{<:RegionWithProbabilit
 
     β_parts = Vector{Float64}(undef, length(B))
 
-    thread_specific_model = JuMP.Model[]
-    resize!(empty!(thread_specific_model), Threads.nthreads())
-
-    for i in 1:Threads.nthreads()
-        # Using HiGHS as the LP solver
-        model = Model(HiGHS.Optimizer)
-        set_silent(model)
-
-        # Create optimization variables
-        @variable(model, P[ii=eachindex(regions)], lower_bound=0, upper_bound=1) 
-        @variable(model, Pᵤ, lower_bound=0, upper_bound=1)
-
-        # Constraint ∑i=1 →k pᵢ + Pᵤ == 1
-        @constraint(model, sum(P) + Pᵤ == 1)
-
-        # Define optimization objective
-        @objective(model, Max, dot(B, P) + Pᵤ)
-
-        thread_specific_model[i] = model
-    end
-
-
     Threads.@threads :static for jj in eachindex(regions)
         Xⱼ, Bⱼ = regions[jj], B[jj]
 
-        model = thread_specific_model[Threads.threadid()]
+        model = get!(task_local_storage(), "post_compute_model") do
+            # Using HiGHS as the LP solver
+            model = Model(HiGHS.Optimizer)
+            set_silent(model)
+
+            # Create optimization variables
+            @variable(model, P[ii=eachindex(regions)], lower_bound=0, upper_bound=1) 
+            @variable(model, Pᵤ, lower_bound=0, upper_bound=1)
+
+            # Constraint ∑i=1 →k pᵢ + Pᵤ == 1
+            @constraint(model, sum(P) + Pᵤ == 1)
+
+            # Define optimization objective
+            @objective(model, Max, dot(B, P) + Pᵤ)
+
+            return model
+        end
 
         P̲, P̅ = prob_lower(Xⱼ), prob_upper(Xⱼ)
         val_low, val_up = min.(P̲, P̅), max.(P̲, P̅)
