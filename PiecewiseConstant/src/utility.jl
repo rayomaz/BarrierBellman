@@ -23,7 +23,7 @@ function read_regions(partitions::Vector{<:LazySet}, probabilities::MatlabFile)
     # The interesting part is that the beta update is significantly better when this is corrected, and the dual also shows a better result.
 
     regions = [
-        RegionWithProbabilities(region, (copy(P̲), copy(P̅)), (copy(P̲ᵤ[1]), copy(P̅ᵤ[1])))
+        RegionWithProbabilities(region, (copy(P̲), copy(P̅)), (copy(P̲ᵤ), copy(P̅ᵤ)))
          for (region, P̲, P̅, P̲ᵤ, P̅ᵤ) in zip(
             partitions,
             eachcol(prob_lower),
