@@ -26,7 +26,7 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-
         @variable(model, Pᵤ, lower_bound=val_low, upper_bound=val_up)    
 
         # Create probability decision variables β
-        @variable(model, β, lower_bound=0)
+        @variable(model, β)
 
         # Constraint ∑i=1 →k pᵢ + Pᵤ == 1
         @constraint(model, sum(P) + Pᵤ == 1)
