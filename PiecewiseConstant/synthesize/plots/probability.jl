@@ -1,60 +1,51 @@
-using Plots
+using Revise
+using Plots, DelimitedFiles, MAT
+using SpecialFunctions
 
 # Plotting ibp-interval bounds on erf functions
 
 # Probability distribution on hyperspace
 partitions = readdlm("../models/linear/state_partitions.txt")
-data_hyper = load("../models/linear/probability_data_5_sigma_0.01.mat")
-prob_lower = data_hyper["matrix_prob_lower"]
-prob_upper = data_hyper["matrix_prob_upper"]
-prob_unsafe_lower = data_hyper["matrix_prob_unsafe_lower"]
-prob_unsafe_upper = data_hyper["matrix_prob_unsafe_upper"]
+data_hyper = matopen("../models/linear/probability_data_5_sigma_0.01.mat")
+prob_lower = read(data_hyper, "matrix_prob_lower")
+prob_upper = read(data_hyper, "matrix_prob_upper")
+prob_unsafe_lower = read(data_hyper, "matrix_prob_unsafe_lower")
+prob_unsafe_upper = read(data_hyper, "matrix_prob_unsafe_upper")
 
-fig = plot()
-grid(true)
 
-# Note: this example is for transition from Xj to Xi
+# Note: this example is for transition from Xⱼ to Xᵢ
 
-for jj = 1:length(partitions)
+f(x) = 0.95 * x
+sigma = 0.01
+m = 1      # sys dim
+
+for ii in axes(partitions, 1)
     colors = [:blue, :black, :magenta, :red, :cyan]
-    
-    for ii = 1:1:length(partitions)
-        x_space = range(minimum(partitions[jj, :]), maximum(partitions[jj, :]), length = 1000)
+
+    x = range(minimum(partitions[:, 1]), maximum(partitions[:, 2]), length = 1000)
         
-        # True erf
-        prob_true = zeros(length(x_space))
-        sigma = 0.01
-        epsilon = 1e-6
-        m = 1      # sys dim
-        scale = 1/(2^m)
+    # True prob
+    vl = partitions[ii, 1]
+    vu = partitions[ii, 2]
 
-        vl = minimum(partitions[ii, :])
-        vu = maximum(partitions[ii, :])
+    y = f.(x)
 
-        # Prod of erfs
-        for pp = 1:length(x_space)
-            y = 0.95*x_space[pp]
-            erf_low = (y - vl)/(sigma*sqrt(2))
-            erf_up = (y - vu)/(sigma*sqrt(2))
-            prob_true[pp] = scale*(erf(erf_low) - erf(erf_up))
-            # Notice this computes Pu --> Pu = 1 - Ps
-        end
+    erf_lower = @. (y - vl) / (sigma * sqrt(2))
+    erf_upper = @. (y - vu) / (sigma * sqrt(2))
+    prob_true = (1 / 2^m) .* (erf.(erf_lower) - erf.(erf_upper))
 
-        min_prob_exact = prob_lower[jj, ii]
-        max_prob_exact = prob_upper[jj, ii]
-
-        plot!(x_space, prob_true, linewidth = 3, color = :red)
-
-        plot!(x_space, fill(min_prob_exact, length(x_space)), linewidth = 3, color = :blue)
-        plot!(x_space, fill(max_prob_exact, length(x_space)), linewidth = 3, color = :black)
+    p = plot(x, prob_true, linewidth = 3, color = :red, label="true")
+    
+    for jj in axes(partitions, 1)
+        x_space = partitions[jj, :]
+        
+        plot!(p, x_space, fill(prob_lower[ii, jj], 2), linewidth = 3, color = :blue, label=jj == 1 ? "lower bound" : nothing)
+        plot!(p, x_space, fill(prob_upper[ii, jj], 2), linewidth = 3, color = :black, label=jj == 1 ? "upper bound" : nothing)
     end
+
+    display(p)
 end
 
-labels = ["true", "lower bound", "upper bound"]
-legend!(labels, loc = :ne, fontsize = 8, textcolor = :black)
-xlabel!("x")
-ylabel!("P")
-title!("Probability distribution")
-
-prob_upper = hcat(prob_upper, prob_unsafe_upper')
-prob_lower = hcat(prob_lower, prob_unsafe_lower')
+# xlabel!("x")
+# ylabel!("P")
+# title!("Probability distribution")
