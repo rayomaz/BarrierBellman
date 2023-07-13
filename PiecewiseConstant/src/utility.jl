@@ -28,8 +28,8 @@ function read_regions(partitions::Vector{<:LazySet}, probabilities::MatlabFile)
             partitions,
             eachcol(prob_lower),
             eachcol(prob_upper),
-            eachcol(prob_unsafe_lower),
-            eachcol(prob_unsafe_upper)
+            prob_unsafe_lower,
+            prob_unsafe_upper
         )]
 
     return regions

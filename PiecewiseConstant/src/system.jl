@@ -21,6 +21,7 @@ AdditiveGaussianPolynomialSystem{N}(x, fx, σ) where {N} = AdditiveGaussianPolyn
 AdditiveGaussianPolynomialSystem(x::MP.AbstractVariable, fx, σ) = AdditiveGaussianPolynomialSystem{1}(x, fx, σ)
 AdditiveGaussianPolynomialSystem(x, fx, σ) = AdditiveGaussianPolynomialSystem{length(x)}(x, fx, σ)
 
+dimensionality(system::AdditiveGaussianPolynomialSystem{T, N}) where {T, N} = N
 variables(system::AdditiveGaussianPolynomialSystem) = vectorize(system.x)
 dynamics(system::AdditiveGaussianPolynomialSystem) = vectorize(system.fx)
 noise_distribution(system::AdditiveGaussianPolynomialSystem) = vectorize(system.σ)
