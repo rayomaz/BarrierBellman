@@ -7,7 +7,7 @@
 # Import packages
 using Revise, BenchmarkTools
 using PiecewiseConstant, LazySets
-using MAT
+using MAT, DelimitedFiles
 
 # System
 system_flag = "linear"
@@ -15,7 +15,8 @@ number_hypercubes = 5
 σ = 0.01
 probabilities = "models/$system_flag/probability_data_$(number_hypercubes)_sigma_$σ.mat"
 probabilities = matopen(probabilities)
-regions = [Interval(-0.25, -0.15), Interval(-0.15, -0.05), Interval(-0.05, 0.05), Interval(0.05, 0.15), Interval(0.15, 0.25)]
+regions = readdlm("models/linear/state_partitions.txt")
+regions = [Interval(l, u) for (l, u) in eachrow(regions)]
 regions = read_regions(regions, probabilities)
 close(probabilities)
 
