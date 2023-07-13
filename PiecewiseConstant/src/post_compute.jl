@@ -4,7 +4,7 @@
 
 """
 
-function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities})
+function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-6)
     β_parts = Vector{Float64}(undef, length(B))
     p_distribution = Matrix{Float64}(undef, length(B), length(B) + 1)
 
@@ -26,7 +26,7 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities})
         @variable(model, Pᵤ, lower_bound=val_low, upper_bound=val_up)    
 
         # Create probability decision variables β
-        @variable(model, β)
+        @variable(model, β, lower_bound=0)
 
         # Constraint ∑i=1 →k pᵢ + Pᵤ == 1
         @constraint(model, sum(P) + Pᵤ == 1)
@@ -41,7 +41,7 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities})
         JuMP.optimize!(model)
     
         # Print optimal values
-        @inbounds β_parts[jj] = max(value(β), 0)
+        @inbounds β_parts[jj] = max(value(β), ϵ)
 
         p_values = [value.(P); [value(Pᵤ)]]
         p_distribution[jj, :] = p_values
