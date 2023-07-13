@@ -1,21 +1,22 @@
 using Revise
 using Plots, DelimitedFiles, MAT
-using SpecialFunctions
+using SpecialFunctions: erf
 
 # Plotting ibp-interval bounds on erf functions
 
 # Probability distribution on hyperspace
-partitions = readdlm("../models/linear/state_partitions.txt")
-data_hyper = matopen("../models/linear/probability_data_5_sigma_0.01.mat")
+partitions = readdlm(joinpath(@__DIR__, "../models/linear/state_partitions.txt"))
+data_hyper = matopen(joinpath(@__DIR__, "../models/linear/probability_data_5_sigma_0.01.mat"))
 prob_lower = read(data_hyper, "matrix_prob_lower")
 prob_upper = read(data_hyper, "matrix_prob_upper")
 prob_unsafe_lower = read(data_hyper, "matrix_prob_unsafe_lower")
 prob_unsafe_upper = read(data_hyper, "matrix_prob_unsafe_upper")
+close(data_hyper)
 
 
 # Note: this example is for transition from Xⱼ to Xᵢ
 
-f(x) = 0.95 * x
+f(x) = 1.05 * x
 sigma = 0.01
 m = 1      # sys dim
 
@@ -43,7 +44,7 @@ for ii in axes(partitions, 1)
         plot!(p, x_space, fill(prob_upper[ii, jj], 2), linewidth = 3, color = :black, label=jj == 1 ? "upper bound" : nothing)
     end
 
-    display(p)
+    savefig(p, "transition_prob$ii.png")
 end
 
 # xlabel!("x")
