@@ -9,7 +9,7 @@
 function linear_transition_probabilities(system, Xs)
 
     # Construct barriers
-    # @info "Computing transition probabilities"
+    @info "Computing transition probabilities"
 
     # Size definition
     number_hypercubes = length(Xs)
