@@ -17,6 +17,7 @@ using Optim
 using JuMP
 import JuMP.@variable
 using LaTeXStrings
+using SpecialFunctions: erf
 
 include("constants.jl")
 
@@ -42,5 +43,9 @@ include("barrier.jl")
 include("certificate.jl")
 include("piecewise.jl")
 export piecewise_barrier
+
+include("constantbarrier.jl")
+export constant_barrier
+
 
 end # module PiecewiseBarrier

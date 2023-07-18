@@ -113,7 +113,7 @@ function nonnegativity_constraint!(model, barrier, system, region, lagrange_degr
 
     barrier_set_nonnegative = polynomial(barrier) - positive_set
 
-    # Non-negative in Xᵢ ⊂ ℝⁿ 
+    # Non-negative in Xⱼ ⊂ ℝⁿ 
     @constraint(model, barrier_set_nonnegative in cone_type())
 end
 
