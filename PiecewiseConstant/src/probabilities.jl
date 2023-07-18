@@ -103,7 +103,7 @@ function linear_optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initi
 
     # print("Note: needs to be automated! Double check dynamics here")
     erf_lower(y, i) = erf((y[i] - v_l[i]) / (σ[i] * sqrt(2)))
-    erf_upper(y, i) = erf((y[i] - v_u[i]) / (σ[1] * sqrt(2)))
+    erf_upper(y, i) = erf((y[i] - v_u[i]) / (σ[i] * sqrt(2)))
 
     g(x) = let y = map(fᵢ -> fᵢ(x), f)
         (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
