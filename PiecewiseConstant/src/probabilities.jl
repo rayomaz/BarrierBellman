@@ -1,129 +1,83 @@
 """ Functions to compute :
 
-    Transition probabilities P(qᵢ | x ∈ qⱼ) for Linear Systems and Neural Network Models
+    Transition probability bounds P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ for Linear Systems and Neural Network Dynamic Models
 
-    © Rayan Mazouz
+    © Rayan Mazouz, Frederik Baymler Mathiesen
 
 """
 
-function linear_transition_probabilities(system, state_partitions)
+function linear_transition_probabilities(system, Xs)
 
     # Construct barriers
-    println("Computing transition probabilities ... ")
+    # @info "Computing transition probabilities"
 
     # Size definition
-    number_hypercubes = length(state_partitions)
+    number_hypercubes = length(Xs)
 
-    # Pre-generate probability matrices (parallel computation)
-    matrix_prob_lower = zeros(number_hypercubes, number_hypercubes)
-    matrix_prob_upper = zeros(number_hypercubes, number_hypercubes)
-    matrix_prob_unsafe_lower = zeros(number_hypercubes)
-    matrix_prob_unsafe_upper = zeros(number_hypercubes)
+    # Compute post(qⱼ, f(x)) for all qⱼ ∈ Q
+    f = MP.coefficients.(dynamics(system))
+    Ys = f .* Xs
+    box_Ys = box_approximation.(Ys)
 
-    for jj = eachindex(state_partitions)
+    # Pre-allocate probability matrices
+    P̲ = zeros(number_hypercubes, number_hypercubes)
+    P̅ = zeros(number_hypercubes, number_hypercubes)
 
-        """ Probability bounds
-            - P(j → i)
-            - P(j → Xᵤ)
-        """
+    # Generate
+    Threads.@threads for ii in eachindex(Xs)
+        P̲ᵢ, P̅ᵢ = linear_transition_prob_to_region(system, Ys, box_Ys, Xs[ii])
 
-        prob_lower, prob_upper = linear_probability_distribution(system, state_partitions, jj, "transition_j_to_i")
-        prob_unsafe_lower, prob_unsafe_upper = linear_probability_distribution(system, state_partitions, jj, "transition_unsafe")
-
-        # Build matrices in parallel format
-        matrix_prob_lower[:, jj] = prob_lower
-        matrix_prob_upper[:, jj] = prob_upper
-        matrix_prob_unsafe_lower[jj] = prob_unsafe_lower
-        matrix_prob_unsafe_upper[jj] = prob_unsafe_upper
-
+        P̲[ii, :] = P̲ᵢ
+        P̅[ii, :] = P̅ᵢ
     end
 
-    # Save probability values in tuple
-    prob_bounds = (matrix_prob_lower, 
-                   matrix_prob_upper,
-                   matrix_prob_unsafe_lower,
-                   matrix_prob_unsafe_upper)
+    Xₛ = Hyperrectangle(low=minimum(low.(Xs)), high=maximum(high.(Xs)))
 
-    return prob_bounds
+    P̲ₛ, P̅ₛ  = linear_transition_prob_to_region(system, Ys, box_Ys, Xₛ)
+    P̲ᵤ, P̅ᵤ = (1 .- P̅ₛ), (1 .- P̲ₛ)
+
+    # Return as a tuple
+    return P̲, P̅, P̲ᵤ, P̅ᵤ
 end
 
-# Transition probability, P(qᵢ | x ∈ qⱼ), based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
-function linear_probability_distribution(system, state_partitions, jj, type)
+# Transition probability P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
+function linear_transition_prob_to_region(system, Ys, box_Ys, Xᵢ)
+    vₗ = low(Xᵢ)
+    vₕ = high(Xᵢ)
+    v = center(Xᵢ)
 
-    # Identify current hypercube
-    Xⱼ = state_partitions[jj]
-    x_lower = low(Xⱼ)
-    x_upper = high(Xⱼ)
-    x_initial = center(Xⱼ)
+    # Fetch noise
+    m = dimensionality(system)
+    σ = noise_distribution(system)
+    
+    # Transition kernel T(qᵢ | x)
+    erf_lower(y, i) = erf((y[i] - vₗ[i]) / (σ[i] * sqrt(2)))
+    erf_upper(y, i) = erf((y[i] - vₕ[i]) / (σ[1] * sqrt(2)))
+    T(y) = (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
 
-    if type == "transition_j_to_i"
+    # Obtain min of T(qᵢ | x) over Ys
+    prob_transition_lower = map(Ys) do Y
+        vertices = vertices_list(Y)
 
-        hyper = length(state_partitions)
-        prob_transition_lower = zeros(hyper)
-        prob_transition_upper = zeros(hyper)
+        P_min = minimum(T, vertices)
+        return P_min
+    end
 
-        for ii in eachindex(state_partitions)
-
-            # hynercube bounds
-            Xᵢ = state_partitions[ii]
-            v_l = low(Xᵢ)
-            v_u = high(Xᵢ)
-
-            P_min, P_max = linear_optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initial)
-
-            prob_transition_lower[ii] = P_min
-            prob_transition_upper[ii] = P_max
-
+    # Obtain max of T(qᵢ | x) over Ys
+    prob_transition_upper = map(box_Ys) do Y
+        if v in Y
+            return T(v)
         end
 
-        return prob_transition_lower, prob_transition_upper
+        l, h = low(Y), high(Y)
 
-    elseif type == "transition_unsafe"
-        v_l = minimum(low.(state_partitions))
-        v_u = maximum(high.(state_partitions))
+        y_max = @. min(h, max(v, l))
 
-        P_min, P_max = linear_optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initial)
-
-        # Convert to transition unsafe set
-        return (1 - P_max), (1 - P_min)
+        P_max = T(y_max)
+        return P_max
     end
-end
 
-function linear_optimize_prod_of_erf(system, v_l, v_u, x_lower, x_upper, x_initial)
-
-    # Fetch dynamics and noise
-    f = dynamics(system)
-    σ = noise_distribution(system)
-
-    # Loop for f(y, q), Proposition 3, http://dx.doi.org/10.1145/3302504.3311805
-    m = dimensionality(system)
-
-    # Gradient descent on log-concave function: 
-    inner_optimizer = GradientDescent()
-
-    # print("Note: needs to be automated! Double check dynamics here")
-    erf_lower(y, i) = erf((y[i] - v_l[i]) / (σ[i] * sqrt(2)))
-    erf_upper(y, i) = erf((y[i] - v_u[i]) / (σ[1] * sqrt(2)))
-
-    g(x) = let y = map(fᵢ -> fᵢ(x), f)
-        (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
-    end
-    h(x) = -g(x)
-
-    # Obtain min-max on P
-    y_lower = map(fᵢ -> fᵢ(x_lower), f)
-    y_upper = map(fᵢ -> fᵢ(x_upper), f)
-    erf_low = map(i -> erf_lower(y_lower, i) - erf_upper(y_lower, i), 1:m)
-    erf_high = map(i -> erf_lower(y_upper, i) - erf_upper(y_upper, i), 1:m)
-    erf_min = min.(erf_low, erf_high)
-
-    P_min = (1 / 2^m) * prod(erf_min)
-
-    # Gradient descent to find max
-    results_max = Optim.optimize(h, x_lower, x_upper, x_initial, Fminbox(inner_optimizer))
-    P_max = -results_max.minimum
-
-    return P_min, P_max
+    return prob_transition_lower, prob_transition_upper
 end
 
 function neural_transition_probabilities(file, number_hypercubes, σ)
