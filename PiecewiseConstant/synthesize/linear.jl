@@ -13,9 +13,10 @@ using MAT, DelimitedFiles
 system_flag = "linear"
 number_hypercubes = 5
 σ = 0.01
-probabilities = "models/$system_flag/probability_data_$(number_hypercubes)_sigma_$σ.mat"
-probabilities = matopen(probabilities)
-regions = readdlm("models/linear/state_partitions.txt")
+filname = "models/$system_flag/probability_data_$(number_hypercubes)_sigma_$σ.mat"
+probabilities = matopen(joinpath(@__DIR__, filename))
+filename = "models/linear/state_partitions.txt"
+regions = readdlm(joinpath(@__DIR__, filename))
 regions = [Interval(l, u) for (l, u) in eachrow(regions)]
 regions = read_regions(regions, probabilities)
 close(probabilities)

@@ -43,10 +43,27 @@ function load_regions(partitions::MatlabFile)
     return [Hyperrectangle(low=X̲, high=X̅) for (X̲, X̅) in zip(eachrow(regions_lower), eachrow(regions_upper))]
 end
 
-vectorize(x::Vector) = x
-vectorize(x::VariableRef) = [x]
-vectorize(x::Number) = [x]
-vectorize(x::AbstractPolynomialLike) = [x]
+function load_dynamics(partitions::MatlabFile)
+    # Extract hypercube data
+    state_partitions = read(partitions, "partitions")
+
+    # Extract Neural Network Bounds [CROWN]
+    M_upper = read(partitions, "M_h")
+    M_lower = read(partitions, "M_l")
+    b_upper = read(partitions, "B_h")
+    b_lower = read(partitions, "B_l")
+
+    n = size(state_partitions, 1)
+
+    Xs = [
+        UncertainPWARegion(
+            Hyperrectangle(low=state_partitions[ii, 1, :], high=state_partitions[ii, 2, :]),
+            [(M_lower[ii, :, :], b_lower[ii, :]), (M_upper[ii, :, :], b_upper[ii, :])]
+        ) for ii in 1:n
+    ]
+
+    return Xs
+end
 
 # Generate state space from bounds
 function state_space_generation(state_partitions)

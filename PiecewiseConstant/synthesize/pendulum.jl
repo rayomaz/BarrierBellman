@@ -13,11 +13,13 @@ using MAT
 system_flag = "pendulum"
 number_hypercubes = 120
 σ = 0.10
-probabilities = "models/$system_flag/probability_data_$(number_hypercubes)_sigma_$σ.mat"
-probabilities = matopen(probabilities)
-regions = "models/$system_flag/partition_data_$number_hypercubes.mat"
-regions = matopen(regions)
-regions = read_regions(regions, probabilities)
+filename = "models/$system_flag/probability_data_$(number_hypercubes)_sigma_$σ.mat"
+probabilities = matopen(joinpath(@__DIR__, filename))
+filename = "models/$system_flag/partition_data_$number_hypercubes.mat"
+region_file = matopen(joinpath(@__DIR__, filename))
+regions = read_regions(region_file, probabilities)
+close(probabilities)
+close(region_file)
 
 initial_region = Hyperrectangle([0.0, 0.0], [0.01, 0.01])
 obstacle_region = EmptySet(2)
