@@ -44,7 +44,7 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-
         @inbounds β_parts[jj] = max(value(β), ϵ)
 
         p_values = [value.(P); [value(Pᵤ)]]
-        p_distribution[:, jj] = p_values
+        @inbounds p_distribution[:, jj] = p_values
     end
 
     max_β = maximum(β_parts)
@@ -67,8 +67,9 @@ function accelerated_post_compute_beta(B, regions::Vector{<:RegionWithProbabilit
     # Don't ask. It's not pretty... But it's fast!
 
     β_parts = Vector{Float64}(undef, length(B))
+    p_distribution = Matrix{Float64}(undef, length(B) + 1, length(B))
 
-    Threads.@threads :static for jj in eachindex(regions)
+    Threads.@threads for jj in eachindex(regions)
         Xⱼ, Bⱼ = regions[jj], B[jj]
 
         model = get!(task_local_storage(), "post_compute_model") do
@@ -108,11 +109,14 @@ function accelerated_post_compute_beta(B, regions::Vector{<:RegionWithProbabilit
     
         # Print optimal values
         @inbounds β_parts[jj] = max(objective_value(model) - Bⱼ, 0)
+        
+        p_values = [value.(P); [value(Pᵤ)]]
+        @inbounds p_distribution[:, jj] = p_values
     end
 
     max_β = maximum(β_parts)
    
     println("Solution updated beta: [β = $max_β]")
 
-    return β_parts
+    return β_parts, p_distribution
 end
