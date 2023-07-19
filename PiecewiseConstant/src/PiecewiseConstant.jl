@@ -15,7 +15,7 @@ const MP = MultivariatePolynomials
 const MB = MultivariateBases
 
 include("region.jl")
-export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper
+export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper, update_regions
 
 include("utility.jl")
 export vectorize, state_space_generation, read_regions
@@ -32,6 +32,9 @@ export constant_barrier
 
 include("post_compute.jl")
 export post_compute_beta, accelerated_post_compute_beta
+
+include("iterative_barrier.jl")
+export iterative_barrier
 
 include("dual_barrier.jl")
 export dual_constant_barrier
