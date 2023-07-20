@@ -7,12 +7,8 @@
 # Import packages
 using Revise, BenchmarkTools
 using PiecewiseConstant
-
 using LazySets
-
 using YAXArrays, NetCDF
-using DelimitedFiles
-using MAT
 
 # System
 f = 1.05

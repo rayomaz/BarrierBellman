@@ -10,7 +10,7 @@
 # Import packages
 using Revise, BenchmarkTools
 using PiecewiseConstant
-using MAT
+using YAXArrays, NetCDF
 
 # System
 system_flag = "pendulum"
@@ -24,21 +24,9 @@ close(file)
 
 system = AdditiveGaussianUncertainPWASystem(Xs, σ)
 
-# Optimize
+# Extract probability data
 @time probability_bounds = transition_probabilities(system)
 
-# Extract probability data
-(matrix_prob_lower, 
- matrix_prob_upper,
- matrix_prob_unsafe_lower,
- matrix_prob_unsafe_upper) = probability_bounds
-
-# Save data
-data = Dict("matrix_prob_lower" => matrix_prob_lower,
-            "matrix_prob_upper" => matrix_prob_upper,
-            "matrix_prob_unsafe_lower" => matrix_prob_unsafe_lower,
-            "matrix_prob_unsafe_upper" => matrix_prob_unsafe_upper)
-
-# Save the dictionary in a .mat file
-filename = "models/pendulum/probability_data_$(number_hypercubes)_sigma_$σ.mat"
-matwrite(joinpath(@__DIR__, filename), data)
+# Save to a .nc file
+filename = "models/pendulum/probability_data_$(number_hypercubes)_sigma_$σ.nc"
+savedataset(probability_bounds; path=joinpath(@__DIR__, filename), driver=:netcdf, overwrite=true)
