@@ -36,4 +36,4 @@ obstacle_region = EmptySet(2)
 @time B_dual, beta_dual = dual_constant_barrier(regions, initial_region, obstacle_region)
 @time beta_dual_updated, p_distribution = post_compute_beta(B_dual, regions)
 
-println("\n Pendulum model verified.")
+println("Pendulum model verified.")

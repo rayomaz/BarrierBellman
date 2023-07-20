@@ -38,4 +38,4 @@ obstacle_region = EmptySet(1)
 @time beta_dual_updated, p_distribution = post_compute_beta(B_dual, regions)
 # println(beta_dual_updated)
 
-println("\n Linear model verified.")
+println("Linear model verified.")

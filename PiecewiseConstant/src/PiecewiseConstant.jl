@@ -6,6 +6,7 @@ using SpecialFunctions: erf
 using JuMP, HiGHS, Optim, NLopt, Ipopt
 using LazySets, Polyhedra, CDDLib
 using Distributed
+using ReachabilityBase.Commutative
 using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5, DelimitedFiles 
 
 const MatlabFile = Union{MAT_v4.Matlabv4File, MAT_v5.Matlabv5File, MAT_HDF5.MatlabHDF5File}

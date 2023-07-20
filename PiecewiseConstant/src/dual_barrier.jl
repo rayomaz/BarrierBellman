@@ -22,12 +22,12 @@ function dual_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initi
     # Construct barriers
     @inbounds for (Xⱼ, Bⱼ, βⱼ) in zip(regions, B, β_parts)
         # Initial set
-        if !isempty(region(Xⱼ) ∩ initial_region)
+        if !isdisjoint(initial_region, region(Xⱼ))
             @constraint(model, Bⱼ .≤ η)
         end
 
         # Obstacle
-        if !isempty(region(Xⱼ) ∩ obstacle_region)
+        if !isdisjoint(obstacle_region, region(Xⱼ))
             @constraint(model, Bⱼ == 1)
         end
 
