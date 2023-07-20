@@ -35,8 +35,14 @@ function transition_probabilities(system, Xs)
     P̲ₛ, P̅ₛ  = transition_prob_to_region(system, Ys, box_Ys, Xₛ)
     P̲ᵤ, P̅ᵤ = (1 .- P̅ₛ), (1 .- P̲ₛ)
 
-    # Return as a tuple
-    return P̲, P̅, P̲ᵤ, P̅ᵤ
+    axlist = (Dim{:to}(1:number_hypercubes), Dim{:from}(1:number_hypercubes))
+    P̲, P̅ = DimArray(P̲, axlist), DimArray(P̅, axlist)
+    
+    axlist = (Dim{:from}(1:number_hypercubes),)
+    P̲ᵤ, P̅ᵤ = DimArray(P̲ᵤ, axlist), DimArray(P̅ᵤ, axlist)
+
+    # Return as a YAXArrays dataset
+    return create_probability_dataset(Xs, P̲, P̅, P̲ᵤ, P̅ᵤ)
 end
 
 function post(system::AdditiveGaussianLinearSystem, Xs)
