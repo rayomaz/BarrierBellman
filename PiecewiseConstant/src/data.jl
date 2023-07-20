@@ -24,17 +24,21 @@ end
 function load_probabilities(dataset::YAXArrays.Dataset)
     n = dataset.properties["num_regions"]
 
-    regions = dataset.regions
-    P̲ = dataset.prob[dir=At("lower")]
-    P̅ = dataset.prob[dir=At("upper")]
-    P̲ᵤ = dataset.prob_unsafe[dir=At("lower")]
-    P̅ᵤ = dataset.prob_unsafe[dir=At("upper")]
+    # Pre-load data for speed
+    regions = yaxconvert(DimArray, dataset.regions)
+    prob = yaxconvert(DimArray, dataset.prob)
+    prob_unsafe = yaxconvert(DimArray, dataset.prob_unsafe)
+
+    # Give convenient names
+    X̲, X̅ = regions[dir=At("lower")], regions[dir=At("upper")]
+    P̲, P̅ = prob[dir=At("lower")], prob[dir=At("upper")]
+    P̲ᵤ, P̅ᵤ = prob_unsafe[dir=At("lower")], prob_unsafe[dir=At("upper")]
 
     regions = [
         RegionWithProbabilities(
-            Hyperrectangle(low=copy(regions[region=j, dir=At("lower")].data), high=copy(regions[region=j, dir=At("upper")].data)),
+            Hyperrectangle(low=copy(X̲[region=j].data), high=copy(X̅[region=j].data)),
             (copy(P̲[from=j].data), copy(P̅[from=j].data)),
-            (copy(P̲ᵤ[from=j].data[1]), copy(P̅ᵤ[from=j].data[1]))
+            (P̲ᵤ[from=j], P̅ᵤ[from=j])   # This are already scalars, no need to copy.
         )
         for j in 1:n
     ]
