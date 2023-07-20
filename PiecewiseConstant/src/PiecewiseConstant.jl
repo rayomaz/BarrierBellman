@@ -22,9 +22,8 @@ export AbstractDiscreteTimeStochasticSystem, AbstractAdditiveGaussianSystem
 export AdditiveGaussianLinearSystem, AdditiveGaussianUncertainPWASystem, UncertainPWARegion
 export dynamics, noise_distribution, dimensionality
 
-include("utility.jl")
 include("data.jl")
-export state_space_generation, read_regions, load_dynamics
+export load_regions, load_dynamics, load_probabilities
 
 include("probabilities.jl")
 export transition_probabilities, neural_transition_probabilities
