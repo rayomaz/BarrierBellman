@@ -68,7 +68,7 @@ function accelerated_post_compute_beta(B, regions::Vector{<:RegionWithProbabilit
 
     β_parts = Vector{Float64}(undef, length(B))
 
-    Threads.@threads :static for jj in eachindex(regions)
+    Threads.@threads for jj in eachindex(regions)
         Xⱼ, Bⱼ = regions[jj], B[jj]
 
         model = get!(task_local_storage(), "post_compute_model") do

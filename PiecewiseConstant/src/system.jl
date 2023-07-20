@@ -6,22 +6,41 @@
 """
 
 abstract type AbstractDiscreteTimeStochasticSystem{N} end
+abstract type AbstractAdditiveGaussianSystem{N} <: AbstractDiscreteTimeStochasticSystem{N} end
 
-struct AdditiveGaussianPolynomialSystem{T, N} <: AbstractDiscreteTimeStochasticSystem{N}
+dimensionality(::AbstractDiscreteTimeStochasticSystem{N}) where {N} = N
+noise_distribution(system::AbstractAdditiveGaussianSystem) = system.σ
+
+struct AdditiveGaussianLinearSystem{T, N} <: AbstractAdditiveGaussianSystem{N}
     # This struct represents a system with the dynamics x(k + 1) = f(x(k)) + v(k)
-    # where the set of random variables (v(k))_{k ∈ ℕ} are independent and identically
-    # Gaussian distributed.
+    # where f is affine in x and the set of random variables (v(k))_{k ∈ ℕ} are
+    # independent and identically Gaussian distributed.
 
-    x
-    fx
-    σ
+    A::AbstractMatrix{T}
+    b::AbstractVector{T}
+    σ::AbstractVector{T}
 end
+AdditiveGaussianLinearSystem(A, b, σ) = AdditiveGaussianLinearSystem{eltype(A), length(σ)}(A, b, σ)
+dynamics(system::AdditiveGaussianLinearSystem) = (system.A, system.b)
 
-AdditiveGaussianPolynomialSystem{N}(x, fx, σ) where {N} = AdditiveGaussianPolynomialSystem{Float64, N}(x, fx, σ)
-AdditiveGaussianPolynomialSystem(x::MP.AbstractVariable, fx, σ) = AdditiveGaussianPolynomialSystem{1}(x, fx, σ)
-AdditiveGaussianPolynomialSystem(x, fx, σ) = AdditiveGaussianPolynomialSystem{length(x)}(x, fx, σ)
 
-dimensionality(system::AdditiveGaussianPolynomialSystem{T, N}) where {T, N} = N
-variables(system::AdditiveGaussianPolynomialSystem) = vectorize(system.x)
-dynamics(system::AdditiveGaussianPolynomialSystem) = vectorize(system.fx)
-noise_distribution(system::AdditiveGaussianPolynomialSystem) = vectorize(system.σ)
+struct UncertainPWARegion{T, S<:LazySet{T}}
+    X::S
+
+    dyn::Vector{Tuple{Matrix{T}, Vector{T}}}
+end
+Base.iterate(X::UncertainPWARegion) = (X.X, Val(:dyn))
+Base.iterate(X::UncertainPWARegion, ::Val{:dyn}) = (X.dyn, Val(:done))
+Base.iterate(X::UncertainPWARegion, ::Val{:done}) = nothing
+
+struct AdditiveGaussianUncertainPWASystem{T, N, S<:UncertainPWARegion{T}} <: AbstractAdditiveGaussianSystem{N}
+    # This struct represents a system with the dynamics x(k + 1) = f(x(k)) + v(k)
+    # where f is an uncertain PWA function and the set of random variables (v(k))_{k ∈ ℕ} are
+    # independent and identically Gaussian distributed.
+
+    Xs::AbstractVector{S}
+    σ::AbstractVector{T}
+end
+AdditiveGaussianUncertainPWASystem(Xs, σ) = AdditiveGaussianUncertainPWASystem{eltype(σ), length(σ), eltype(Xs)}(Xs, σ)
+regions(system::AdditiveGaussianUncertainPWASystem) = map(X -> X.X, system.Xs)
+dynamics(system::AdditiveGaussianUncertainPWASystem) = system.Xs

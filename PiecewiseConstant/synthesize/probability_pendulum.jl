@@ -15,12 +15,17 @@ using MAT
 # System
 system_flag = "pendulum"
 number_hypercubes = 480
-filename = "/models/" * system_flag * "/partition_data_"  * string(number_hypercubes) * ".mat"
-file = matopen(pwd()*filename)
+filename = "models/$system_flag/partition_data_$number_hypercubes.mat"
+file = matopen(joinpath(@__DIR__, filename))
+
+Xs = load_dynamics(file)
+close(file)
+σ = [0.01, 0.01]
+
+system = AdditiveGaussianUncertainPWASystem(Xs, σ)
 
 # Optimize
-σ = 0.01
-@time probability_bounds = neural_transition_probabilities(file, number_hypercubes, σ)
+@time probability_bounds = transition_probabilities(system)
 
 # Extract probability data
 (matrix_prob_lower, 
@@ -35,5 +40,5 @@ data = Dict("matrix_prob_lower" => matrix_prob_lower,
             "matrix_prob_unsafe_upper" => matrix_prob_unsafe_upper)
 
 # Save the dictionary in a .mat file
-save_dir = "models/pendulum/probability_data_" *string(number_hypercubes) * "_sigma_" * string(σ) * ".mat"
-matwrite(save_dir, data)
+filename = "models/pendulum/probability_data_$(number_hypercubes)_sigma_$σ.mat"
+matwrite(joinpath(@__DIR__, filename), data)
