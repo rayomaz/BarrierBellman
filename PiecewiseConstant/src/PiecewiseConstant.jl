@@ -17,15 +17,16 @@ const MB = MultivariateBases
 include("region.jl")
 export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper, update_regions
 
-include("utility.jl")
-export vectorize, state_space_generation, read_regions
-
 include("system.jl")
-export AbstractDiscreteTimeStochasticSystem, AdditiveGaussianPolynomialSystem
-export variables, dynamics, noise_distribution, dimensionality
+export AbstractDiscreteTimeStochasticSystem, AbstractAdditiveGaussianSystem
+export AdditiveGaussianLinearSystem, AdditiveGaussianUncertainPWASystem, UncertainPWARegion
+export dynamics, noise_distribution, dimensionality
+
+include("utility.jl")
+export state_space_generation, read_regions, load_dynamics
 
 include("probabilities.jl")
-export linear_transition_probabilities, neural_transition_probabilities
+export transition_probabilities, neural_transition_probabilities
 
 include("constant_barrier.jl")
 export constant_barrier

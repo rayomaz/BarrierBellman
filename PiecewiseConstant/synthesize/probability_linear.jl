@@ -9,24 +9,24 @@ using Revise, BenchmarkTools
 using PiecewiseConstant
 
 using LazySets
-using MultivariatePolynomials, DynamicPolynomials
 
 using DelimitedFiles
 using MAT
 
 # System
-@polyvar x
-fx = 1.05 * x
-σ = 0.01
+A = [1.05][:, :]
+b = [0.0]
+σ = [0.01]
 
-system = AdditiveGaussianPolynomialSystem{Float64, 1}(x, fx, σ)
+system = AdditiveGaussianLinearSystem(A, b, σ)
 
 # State partitions
-state_partitions = readdlm("models/linear/state_partitions.txt", ' ')
+filename = "models/linear/state_partitions.txt"
+state_partitions = readdlm(joinpath(@__DIR__, filename), ' ')
 state_partitions = [Hyperrectangle(low=[low], high=[high]) for (low, high) in eachrow(state_partitions)]
 
 # Extract probability data
-@time probability_bounds = linear_transition_probabilities(system, state_partitions)
+@time probability_bounds = transition_probabilities(system, state_partitions)
 
 (matrix_prob_lower, 
  matrix_prob_upper,
@@ -40,5 +40,5 @@ data = Dict("matrix_prob_lower" => matrix_prob_lower,
             "matrix_prob_unsafe_upper" => matrix_prob_unsafe_upper)
 
 # Save the dictionary in a .mat file
-save_dir = "models/linear/probability_data_" *string(length(state_partitions)) * "_sigma_" * string(σ) * ".mat"
-matwrite(save_dir, data)
+filename = "models/linear/probability_data_$(length(state_partitions))_sigma_$σ.mat"
+matwrite(joinpath(@__DIR__, filename), data)
