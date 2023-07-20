@@ -29,4 +29,4 @@ system = AdditiveGaussianUncertainPWASystem(Xs, σ)
 
 # Save to a .nc file
 filename = "models/pendulum/probability_data_$(number_hypercubes)_sigma_$σ.nc"
-savedataset(probability_bounds; path=joinpath(@__DIR__, filename), driver=:netcdf, overwrite=true)
+savedataset(probability_bounds; path=joinpath(@__DIR__, filename), driver=:netcdf, overwrite=true, compress=1)
