@@ -21,3 +21,11 @@ prob_lower(X::RegionWithProbabilities) = X.transition_to_other_regions[1]
 prob_upper(X::RegionWithProbabilities) = X.transition_to_other_regions[2]
 prob_unsafe_lower(X::RegionWithProbabilities) = X.transition_to_unsafe[1]
 prob_unsafe_upper(X::RegionWithProbabilities) = X.transition_to_unsafe[2]
+
+
+##### WARNING: This is type piracy #####
+# This is a type piracy of the `LazySets` package.
+# Please don't do this, but I needed to do this for the linear 2D system.
+@commutative function LazySets.isdisjoint(H::AbstractHyperrectangle, B::Ball2)
+    return LazySets._isdisjoint_convex_sufficient(H, B)
+end

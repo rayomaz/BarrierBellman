@@ -5,6 +5,7 @@ using MultivariatePolynomials, DynamicPolynomials, MultivariateBases
 using SpecialFunctions: erf
 using JuMP, HiGHS, Optim, NLopt, Ipopt
 using LazySets, Polyhedra, CDDLib
+using ReachabilityBase.Commutative
 using YAXArrays, YAXArrayBase, DimensionalData
 using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5, DelimitedFiles
 
