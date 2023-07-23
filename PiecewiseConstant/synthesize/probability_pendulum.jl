@@ -10,7 +10,7 @@
 # Import packages
 using Revise, BenchmarkTools
 using PiecewiseConstant
-using YAXArrays, NetCDF
+using YAXArrays, NetCDF, MAT
 
 # System
 system_flag = "pendulum"
