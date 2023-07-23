@@ -40,3 +40,10 @@ function update_regions(regions::Vector{<:RegionWithProbabilities}, p_distributi
 
     return new_regions
 end
+
+##### WARNING: This is type piracy #####
+# This is a type piracy of the `LazySets` package.
+# Please don't do this, but I needed to do this for the linear 2D system.
+@commutative function LazySets.isdisjoint(H::AbstractHyperrectangle, B::Ball2)
+    return LazySets._isdisjoint_convex_sufficient(H, B)
+end
