@@ -7,35 +7,31 @@
 # Import packages
 using Revise, BenchmarkTools
 using PiecewiseConstant, LazySets
-using MAT, DelimitedFiles
+using YAXArrays, NetCDF
 
 # System
 system_flag = "linear"
+f = 1.05
 σ = [0.01]
 
-filename_regions = "models/linear/state_partitions.txt"
-regions = readdlm(joinpath(@__DIR__, filename_regions))
-regions = [Interval(l, u) for (l, u) in eachrow(regions)]
+num_regions = 5
+filename = "models/linear/probability_data_$(num_regions)_f_$(f)_sigma_$σ.nc"
+dataset = open_dataset(joinpath(@__DIR__, filename))
 
-number_hypercubes = length(regions)
-filname_prob = "models/$system_flag/probability_data_$(number_hypercubes)_sigma_$σ.mat"
-probabilities = matopen(joinpath(@__DIR__, filname_prob))
+probabilities = load_probabilities(dataset)
 
-regions = read_regions(regions, probabilities)
-close(probabilities)
-
-initial_region = Interval(-0.05, 0.05)
+initial_region = Hyperrectangle(low=[-0.05], high=[0.05])
 obstacle_region = EmptySet(1)
 
 # Optimize: method 1 (revise beta values)
-@time B, beta = constant_barrier(regions, initial_region, obstacle_region)
-@time beta_updated, p_distribution = post_compute_beta(B, regions)
+@time B, beta = constant_barrier(probabilities, initial_region, obstacle_region)
+@time beta_updated, p_distribution = post_compute_beta(B, probabilities)
 # println(beta_updated)
-@time beta_updated = accelerated_post_compute_beta(B, regions)
+# @time beta_updated = accelerated_post_compute_beta(B, probabilities)
 
 # Optimize: method 2 (dual approach)
-@time B_dual, beta_dual = dual_constant_barrier(regions, initial_region, obstacle_region)
-@time beta_dual_updated, p_distribution = post_compute_beta(B_dual, regions)
+@time B_dual, beta_dual = dual_constant_barrier(probabilities, initial_region, obstacle_region)
+@time beta_dual_updated, p_distribution = post_compute_beta(B_dual, probabilities)
 # println(beta_dual_updated)
 
 println("Linear model verified.")

@@ -5,9 +5,9 @@ using MultivariatePolynomials, DynamicPolynomials, MultivariateBases
 using SpecialFunctions: erf
 using JuMP, HiGHS, Optim, NLopt, Ipopt
 using LazySets, Polyhedra, CDDLib
-using Distributed
 using ReachabilityBase.Commutative
-using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5, DelimitedFiles 
+using YAXArrays, YAXArrayBase, DimensionalData
+using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5, DelimitedFiles
 
 const MatlabFile = Union{MAT_v4.Matlabv4File, MAT_v5.Matlabv5File, MAT_HDF5.MatlabHDF5File}
 
@@ -23,8 +23,8 @@ export AbstractDiscreteTimeStochasticSystem, AbstractAdditiveGaussianSystem
 export AdditiveGaussianLinearSystem, AdditiveGaussianUncertainPWASystem, UncertainPWARegion
 export dynamics, noise_distribution, dimensionality
 
-include("utility.jl")
-export state_space_generation, read_regions, load_dynamics
+include("data.jl")
+export load_regions, load_dynamics, load_probabilities
 
 include("probabilities.jl")
 export transition_probabilities, neural_transition_probabilities
