@@ -71,9 +71,10 @@ function post(system::AdditiveGaussianUncertainPWASystem, Xs)
         end
         return VPolytope(vertices)
     end
-    box_Ys = box_approximation.(Ys)
+    # box_Ys = box_approximation.(Ys)
+    hull_Ys = convex_hull.(Ys)
 
-    return Ys, box_Ys
+    return Ys, hull_Ys
 end
 
 # Transition probability P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
@@ -120,6 +121,8 @@ function transition_prob_to_region(system::AdditiveGaussianUncertainPWASystem, Y
     vₗ = low(Xᵢ)
     vₕ = high(Xᵢ)
     v = center(Xᵢ)
+
+    # return 0,0
 
     # Fetch noise
     m = dimensionality(system)
