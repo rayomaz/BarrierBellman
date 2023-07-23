@@ -90,7 +90,7 @@ function transition_prob_to_region(system::AdditiveGaussianLinearSystem, Ys, box
     # Transition kernel T(qᵢ | x)
     erf_lower(y, i) = erf((y[i] - vₗ[i]) / (σ[i] * sqrt(2)))
     erf_upper(y, i) = erf((y[i] - vₕ[i]) / (σ[i] * sqrt(2)))
-    T(y) = log((1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m))
+    T(y) = (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
 
     # Obtain min of T(qᵢ | x) over Ys
     prob_transition_lower = map(Ys) do Y
@@ -131,7 +131,7 @@ function transition_prob_to_region(system::AdditiveGaussianUncertainPWASystem, Y
     # Transition kernel T(qᵢ | x)
     erf_lower(y, i) = erf((y[i] - vₗ[i]) / (σ[i] * sqrt(2)))
     erf_upper(y, i) = erf((y[i] - vₕ[i]) / (σ[i] * sqrt(2)))
-    T(y) = log((1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m))
+    T(y) = (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
 
     # Obtain min of T(qᵢ | x) over Ys
     prob_transition_lower = map(Ys) do Y
