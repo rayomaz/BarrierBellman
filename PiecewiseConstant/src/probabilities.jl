@@ -53,6 +53,7 @@ function post(system::AdditiveGaussianLinearSystem, Xs)
     Xs = convert.(VPolytope, Xs)
     Ys = f.(Xs)
     box_Ys = box_approximation.(Ys)
+    Ys = convert.(HPolytope, Ys)
 
     return Ys, box_Ys
 end
@@ -72,6 +73,7 @@ function post(system::AdditiveGaussianUncertainPWASystem, Xs)
         return VPolytope(vertices)
     end
     box_Ys = box_approximation.(Ys)
+    Ys = convert.(HPolytope, Ys)
 
     return Ys, box_Ys
 end
@@ -125,7 +127,7 @@ function transition_prob_to_region(system, Ys, box_Ys, Xᵢ)
         P_max = JuMP.objective_value(model)
 
         # Uncomment this code to compare against Steven's box_approximation method
-        # l, h = low(Y), high(Y)
+        # l, h = low(box_Y), high(box_Y)
         # y_max = @. min(h, max(v, l))
         # P_max2 = T(y_max)
 
