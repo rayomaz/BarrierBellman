@@ -71,10 +71,9 @@ function post(system::AdditiveGaussianUncertainPWASystem, Xs)
         end
         return VPolytope(vertices)
     end
-    # box_Ys = box_approximation.(Ys)
-    hull_Ys = convex_hull.(Ys)
+    box_Ys = box_approximation.(Ys)
 
-    return Ys, hull_Ys
+    return Ys, box_Ys
 end
 
 # Transition probability P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
@@ -120,9 +119,6 @@ end
 function transition_prob_to_region(system::AdditiveGaussianUncertainPWASystem, Ys, box_Ys, Xᵢ)
     vₗ = low(Xᵢ)
     vₕ = high(Xᵢ)
-    v = center(Xᵢ)
-
-    # return 0,0
 
     # Fetch noise
     m = dimensionality(system)
@@ -141,19 +137,43 @@ function transition_prob_to_region(system::AdditiveGaussianUncertainPWASystem, Y
         return P_min
     end
 
-    # Obtain max of T(qᵢ | x) over Ys
-    prob_transition_upper = map(box_Ys) do Y
-        if v in Y
-            return T(v)
-        end
+    prob_transition_upper = map(Ys) do Y
 
-        l, h = low(Y), high(Y)
+        hull_Y = convex_hull(Y)
 
-        y_max = @. min(h, max(v, l))
+        # Obtain max of T(qᵢ | x) over Ys
+        model_gradient = Model(Ipopt.Optimizer)
+        set_silent(model_gradient)
+        @variable(model_gradient, x[1:m])
+        Γ!(model_gradient, x, m, σ, vₗ, vₕ)
 
-        P_max = T(y_max)
+        # @constraint(model_gradient, in(hull_Y, x))  # Constraint x to be inside the convex hull
+
+        # Optimize for maximum
+        JuMP.optimize!(model_gradient)
+        P_max = JuMP.objective_value(model_gradient)
         return P_max
     end
 
     return prob_transition_lower, prob_transition_upper
+end
+
+# Define the objective function T(y) in terms of erf_lower and erf_upper
+function Γ!(model_gradient, y, m, σ, vₗ, vₕ)
+
+    vector_erf_vars = []
+
+    # Generate Δ erf
+    for i = 1:m
+
+        # Function per dimension
+        func_lower = (y[i] - vₗ[i]) / (σ[i] * sqrt(2))
+        func_upper = (y[i] - vₕ[i]) / (σ[i] * sqrt(2))
+
+        vector_erf_vars = push!(vector_erf_vars, [func_lower, func_upper])
+
+    end
+
+    @NLobjective(model_gradient, Max, (1/(2^m))*prod(erf(vector_erf_vars[kk][1]) - erf(vector_erf_vars[kk][2]) for kk in 1:m))
+
 end
