@@ -77,7 +77,7 @@ function post(system::AdditiveGaussianUncertainPWASystem, Xs)
 end
 
 # Transition probability P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
-function transition_prob_to_region(system::AdditiveGaussianLinearSystem, Ys, box_Ys, Xᵢ)
+function transition_prob_to_region(system, Ys, box_Ys, Xᵢ)
     vₗ = low(Xᵢ)
     vₕ = high(Xᵢ)
     v = center(Xᵢ)
@@ -89,7 +89,10 @@ function transition_prob_to_region(system::AdditiveGaussianLinearSystem, Ys, box
     # Transition kernel T(qᵢ | x)
     erf_lower(y, i) = erf((y[i] - vₗ[i]) / (σ[i] * sqrt(2)))
     erf_upper(y, i) = erf((y[i] - vₕ[i]) / (σ[i] * sqrt(2)))
+
     T(y) = (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
+    Tsplat(y...) = T(y)
+    logT(y...) = log(1) - m * log(2) + sum(i -> log(erf_lower(y, i) - erf_upper(y, i)), 1:m)
 
     # Obtain min of T(qᵢ | x) over Ys
     prob_transition_lower = map(Ys) do Y
@@ -100,69 +103,36 @@ function transition_prob_to_region(system::AdditiveGaussianLinearSystem, Ys, box
     end
 
     # Obtain max of T(qᵢ | x) over Ys
-    prob_transition_upper = map(box_Ys) do Y
+    prob_transition_upper = map(zip(Ys, box_Ys)) do (Y, box_Y)
         if v in Y
             return T(v)
         end
 
-        l, h = low(Y), high(Y)
+        model = Model(Ipopt.Optimizer)
+        set_silent(model)
+        register(model, :logT, m, logT; autodiff = true)
+        register(model, :Tsplat, m, Tsplat; autodiff = true)
 
-        y_max = @. min(h, max(v, l))
+        @variable(model, y[1:m])
 
-        P_max = T(y_max)
-        return P_max
-    end
+        H, h = tosimplehrep(Y)
+        @constraint(model, H * y <= h)
 
-    return prob_transition_lower, prob_transition_upper
-end
-
-function transition_prob_to_region(system::AdditiveGaussianUncertainPWASystem, Ys, box_Ys, Xᵢ)
-    vₗ = low(Xᵢ)
-    vₕ = high(Xᵢ)
-
-    # Fetch noise
-    m = dimensionality(system)
-    σ = noise_distribution(system)
-    
-    # Transition kernel T(qᵢ | x)
-    erf_lower(y, i) = erf((y[i] - vₗ[i]) / (σ[i] * sqrt(2)))
-    erf_upper(y, i) = erf((y[i] - vₕ[i]) / (σ[i] * sqrt(2)))
-    T(y) = (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
-
-    # Obtain min of T(qᵢ | x) over Ys
-    prob_transition_lower = map(Ys) do Y
-        vertices = vertices_list(Y)
-
-        P_min = minimum(T, vertices)
-        return P_min
-    end
-
-    prob_transition_upper = map(Ys) do Y
-
-        hull_Y = convex_hull(Y)
-
-        # Obtain max of T(qᵢ | x) over Ys
-        model_gradient = Model(Ipopt.Optimizer)
-        set_silent(model_gradient)
-        @variable(model_gradient, y[1:m])
-        Γ!(model_gradient, y, m, σ, vₗ, vₕ)
-
-        # Constraint x to be inside the convex hull
-        H, h = tosimplehrep(hull_Y)
-        @constraint(model_gradient, H * y <= h)
+        @NLobjective(model, Max, Tsplat(y...))
 
         # Optimize for maximum
-        JuMP.optimize!(model_gradient)
-        P_max = JuMP.objective_value(model_gradient)
+        JuMP.optimize!(model)
+        P_max = JuMP.objective_value(model)
+
+        # Uncomment this code to compare against Steven's box_approximation method
+        # l, h = low(Y), high(Y)
+        # y_max = @. min(h, max(v, l))
+        # P_max2 = T(y_max)
+
+        # println("$P_max, $P_max2")
+
         return P_max
     end
 
     return prob_transition_lower, prob_transition_upper
-end
-
-function Γ!(model_gradient, y, m, σ, vₗ, vₕ)
-    erf_lower(y, i) = erf((y[i] - vₗ[i]) / (σ[i] * sqrt(2)))
-    erf_upper(y, i) = erf((y[i] - vₕ[i]) / (σ[i] * sqrt(2)))
-    T(y) = log(1) - m * log(2) + sum(i -> log(erf_lower(y, i) - erf_upper(y, i)), 1:m))
-    @NLobjective(model_gradient, Max, T(y))
 end
