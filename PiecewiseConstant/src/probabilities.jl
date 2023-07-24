@@ -144,10 +144,12 @@ function transition_prob_to_region(system::AdditiveGaussianUncertainPWASystem, Y
         # Obtain max of T(qᵢ | x) over Ys
         model_gradient = Model(Ipopt.Optimizer)
         set_silent(model_gradient)
-        @variable(model_gradient, x[1:m])
-        Γ!(model_gradient, x, m, σ, vₗ, vₕ)
+        @variable(model_gradient, y[1:m])
+        Γ!(model_gradient, y, m, σ, vₗ, vₕ)
 
-        # @constraint(model_gradient, in(hull_Y, x))  # Constraint x to be inside the convex hull
+        # Constraint x to be inside the convex hull
+        H, h = tosimplehrep(hull_Y)
+        @constraint(model_gradient, H * y <= h)
 
         # Optimize for maximum
         JuMP.optimize!(model_gradient)
@@ -158,22 +160,9 @@ function transition_prob_to_region(system::AdditiveGaussianUncertainPWASystem, Y
     return prob_transition_lower, prob_transition_upper
 end
 
-# Define the objective function T(y) in terms of erf_lower and erf_upper
 function Γ!(model_gradient, y, m, σ, vₗ, vₕ)
-
-    vector_erf_vars = []
-
-    # Generate Δ erf
-    for i = 1:m
-
-        # Function per dimension
-        func_lower = (y[i] - vₗ[i]) / (σ[i] * sqrt(2))
-        func_upper = (y[i] - vₕ[i]) / (σ[i] * sqrt(2))
-
-        vector_erf_vars = push!(vector_erf_vars, [func_lower, func_upper])
-
-    end
-
-    @NLobjective(model_gradient, Max, (1/(2^m))*prod(erf(vector_erf_vars[kk][1]) - erf(vector_erf_vars[kk][2]) for kk in 1:m))
-
+    erf_lower(y, i) = erf((y[i] - vₗ[i]) / (σ[i] * sqrt(2)))
+    erf_upper(y, i) = erf((y[i] - vₕ[i]) / (σ[i] * sqrt(2)))
+    T(y) = log(1) - m * log(2) + sum(i -> log(erf_lower(y, i) - erf_upper(y, i)), 1:m))
+    @NLobjective(model_gradient, Max, T(y))
 end
