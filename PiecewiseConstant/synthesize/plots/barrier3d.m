@@ -16,25 +16,62 @@ array_barrier_dual = extract_data(stringData_dual);
 max_certificate = 1;
 
 % Plot barriers
-% plot_certifcate = plot_data(array_certificate, partitions, max_certificate, "Upper bound");
-% plot_dual = plot_data(array_dual, partitions, max_certificate, "Dual");
-
 figure
 hold on
+plot_flag = "upper"; % "dual"; 
 
 for jj = 1:length(partitions)
 
     parts = partitions(jj, :, :);
 
-    x1 = linspace(parts(1), parts(2), 2);
-    x2 = linspace(parts(3), parts(4), 2);
+    % Extract the coordinates from the 'parts' array
+    x1_min = parts(1);
+    x1_max = parts(2);
+    x2_min = parts(3);
+    x2_max = parts(4);
 
-%     B = array_barrier(jj) * ones(1, length(x1));
-    B = array_barrier_dual(jj) * ones(1, length(x1));
+    % Get barrier value (height)
+    if plot_flag == "dual"
+        B_val = array_barrier_dual(jj);
+    elseif plot_flag == "upper"
+        B_val = array_barrier(jj);
+    end
+    
+    % Define the vertices of the rectangle
+    vertices = [x1_min, x2_min, 0;
+                x1_max, x2_min, 0;
+                x1_max, x2_max, 0;
+                x1_min, x2_max, 0;
+                x1_min, x2_min, B_val;
+                x1_max, x2_min, B_val;
+                x1_max, x2_max, B_val;
+                x1_min, x2_max, B_val;
+                ];
+    
+    % Create the face index matrix for each face
+    bottom_face = [1, 2, 3, 4];
+    top_face = [5, 6, 7, 8];
+    
+    % Side faces are trapezoids (each face has 4 vertices)
+    side_faces = [
+        1, 2, 6, 5; % Face 1: Vertex 1, Vertex 2, Top Vertex 2, Vertex 1
+        2, 3, 7, 6; % Face 2: Vertex 2, Vertex 3, Top Vertex 3, Vertex 2
+        3, 4, 8, 7; % Face 3: Vertex 3, Vertex 4, Top Vertex 4, ertex 3
+        4, 1, 5, 8  % Face 4: Vertex 4, Vertex 1, Top Vertex 1, Vertex 4
+    ];
+    
+    % Combine all vertices and faces
+    all_vertices = vertices;
+    all_faces = [bottom_face; top_face; side_faces];
 
+    % Set the color to transparent gray (RGB with alpha)
+    gray_color = [0.5, 0.5, 0.5]; % RGB values for gray
+    alpha_value = 0.5; % Set transparency to 0.5 (adjust as needed)
 
-    plot3(x1, x2, B, "b", "LineWidth", 2);
-
+    
+    % Plot the 3D filled rectangle using patch function
+    patch('Vertices', all_vertices, 'Faces', all_faces, ...
+          'FaceColor', gray_color, 'FaceAlpha', alpha_value);
 
 end
 
@@ -43,8 +80,6 @@ grid on
 xlabel("$\theta$ (rad)", 'Interpreter','latex', "FontSize", 12)
 ylabel('$\dot{\theta}$ (rad/s)', 'Interpreter','latex', "FontSize", 12)
 zlabel('B','Rotation',0, 'Interpreter','latex', "FontSize", 12);
-
-
 
 
 % Functions
@@ -76,40 +111,3 @@ function array_prob = extract_data(stringData)
     end
 
 end
-
-% function plots = plot_data(array_barrier, partitions, max_barrier, title_type)
-
-    
-    % Plot properties
-%     c = gray;
-%     a = colorbar;
-%     shading faceted
-%     caxis([0 max(max_prob)])
-%     colormap(flipud(c));
-%     hold on
-%    
-%     % Plot box around
-%     delta = 0;
-%     x1_min = -deg2rad(12) - delta;
-%     x1_max =  deg2rad(12) + delta;
-%     
-%     x2_min = -deg2rad(57.27) - delta;
-%     x2_max = deg2rad(57.27) + delta;
-%     
-%     w =  x1_max - x1_min;
-%     h = x2_max - x2_min;
-%   
-%     recentangle_array = [x1_min x2_min w h]; 
-%     
-%     rectangle('Position', recentangle_array, 'LineWidth', 1.0)
-%     
-%     hold off
-% 
-
-%     title("Barrier", title_type)
-%     set(gcf,'color','w');
-%     set(gca,'FontSize',20)
-%     xlim([x1_min x1_max])
-%     ylim([x2_min x2_max])
-% %     
-% end
