@@ -29,15 +29,12 @@ for jj = 1:length(partitions)
     x1 = linspace(parts(1), parts(2), 2);
     x2 = linspace(parts(3), parts(4), 2);
 
-    % Create 2D grids for x1 and x2
-    [X1, X2] = meshgrid(x1, x2);
-
 %     B = array_barrier(jj) * ones(1, length(x1));
-%     B = array_barrier_dual(jj) * ones(1, length(x1));
-    B = array_barrier(jj) * ones(length(x2), length(x1));
+    B = array_barrier_dual(jj) * ones(1, length(x1));
 
-%     plot3(x1, x2, B, "b", "LineWidth", 2);
-    surf(X1, X2, B);
+
+    plot3(x1, x2, B, "b", "LineWidth", 2);
+
 
 end
 
