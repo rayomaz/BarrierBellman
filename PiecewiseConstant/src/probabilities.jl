@@ -16,7 +16,7 @@ function transition_probabilities(system, Xs)
     number_hypercubes = length(Xs)
 
     # Compute post(qⱼ, f(x)) for all qⱼ ∈ Q
-    Ys, box_Ys = post(system, Xs)
+    VYs, HYs, box_Ys = post(system, Xs)
 
     # Pre-allocate probability matrices
     P̲ = zeros(number_hypercubes, number_hypercubes)
@@ -24,7 +24,7 @@ function transition_probabilities(system, Xs)
 
     # Generate
     Threads.@threads for ii in eachindex(Xs)
-        P̲ᵢ, P̅ᵢ = transition_prob_to_region(system, Ys, box_Ys, Xs[ii])
+        P̲ᵢ, P̅ᵢ = transition_prob_to_region(system, VYs, HYs, box_Ys, Xs[ii])
 
         P̲[ii, :] = P̲ᵢ
         P̅[ii, :] = P̅ᵢ
@@ -32,7 +32,7 @@ function transition_probabilities(system, Xs)
 
     Xₛ = Hyperrectangle(low=minimum(low.(Xs)), high=maximum(high.(Xs)))
 
-    P̲ₛ, P̅ₛ  = transition_prob_to_region(system, Ys, box_Ys, Xₛ)
+    P̲ₛ, P̅ₛ  = transition_prob_to_region(system, VYs, HYs, box_Ys, Xₛ)
     P̲ᵤ, P̅ᵤ = (1 .- P̅ₛ), (1 .- P̲ₛ)
 
     axlist = (Dim{:to}(1:number_hypercubes), Dim{:from}(1:number_hypercubes))
@@ -51,10 +51,11 @@ function post(system::AdditiveGaussianLinearSystem, Xs)
     f(x) = A * x + b
 
     Xs = convert.(VPolytope, Xs)
-    Ys = f.(Xs)
-    box_Ys = box_approximation.(Ys)
+    VYs = f.(Xs)
+    HYs = convert.(HPolytope, VYs)
+    box_Ys = box_approximation.(VYs)
 
-    return Ys, box_Ys
+    return VYs, HYs, box_Ys
 end
 
 function post(system::AdditiveGaussianUncertainPWASystem, Xs)
@@ -63,7 +64,7 @@ function post(system::AdditiveGaussianUncertainPWASystem, Xs)
     # Compute post(qᵢ, f(x)) for all qⱼ ∈ Q    
     pwa_dynamics = dynamics(system)
 
-    Ys = map(pwa_dynamics) do (X, dyn)
+    VYs = map(pwa_dynamics) do (X, dyn)
         X = convert(VPolytope, X)
 
         vertices = mapreduce(vcat, dyn) do (A, b)
@@ -71,13 +72,14 @@ function post(system::AdditiveGaussianUncertainPWASystem, Xs)
         end
         return VPolytope(vertices)
     end
-    box_Ys = box_approximation.(Ys)
+    HYs = convert.(HPolytope, VYs)
+    box_Ys = box_approximation.(VYs)
 
-    return Ys, box_Ys
+    return VYs, HYs, box_Ys
 end
 
 # Transition probability P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
-function transition_prob_to_region(system, Ys, box_Ys, Xᵢ)
+function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ)
     vₗ = low(Xᵢ)
     vₕ = high(Xᵢ)
     v = center(Xᵢ)
@@ -89,10 +91,13 @@ function transition_prob_to_region(system, Ys, box_Ys, Xᵢ)
     # Transition kernel T(qᵢ | x)
     erf_lower(y, i) = erf((y[i] - vₗ[i]) / (σ[i] * sqrt(2)))
     erf_upper(y, i) = erf((y[i] - vₕ[i]) / (σ[i] * sqrt(2)))
+
     T(y) = (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
+    Tsplat(y...) = T(y)
+    logT(y...) = log(1) - m * log(2) + sum(i -> log(erf_lower(y, i) - erf_upper(y, i)), 1:m)
 
     # Obtain min of T(qᵢ | x) over Ys
-    prob_transition_lower = map(Ys) do Y
+    prob_transition_lower = map(VYs) do Y
         vertices = vertices_list(Y)
 
         P_min = minimum(T, vertices)
@@ -100,16 +105,34 @@ function transition_prob_to_region(system, Ys, box_Ys, Xᵢ)
     end
 
     # Obtain max of T(qᵢ | x) over Ys
-    prob_transition_upper = map(box_Ys) do Y
+    prob_transition_upper = map(zip(HYs, box_Ys)) do (Y, box_Y)
         if v in Y
             return T(v)
         end
 
-        l, h = low(Y), high(Y)
+        model = Model(Ipopt.Optimizer)
+        set_silent(model)
+        register(model, :logT, m, logT; autodiff = true)
+        register(model, :Tsplat, m, Tsplat; autodiff = true)
 
-        y_max = @. min(h, max(v, l))
+        @variable(model, y[1:m])
 
-        P_max = T(y_max)
+        H, h = tosimplehrep(Y)
+        @constraint(model, H * y <= h)
+
+        @NLobjective(model, Max, Tsplat(y...))
+
+        # Optimize for maximum
+        JuMP.optimize!(model)
+        P_max = JuMP.objective_value(model)
+
+        # Uncomment this code to compare against Steven's box_approximation method
+        # l, h = low(box_Y), high(box_Y)
+        # y_max = @. min(h, max(v, l))
+        # P_max2 = T(y_max)
+
+        # println("$P_max, $P_max2")
+
         return P_max
     end
 

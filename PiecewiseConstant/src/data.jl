@@ -69,7 +69,8 @@ function load_dynamics(partitions::MatlabFile)
     Xs = [
         UncertainPWARegion(
             Hyperrectangle(low=state_partitions[ii, 1, :], high=state_partitions[ii, 2, :]),
-            [(M_lower[ii, :, :], b_lower[ii, :]), (M_upper[ii, :, :], b_upper[ii, :])]
+            [(convert(Matrix{Float64}, transpose(M_lower[ii, :, :])), b_lower[ii, :]), 
+             (convert(Matrix{Float64}, transpose(M_upper[ii, :, :])), b_upper[ii, :])]
         ) for ii in 1:n
     ]
 
