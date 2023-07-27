@@ -1,0 +1,13 @@
+matplotlib
+seaborn
+numpy
+scipy
+torch
+onnx
+onnx2torch
+tqdm
+bound_propagation
+xarray
+netCDF4
+tensorflow
+tf2onnx>=1.14
