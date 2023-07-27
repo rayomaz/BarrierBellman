@@ -138,3 +138,16 @@ function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ)
 
     return prob_transition_lower, prob_transition_upper
 end
+
+plot_posterior(system::AdditiveGaussianUncertainPWASystem) = plot_posterior(system, regions(system))
+function plot_posterior(system, Xs)
+    VYs, HYs, box_Ys = post(system, Xs)
+
+    for (X, Y, box_Y) in zip(Xs[1:10], HYs, box_Ys)
+        p = plot(X, color=:blue, alpha=0.2, xlim=(-deg2rad(15), deg2rad(15)), ylim=(-1.2, 1.2))
+        plot!(p, Y, color=:red, alpha=0.2)
+        plot!(p, box_Y, color=:green, alpha=0.2)
+
+        display(p)
+    end
+end

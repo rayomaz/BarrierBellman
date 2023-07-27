@@ -12,7 +12,7 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-
         Xⱼ, Bⱼ = regions[jj], B[jj]
 
         # Using HiGHS as the LP solver
-        model = Model(HiGHS.Optimizer)
+        model = Model(Mosek.Optimizer)
         set_silent(model)
 
         # Create optimization variables

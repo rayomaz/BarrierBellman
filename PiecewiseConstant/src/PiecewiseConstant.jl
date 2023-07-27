@@ -3,11 +3,12 @@ module PiecewiseConstant
 using LinearAlgebra, StatsBase, Combinatorics
 using MultivariatePolynomials, DynamicPolynomials, MultivariateBases
 using SpecialFunctions: erf
-using JuMP, HiGHS, Optim, NLopt, Ipopt
+using JuMP, HiGHS, Optim, NLopt, Ipopt, MosekTools, Mosek
 using LazySets, Polyhedra, CDDLib
 using ReachabilityBase.Commutative
 using YAXArrays, YAXArrayBase, DimensionalData
 using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5, DelimitedFiles
+using Plots
 
 const MatlabFile = Union{MAT_v4.Matlabv4File, MAT_v5.Matlabv5File, MAT_HDF5.MatlabHDF5File}
 
@@ -27,7 +28,7 @@ include("data.jl")
 export load_regions, load_dynamics, load_probabilities
 
 include("probabilities.jl")
-export transition_probabilities, neural_transition_probabilities
+export transition_probabilities, plot_posterior
 
 include("constant_barrier.jl")
 export constant_barrier

@@ -14,15 +14,26 @@ using YAXArrays, NetCDF, MAT
 
 # System
 system_flag = "pendulum"
-number_hypercubes = 480
-filename = "models/$system_flag/partition_data_$number_hypercubes.mat"
-file = matopen(joinpath(@__DIR__, filename))
-
-Xs = load_dynamics(file)
-close(file)
+number_hypercubes = 240
+number_layers = 1
 σ = [0.01, 0.01]
 
+# filename = "models/$system_flag/partition_data_$number_hypercubes.mat"
+# file = matopen(joinpath(@__DIR__, filename))
+
+# Xs = load_dynamics(file)
+# close(file)
+
+# system = AdditiveGaussianUncertainPWASystem(Xs, σ)
+# plot_posterior(system)
+
+filename = "../../PiecewiseBarrier/data/nndm/$system_flag/$(number_layers)_layer/dynamics_$number_hypercubes.netcdf"
+dataset = open_dataset(joinpath(@__DIR__, filename))
+
+Xs = load_dynamics(dataset)
+
 system = AdditiveGaussianUncertainPWASystem(Xs, σ)
+plot_posterior(system)
 
 # Extract probability data
 @time probability_bounds = transition_probabilities(system)
