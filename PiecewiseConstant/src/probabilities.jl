@@ -138,3 +138,28 @@ function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ)
 
     return prob_transition_lower, prob_transition_upper
 end
+
+plot_posterior(system::AdditiveGaussianUncertainPWASystem; kwargs...) = plot_posterior(system, regions(system); kwargs...)
+function plot_posterior(system, Xs; figname_prefix="")
+    pwa_dynamics = dynamics(system)
+
+    VYs = map(pwa_dynamics) do (X, dyn)
+        X = convert(VPolytope, X)
+
+        Y = map(dyn) do (A, b)
+            A * X + b
+        end
+        return Y
+    end
+
+    _, HYs, box_Ys = post(system, Xs)
+
+    for (i, (X, Y, box_Y)) in enumerate(zip(Xs[1:10], VYs, box_Ys))
+        p = plot(X, color=:blue, alpha=0.2, xlim=(-deg2rad(15), deg2rad(15)), ylim=(-1.2, 1.2), size=(1200, 800))
+        plot!(p, Y[1], color=:red, alpha=0.2)
+        plot!(p, Y[2], color=:red, alpha=0.2)
+        plot!(p, box_Y, color=:green, alpha=0.2)
+
+        savefig(p, figname_prefix * "posterior_$i.png")
+    end
+end

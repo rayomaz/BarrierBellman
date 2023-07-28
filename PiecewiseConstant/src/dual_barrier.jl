@@ -7,7 +7,7 @@
 # Optimization function
 function dual_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1, ϵ=1e-6)
     # Using HiGHS as the LP solver
-    model = Model(HiGHS.Optimizer)
+    model = Model(Mosek.Optimizer)
     set_silent(model)
 
     # Create optimization variables
@@ -122,8 +122,8 @@ function asymmetric_dual_constraint!(model, c, rhs, H, h)
 
     H, h = tosimplehrep(normalize(HPolyhedron(H, h)))
 
-    @constraint(model, y ⋅ h ≤ rhs)
-    @constraint(model, H' * y .== c)
+    @constraint(model, dot(y, h) ≤ rhs)
+    @constraint(model, H' * y == c)
 end
 
 

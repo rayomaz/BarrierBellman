@@ -76,3 +76,27 @@ function load_dynamics(partitions::MatlabFile)
 
     return Xs
 end
+
+function load_dynamics(dataset::YAXArrays.Dataset)
+    # Extract hypercube data
+    n = dataset.properties["num_regions"]
+
+    # Pre-load data for speed
+    regions = yaxconvert(DimArray, dataset.regions)
+    A = yaxconvert(DimArray, dataset.nominal_dynamics_A)
+    b = yaxconvert(DimArray, dataset.nominal_dynamics_b)
+
+    # Give convenient names
+    X̲, X̅ = regions[dir=At("lower")], regions[dir=At("upper")]
+    A̲, A̅ = permutedims(A[dir=At("lower")], (:region, :y, :x)), permutedims(A[dir=At("upper")], (:region, :y, :x))
+    b̲, b̅ = b[dir=At("lower")], b[dir=At("upper")]
+
+    Xs = [
+        UncertainPWARegion(
+            Hyperrectangle(low=copy(X̲[region=j].data), high=copy(X̅[region=j].data)),
+            [(copy(A̲[region=j].data), copy(b̲[region=j].data)), (copy(A̅[region=j].data), copy(b̅[region=j].data))]
+        ) for j in 1:n
+    ]
+
+    return Xs
+end
