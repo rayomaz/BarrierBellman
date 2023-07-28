@@ -82,7 +82,7 @@ end
 function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ)
     vₗ = low(Xᵢ)
     vₕ = high(Xᵢ)
-    v = center(Xᵢ)
+    v = LazySets.center(Xᵢ)
 
     # Fetch noise
     m = dimensionality(system)
