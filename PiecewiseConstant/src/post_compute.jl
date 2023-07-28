@@ -11,7 +11,7 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities}; ϵ=1e-
     Threads.@threads for jj in eachindex(regions)
         Xⱼ, Bⱼ = regions[jj], B[jj]
 
-        # Using HiGHS as the LP solver
+        # Using Mosek as the LP solver
         model = Model(Mosek.Optimizer)
         set_silent(model)
 

@@ -6,7 +6,7 @@
 
 # Optimization function
 function dual_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1, ϵ=1e-6)
-    # Using HiGHS as the LP solver
+    # Using Mosek as the LP solver
     model = Model(Mosek.Optimizer)
     set_silent(model)
 
