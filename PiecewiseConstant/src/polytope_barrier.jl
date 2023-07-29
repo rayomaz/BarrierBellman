@@ -104,60 +104,9 @@ function polytope_expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ, P, Pᵤ)
 
     vertices = LazySets.vertices_list(polytope)
     
+    ## Add constraint here:
 
-        #     # Create optimization variables
-    #     # Since we are bounding the variables by constants, we can do so on creation
-    #     P̲, P̅ = prob_lower(Xⱼ), prob_upper(Xⱼ)
-    #     val_low, val_up = min.(P̲, P̅), max.(P̲, P̅)
-    #     @variable(model, val_low[ii] <= P[ii=eachindex(regions)] <= val_up[ii]) 
-
-    #     println(P)
-    #     return 0,0
-
-    #     P̲ᵤ, P̅ᵤ = prob_unsafe_lower(Xⱼ), prob_unsafe_upper(Xⱼ)
-    #     val_low, val_up = min(P̲ᵤ, P̅ᵤ), max(P̲ᵤ, P̅ᵤ)
-    #     @variable(model, Pᵤ, lower_bound=val_low, upper_bound=val_up)    
-
-    #     # Create probability decision variables β
-    #     @variable(model, β)
-
-    #     # Constraint ∑i=1 →k pᵢ + Pᵤ == 1
-    #     @constraint(model, sum(P) + Pᵤ == 1)
-
-    #     # Constraint martingale
-    #     @constraint(model, dot(B, P̅) + P̅ᵤ <= Bⱼ + βⱼ)
-
-    #     # Define optimization objective
-    #     @objective(model, Max, β)
-    
-    #     # Optimize model
-    #     JuMP.optimize!(model)
-    
-    #     # Print optimal values
-    #     @inbounds β_parts[jj] = max(value(β), ϵ)
-
-    #     p_values = [value.(P); [value(Pᵤ)]]
-    #     @inbounds p_distribution[:, jj] = p_values
-    # end
-
-    # # Add RHS dual constraint
-    # rhs = @expression(model, Bⱼ + βⱼ)
-
-    # # Construct identity matrix     H → dim([#num hypercubes + 1]) to account for Pᵤ
-    # H = [-I;
-    #     I;
-    #     -ones(1, length(B) + 1);
-    #     ones(1, length(B) + 1)]
-
-    # # Setup c vector: [b; 1]
-    # c = [B; 1]
-
-    # h = [-P̲; -P̲ᵤ; P̅; P̅ᵤ; [-1]; [1]]
-
-    # # Define assynmetric constraint [Dual approach]
-    
-    # # Constraint martingale
-    # @constraint(model, dot(B, P̅) + P̅ᵤ <= Bⱼ + βⱼ)
+    # Comment: finding the vertices is too slow. This approach does not seem very promosing. 
 
 end
 
