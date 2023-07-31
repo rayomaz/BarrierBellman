@@ -1,26 +1,6 @@
-using Plots, MAT
+using Plots, MAT, DelimitedFiles
 using FileIO
 plotlyjs()
-
-function read_file(file_name)
-    data = read(file_name, String)
-    stringData = split(data, '\n')
-    return stringData
-end
-
-function extract_data(stringData)
-    array_prob = Float64[]
-    for string_ii in stringData
-        # Remove unwanted characters "[" and ","
-        string_ii = replace(string_ii, r"[\[\],]" => "")
-        # Split the string by spaces and parse individual values
-        values = split(string_ii)
-        for value in values
-            push!(array_prob, parse(Float64, value))
-        end
-    end
-    return array_prob
-end
 
 function plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
     
@@ -93,17 +73,9 @@ partitions = data_hyper["partitions"]
 close(data_hyper)
 
 # Extract barrier txt files
-stringData_certificate = read_file("../probabilities/barrier.txt")
-stringData_dual = read_file("../probabilities/barrier_dual.txt")
-
-# Read barrier values from data files
-array_barrier = extract_data(stringData_certificate)
-array_barrier_dual = extract_data(stringData_dual)
-max_certificate = 1
+array_barrier  = readdlm("../probabilities/barrier.txt")
+array_barrier_dual = readdlm("../probabilities/barrier_dual.txt")
 
 # Plot barriers
 plot_flag = "upper" # "dual" or "upper"
 plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
-
-
-
