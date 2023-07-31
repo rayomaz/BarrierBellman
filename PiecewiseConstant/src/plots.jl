@@ -12,7 +12,7 @@ function plot_environment(regions::Vector{<:RegionWithProbabilities}, initial_re
             #  yticks = 0:20:length(regions),
              legend = false)
 
-    # Construct barriers
+    # Construct environment
     @inbounds for (Xⱼ, Bⱼ) in zip(regions, B)
 
         hypercube = region(Xⱼ)
@@ -34,6 +34,69 @@ function plot_environment(regions::Vector{<:RegionWithProbabilities}, initial_re
     end
 
     display(p)
+
+end
+
+
+function plot_3d_barrier(regions::Vector{<:RegionWithProbabilities}, B::Vector{Float64})
+    
+    p = plot(xlabel = "θ (rad)",
+             ylabel = "θ̇ (rad/s)",
+             zlabel = "B",
+             title  = "Barrier Pendulum 3D",
+             legend = false)
+
+    # Construct barriers
+    @inbounds for (jj, (Xⱼ, Bⱼ)) in enumerate(zip(regions, B))
+
+        hypercube = region(Xⱼ)
+        vₗ = low(hypercube)
+        vᵤ = high(hypercube)
+
+        x1_min = vₗ[1]
+        x1_max = vᵤ[1]
+
+        x2_min = vₗ[2]
+        x2_max = vᵤ[2]
+
+        # Get barrier value (height)
+        B_val = B[jj]
+
+
+        # Define the coordinates of the four vertices in 3D space
+        vertices3D = [(x1_min, x2_min, 0),  # Vertex 1: (x1_min, x2_min, 0)
+        (x1_max, x2_min, 0),  # Vertex 2: (x1_max, x2_min, 0)
+        (x1_max, x2_max, 0),  # Vertex 3: (x1_max, x2_max, 0)
+        (x1_min, x2_max, 0),  # Vertex 4: (x1_min, x2_max, 0)
+        (x1_min, x2_min, B_val),  # Vertex 5: (x1_min, x2_min, B_val)
+        (x1_max, x2_min, B_val),  # Vertex 6: (x1_max, x2_min, B_val)
+        (x1_max, x2_max, B_val),  # Vertex 7: (x1_max, x2_max, B_val)
+        (x1_min, x2_max, B_val)]  # Vertex 8: (x1_min, x2_max, B_val)
+
+        # Define the faces (connectivity) of the rectangle
+        faces = [(1, 2, 6, 5),  # Bottom face (vertices 1, 2, 6, 5)
+        (2, 3, 7, 6),  # Side face (vertices 2, 3, 7, 6)
+        (3, 4, 8, 7),  # Top face (vertices 3, 4, 8, 7)
+        (4, 1, 5, 8),  # Side face (vertices 4, 1, 5, 8)
+        (1, 2, 3, 4),  # Front face (vertices 1, 2, 3, 4)
+        (5, 6, 7, 8)]  # Back face (vertices 5, 6, 7, 8)
+
+        # Extract x, y, and z coordinates from the vertices
+        x_coords = [v[1] for v in vertices3D]
+        y_coords = [v[2] for v in vertices3D]
+        z_coords = [v[3] for v in vertices3D]
+
+        # Plot the 3D rectangle
+        plot!(x_coords[[1, 2, 6, 5, 1]], y_coords[[1, 2, 6, 5, 1]], z_coords[[1, 2, 6, 5, 1]], fill= true, fillalpha=0.6, label="Bottom")
+        plot!(x_coords[[2, 3, 7, 6, 2]], y_coords[[2, 3, 7, 6, 2]], z_coords[[2, 3, 7, 6, 2]], fill= true, fillalpha=0.6, label="Side")
+        plot!(x_coords[[3, 4, 8, 7, 3]], y_coords[[3, 4, 8, 7, 3]], z_coords[[3, 4, 8, 7, 3]], fill= true, fillalpha=0.6, label="Top")
+        plot!(x_coords[[4, 1, 5, 8, 4]], y_coords[[4, 1, 5, 8, 4]], z_coords[[4, 1, 5, 8, 4]], fill= true, fillalpha=0.6, label="Side")
+        plot!(x_coords[[1, 2, 3, 4, 1]], y_coords[[1, 2, 3, 4, 1]], z_coords[[1, 2, 3, 4, 1]], fill= true, fillalpha=0.6, label="Front")
+        plot!(x_coords[[5, 6, 7, 8, 5]], y_coords[[5, 6, 7, 8, 5]], z_coords[[5, 6, 7, 8, 5]], fill= true, fillalpha=0.6, label="Back")
+
+    end
+
+    display(p)     
 
 end
 

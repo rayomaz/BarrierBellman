@@ -43,6 +43,6 @@ include("dual_barrier.jl")
 export dual_constant_barrier
 
 include("plots.jl")
-export plot_environment
+export plot_environment, plot_3d_barrier
 
 end # module PiecewiseConstant

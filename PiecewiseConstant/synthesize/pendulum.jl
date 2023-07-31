@@ -31,7 +31,8 @@ obstacle_region = EmptySet(2)
 # @time B_dual, beta_dual = dual_constant_barrier(probabilities, initial_region, obstacle_region)
 # @time beta_dual_updated, p_distribution = post_compute_beta(B_dual, probabilities)
 
-# Plotenvironment/barrier
-plot_environment(probabilities, initial_region, obstacle_region, B)
+# Plot environment/barrier
+# plot_environment(probabilities, initial_region, obstacle_region, B)
+# plot_3d_barrier(probabilities, B)
 
 println("Pendulum model verified.")
