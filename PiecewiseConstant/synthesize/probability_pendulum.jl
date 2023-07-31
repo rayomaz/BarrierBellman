@@ -27,7 +27,7 @@ close(file)
 system = AdditiveGaussianUncertainPWASystem(Xs, σ)
 plot_posterior(system; figname_prefix="mat")
 
-filename = "../../PiecewiseBarrier/data/nndm/$system_flag/$(number_layers)_layer/dynamics_$number_hypercubes.netcdf"
+filename = "../../PiecewiseBarrier/data/nndm/$system_flag/$(number_layers)_layer/dynamics_$number_hypercubes.nc"
 dataset = open_dataset(joinpath(@__DIR__, filename))
 
 Xs = load_dynamics(dataset)

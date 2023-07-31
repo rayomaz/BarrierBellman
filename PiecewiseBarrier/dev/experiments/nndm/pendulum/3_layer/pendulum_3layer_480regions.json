@@ -4,11 +4,11 @@
     "dim": 2,
     "sigma": [0.1, 0.1],
     "safe_set": [[-0.20943952, -1.0], [0.20943952, 1.0]],
-    "nn_model": "nndm/pendulum/1_layer/pendulum_1layer.onnx"
+    "nn_model": "nndm/pendulum/3_layer/pendulum_3layer.onnx"
   },
   "partitioning": {
     "method": "grid",
-    "num_slices": [24, 10]
+    "num_slices": [48, 10]
   },
   "save_path": {
     "transition_prob": "../../data/nndm/pendulum/1_layer/linear_transition_prob_{regions}_sigma{noise}.nc",
