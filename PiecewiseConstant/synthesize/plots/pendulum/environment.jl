@@ -33,9 +33,6 @@ function plot_env(partitions, initial_state)
     title!("Pendulum Grid")
     xticks!(0:20:120)
     yticks!(0:20:120)
-    xgrid!
-    ygrid!
-    # legend = false
 
     display(p)
 end
