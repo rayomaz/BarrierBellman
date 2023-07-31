@@ -58,10 +58,6 @@ function plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
 
     end
 
-    # Set the color to transparent gray (RGB with alpha)
-    gray_color = RGB(0.5, 0.5, 0.5) # RGB values for gray
-    alpha_value = 0.5 # Set transparency to 0.5 (adjust as needed)
-
     display(p)
 end
 
