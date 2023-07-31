@@ -91,6 +91,7 @@ end
 # Read data files
 data_hyper = matread("../models/pendulum/partition_data_120.mat")
 partitions = data_hyper["partitions"]
+close(data_hyper)
 
 # Extract barrier txt files
 stringData_certificate = read_file("../probabilities/barrier.txt")
