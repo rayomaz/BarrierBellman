@@ -36,9 +36,9 @@ function plot_env(partitions, initial_state)
 end
 
 # Load data files
-data_hyper = matread("../../models/pendulum/partition_data_120.mat")
-partitions = data_hyper["partitions"]
-close(data_hyper)
+data_hyper = matopen("../../models/pendulum/partition_data_120.mat")
+partitions = read(file, "partitions")
+close(file)
 
 initial_state = [55, 56, 65, 66]
 
