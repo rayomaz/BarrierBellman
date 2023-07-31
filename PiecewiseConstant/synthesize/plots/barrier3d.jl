@@ -1,4 +1,5 @@
 using Plots, MAT
+using FileIO
 plotlyjs()
 
 function read_file(file_name)
@@ -20,8 +21,6 @@ function extract_data(stringData)
     end
     return array_prob
 end
-
-using FileIO
 
 function plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
     
