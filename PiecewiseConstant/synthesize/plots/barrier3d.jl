@@ -1,5 +1,4 @@
 using Plots, MAT, DelimitedFiles
-# using FileIO
 plotlyjs()
 
 function plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
