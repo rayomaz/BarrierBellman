@@ -31,7 +31,7 @@ include("probabilities.jl")
 export transition_probabilities, plot_posterior
 
 include("constant_barrier.jl")
-export constant_barrier
+export constant_barrier, guided_constant_barrier
 
 include("post_compute.jl")
 export post_compute_beta, accelerated_post_compute_beta
@@ -41,5 +41,8 @@ export iterative_barrier
 
 include("dual_barrier.jl")
 export dual_constant_barrier
+
+include("polytope_barrier.jl")
+export polytope_constant_barrier
 
 end # module PiecewiseConstant

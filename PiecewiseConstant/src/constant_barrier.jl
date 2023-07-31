@@ -6,7 +6,7 @@
 
 # Optimization function
 function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1, ϵ=1e-6)
-    # Using HiGHS as the LP solver
+    # Using Mosek as the LP solver
     model = Model(Mosek.Optimizer)
     set_silent(model)
 
@@ -78,6 +78,59 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
     return B, β_values
 
 end
+
+function guided_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet, Bₚ, δ; time_horizon=1, ϵ=1e-6)
+    # Using Mosek as the LP solver
+    model = Model(Mosek.Optimizer)
+    set_silent(model)
+
+    # Create optimization variables
+    @variable(model, max(Bₚ[j] - δ, ϵ) <= B[j=eachindex(regions)] <= min(Bₚ[j] + δ, 1))
+
+    # Create probability decision variables η and β
+    @variable(model, η, lower_bound=ϵ)
+    @variable(model, β_parts[eachindex(regions)], lower_bound=ϵ)
+    @variable(model, β)
+    @constraint(model, β_parts .<= β)
+
+    # Construct barriers
+    @inbounds for (Xⱼ, Bⱼ, βⱼ) in zip(regions, B, β_parts)
+        # Initial set
+        if !isdisjoint(initial_region, region(Xⱼ))
+            @constraint(model, Bⱼ .≤ η)
+        end
+
+        # Obstacle
+        if !isdisjoint(obstacle_region, region(Xⱼ))
+            @constraint(model, Bⱼ == 1)
+        end
+
+        expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
+    end
+
+    # println("Synthesizing barries ... ")
+
+    # Define optimization objective
+    @objective(model, Min, η + β * time_horizon)
+
+    # println("Objective made ... ")
+
+    # Optimize model
+    JuMP.optimize!(model)
+
+    # Barrier certificate
+    B = value.(B)
+
+    # Print optimal values
+    β_values = value.(β_parts)
+    max_β = maximum(β_values)
+    η = value(η)
+    println("Solution upper bound approach: [η = $(value(η)), β = $max_β]")
+
+    return B, β_values
+
+end
+
 
 function expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
 
