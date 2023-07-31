@@ -79,15 +79,13 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
 
 end
 
-function guided_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet, Bᵢ, δ; time_horizon=1, ϵ=1e-6)
+function guided_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet, Bₚ, δ; time_horizon=1, ϵ=1e-6)
     # Using Mosek as the LP solver
     model = Model(Mosek.Optimizer)
     set_silent(model)
 
     # Create optimization variables
-    @variable(model, B[eachindex(regions)], lower_bound=ϵ, upper_bound=1)
-
-    @constraint(model, Bᵢ .- δ .<= B .<= Bᵢ .+ δ)
+    @variable(model, max(Bₚ[j] - δ, ϵ) <= B[j=eachindex(regions)] <= min(Bₚ[j] + δ, 1))
 
     # Create probability decision variables η and β
     @variable(model, η, lower_bound=ϵ)
