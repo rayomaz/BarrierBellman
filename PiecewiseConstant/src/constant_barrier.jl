@@ -90,16 +90,8 @@ function expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
     P̲, P̲ᵤ = prob_lower(Xⱼ), prob_unsafe_lower(Xⱼ)
 
     # Trim over-conservative max probabilities in q' space
-    for jj in eachindex(P̅)
-
-        sum_lower = sum(P̲) + P̲ᵤ - P̲[jj]
-
-        if P̅[jj] > 1 - sum_lower
-
-           P̅[jj] = 1 - sum_lower 
-
-        end
-    end
+    sum_lower = 1 - sum(P̲) + P̲ᵤ
+    P̅ = min.(P̅, sum_lower .- P̲)
 
     # Constraint martingale
     @constraint(model, dot(B, P̅) + P̅ᵤ <= Bⱼ + βⱼ)
