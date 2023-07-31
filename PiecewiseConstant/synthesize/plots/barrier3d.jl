@@ -1,5 +1,5 @@
 using Plots, MAT, DelimitedFiles
-using FileIO
+# using FileIO
 plotlyjs()
 
 function plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
@@ -13,7 +13,8 @@ function plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
                title  = "Barrier Pendulum 3D",
                legend = false)
 
-    for jj in eachindex(partitions[:, 1, 1])
+    for (region, B, Bd) in zip(eachrow(partitions, array_barrier, array_barrier_dual))
+        
         parts = partitions[jj, :, :]
 
         # Extract the coordinates from the 'parts' array
@@ -62,14 +63,14 @@ function plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
 end
 
 # Read data files
-data_hyper = matread("../models/pendulum/partition_data_120.mat")
-partitions = data_hyper["partitions"]
-close(data_hyper)
+file = matopen("../models/pendulum/partition_data_120.mat")
+partitions = read(file, "partitions")
+close(file)
 
 # Extract barrier txt files
-array_barrier  = readdlm("../probabilities/barrier.txt")
-array_barrier_dual = readdlm("../probabilities/barrier_dual.txt")
+# array_barrier  = readdlm("../probabilities/barrier.txt")
+# array_barrier_dual = readdlm("../probabilities/barrier_dual.txt")
 
-# Plot barriers
-plot_flag = "upper" # "dual" or "upper"
-plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
+# # Plot barriers
+# plot_flag = "upper" # "dual" or "upper"
+# plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
