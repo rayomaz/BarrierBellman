@@ -40,7 +40,6 @@ data_hyper = matread("../../models/pendulum/partition_data_120.mat")
 partitions = data_hyper["partitions"]
 close(data_hyper)
 
-
 initial_state = [55, 56, 65, 66]
 
 # Plot the grid

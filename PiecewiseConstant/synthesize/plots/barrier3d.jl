@@ -61,7 +61,6 @@ function plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
     display(p)
 end
 
-
 # Read data files
 data_hyper = matread("../models/pendulum/partition_data_120.mat")
 partitions = data_hyper["partitions"]
