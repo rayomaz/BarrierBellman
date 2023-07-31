@@ -7,6 +7,12 @@ function plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
     
     p = plot3d(legend=false)
 
+    p = plot3d(xlabel = "θ (rad)",
+               ylabel = "θ̇ (rad/s)",
+               zlabel = "B",
+               title  = "Barrier Pendulum 3D",
+               legend = false)
+
     for jj in eachindex(partitions[:, 1, 1])
         parts = partitions[jj, :, :]
 
@@ -56,12 +62,6 @@ function plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
     gray_color = RGB(0.5, 0.5, 0.5) # RGB values for gray
     alpha_value = 0.5 # Set transparency to 0.5 (adjust as needed)
 
-    # Plot the 3D filled rectangles using plot function
-    # plot3d!(all_vertices, all_faces, color=gray_color, alpha=alpha_value)
-    xlabel!("θ (rad)")
-    ylabel!("θ̇ (rad/s)")
-    zlabel!("B")
-    title!("Barrier Pendulum 3D")
     display(p)
 end
 
