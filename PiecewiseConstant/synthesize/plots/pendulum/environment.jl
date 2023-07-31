@@ -2,9 +2,7 @@ using Plots, MAT
 plotlyjs()
 
 function plot_env(partitions, initial_state)
-    # Define custom colors for different regions
-    colors = ["#FF0000", "#00FF00", "#0000FF"]
-    
+
     # Create a new plot
     p = plot(legend = false)
     
@@ -21,11 +19,11 @@ function plot_env(partitions, initial_state)
              x_1_up  x_2_low]
         
         if jj in initial_state
-            plot!(P[:, 1], P[:, 2], alpha=0.8, color=colors[1])
+            plot!(P[:, 1], P[:, 2], alpha=0.8, color=:red)
         elseif jj == obstacle_state
-            plot!(P[:, 1], P[:, 2], alpha=0.2, color=colors[2])
+            plot!(P[:, 1], P[:, 2], alpha=0.2, color=:green)
         else
-            plot!(P[:, 1], P[:, 2], alpha=0.6, color=colors[3])
+            plot!(P[:, 1], P[:, 2], alpha=0.6, color=:blue)
         end
     end
     
