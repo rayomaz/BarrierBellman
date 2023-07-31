@@ -4,7 +4,12 @@ plotlyjs()
 function plot_env(partitions, initial_state)
 
     # Create a new plot
-    p = plot(legend = false)
+    p = plot(xlabel = "θ (rad)",
+             ylabel = "θ̇ (rad/s)",
+             title  = "Pendulum Grid",
+             xticks = 0:20:120,
+             yticks = 0:20:120,
+             legend = false)
     
     for jj in eachindex(partitions[:, 1, 1])
         parts = partitions[jj, :, :]
@@ -26,13 +31,6 @@ function plot_env(partitions, initial_state)
             plot!(P[:, 1], P[:, 2], alpha=0.6, color=:blue)
         end
     end
-    
-    # Plot properties
-    xlabel!("θ (rad)")
-    ylabel!("θ̇ (rad/s)")
-    title!("Pendulum Grid")
-    xticks!(0:20:120)
-    yticks!(0:20:120)
 
     display(p)
 end
