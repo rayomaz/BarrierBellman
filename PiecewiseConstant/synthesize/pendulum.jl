@@ -11,7 +11,7 @@ using YAXArrays, NetCDF
 
 # System
 system_flag = "pendulum"
-number_hypercubes = 480
+number_hypercubes = 120
 σ = [0.01, 0.01]
 
 filename = "models/$system_flag/probability_data_$(number_hypercubes)_sigma_$σ.nc"
@@ -24,11 +24,14 @@ obstacle_region = EmptySet(2)
 
 # Optimize: method 1 (revise beta values)
 @time B, beta = constant_barrier(probabilities, initial_region, obstacle_region)
-@time beta_updated, p_distribution = post_compute_beta(B, probabilities)
-# @btime beta_updated = accelerated_post_compute_beta(B, regions)
+# @time beta_updated, p_distribution = post_compute_beta(B, probabilities)
+# # @btime beta_updated = accelerated_post_compute_beta(B, regions)
 
-# Optimize: method 2 (dual approach)
-@time B_dual, beta_dual = dual_constant_barrier(probabilities, initial_region, obstacle_region)
-@time beta_dual_updated, p_distribution = post_compute_beta(B_dual, probabilities)
+# # Optimize: method 2 (dual approach)
+# @time B_dual, beta_dual = dual_constant_barrier(probabilities, initial_region, obstacle_region)
+# @time beta_dual_updated, p_distribution = post_compute_beta(B_dual, probabilities)
+
+# Plotenvironment/barrier
+plot_environment(probabilities, initial_region, obstacle_region, B)
 
 println("Pendulum model verified.")

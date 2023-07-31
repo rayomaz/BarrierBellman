@@ -42,4 +42,7 @@ export iterative_barrier
 include("dual_barrier.jl")
 export dual_constant_barrier
 
+include("plots.jl")
+export plot_environment
+
 end # module PiecewiseConstant
