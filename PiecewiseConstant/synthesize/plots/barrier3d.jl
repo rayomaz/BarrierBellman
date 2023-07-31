@@ -43,7 +43,6 @@ function plot_barriers(partitions, array_barrier, array_barrier_dual, plot_flag)
         z_coords = [v[3] for v in vertices3D]
 
         # Plot the 3D rectangle
-        plotly()  # You can choose another backend if desired, like gr(), pyplot(), etc.
         plot!(x_coords[[1, 2, 6, 5, 1]], y_coords[[1, 2, 6, 5, 1]], z_coords[[1, 2, 6, 5, 1]], fill= true, fillalpha=0.6, label="Bottom")
         plot!(x_coords[[2, 3, 7, 6, 2]], y_coords[[2, 3, 7, 6, 2]], z_coords[[2, 3, 7, 6, 2]], fill= true, fillalpha=0.6, label="Side")
         plot!(x_coords[[3, 4, 8, 7, 3]], y_coords[[3, 4, 8, 7, 3]], z_coords[[3, 4, 8, 7, 3]], fill= true, fillalpha=0.6, label="Top")
