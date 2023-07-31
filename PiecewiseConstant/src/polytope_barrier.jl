@@ -23,8 +23,7 @@ function polytope_constant_barrier(regions::Vector{<:RegionWithProbabilities}, i
     @variable(model, Pᵤ[eachindex(regions)])
 
     # Construct barriers
-    for jj in eachindex(regions)
-        Xⱼ, Bⱼ, βⱼ = regions[jj], B[jj], β_parts[jj]
+    @inbounds for (jj, (Xⱼ, Bⱼ, βⱼ)) in enumerate(zip(regions, B, β_parts))
 
         # Initial set
         if !isdisjoint(initial_region, region(Xⱼ))
