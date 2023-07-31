@@ -37,7 +37,7 @@ function polytope_constant_barrier(regions::Vector{<:RegionWithProbabilities}, i
         end
 
         # Construct martingale
-        polytope_expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ, P[jj, :],  Pᵤ[jj])
+        polytope_expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ, P[:, jj],  Pᵤ[jj])
     end
 
 
