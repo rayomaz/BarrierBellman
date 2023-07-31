@@ -130,7 +130,7 @@ function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ; gradient_desc
 
         elseif gradient_descent == false
 
-            # Uncomment this code to compare against Steven's box_approximation method
+           # Steven's box_approximation method
             l, h = low(box_Y), high(box_Y)
             y_max = @. min(h, max(v, l))
             P_max = T(y_max)
