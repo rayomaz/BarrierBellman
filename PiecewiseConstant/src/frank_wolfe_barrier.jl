@@ -13,16 +13,16 @@ function frank_wolfe_barrier(regions::Vector{<:RegionWithProbabilities}, initial
     transition_prob_oracle = FrankWolfe.ProbabilitySimplexOracle{Float64}()
     # TODO: Add transition bound oracle
 
-    direction_indices = [[1:n]; [(n + (i - 1) * (n + 1) + 1):(n + i * (n + 1)) for i in 1:n]]
-    lmo = ProductOracle([[barrier_oracle]; [transition_prob_oracle for _ in 1:n]...], direction_indices)
+    direction_indices = [[1:n]; [(n+(i-1)*(n+1)+1):(n+i*(n+1)) for i in 1:n]]
+    lmo = ProductOracle([[barrier_oracle]; [IntervalProbabilityOracle([prob_lower(regions[i]); [prob_unsafe_lower(regions[i])]], [prob_upper(regions[i]); [prob_unsafe_upper(regions[i])]]) for i in 1:n]...], direction_indices)
 
     # Set-up loss function and gradient
     η_indices = findall(X -> !isdisjoint(initial_region, region(X)), regions)
 
     function loss(x)
         b = x[1:n]
-        p = reshape(x[n + 1:end], n + 1, n)
-        p, pᵤ = p[1:end - 1, :], p[end, :]
+        p = reshape(x[n+1:end], n + 1, n)
+        p, pᵤ = p[1:end-1, :], p[end, :]
 
         exp = vec(reshape(b, 1, :) * p)
 
@@ -35,9 +35,7 @@ function frank_wolfe_barrier(regions::Vector{<:RegionWithProbabilities}, initial
     end
 
     function grad!(storage, x)
-        println(x)
         g = gradient(loss, x)
-        println(g)
 
         storage .= g[1]
 
@@ -108,23 +106,33 @@ function FrankWolfe.compute_extreme_point(
     return storage
 end
 
-# struct ScaledBoundLInfNormBall{T,N,VT1<:AbstractArray{T,N},VT2<:AbstractArray{T,N}} <:
-#     LinearMinimizationOracle
-#  lower_bounds::VT1
-#  upper_bounds::VT2
-# end
+struct IntervalProbabilityOracle{T,VT<:AbstractVector{T}} <: FrankWolfe.LinearMinimizationOracle
+    lower_bounds::VT
+    upper_bounds::VT
 
-# function compute_extreme_point(
-#  lmo::ScaledBoundLInfNormBall,
-#  direction;
-#  v=similar(lmo.lower_bounds),
-#  kwargs...,
-# )
-#  copyto!(v, lmo.lower_bounds)
-#  for i in eachindex(direction)
-#      if direction[i] * lmo.upper_bounds[i] < direction[i] * lmo.lower_bounds[i]
-#          v[i] = lmo.upper_bounds[i]
-#      end
-#  end
-#  return v
-# end
+    total_lower::T
+end
+IntervalProbabilityOracle(lower_bound, upper_bound) = IntervalProbabilityOracle(lower_bound, upper_bound, sum(lower_bound))
+
+function FrankWolfe.compute_extreme_point(
+    lmo::IntervalProbabilityOracle{T},
+    direction;
+    kwargs...
+) where {T}
+
+    v = copy(lmo.lower_bounds)
+    remaining = T(1) - lmo.total_lower
+
+    p = sortperm(direction)
+    for i in p
+        # println((sum(v), remaining, lmo.lower_bounds[i], lmo.upper_bounds[i]))
+        if lmo.upper_bounds[i] < lmo.lower_bounds[i] + remaining
+            v[i] = lmo.upper_bounds[i]
+            remaining = max(T(0), remaining + lmo.lower_bounds[i] - lmo.upper_bounds[i])
+        else
+            v[i] += remaining
+            break
+        end
+    end
+    return v
+end
