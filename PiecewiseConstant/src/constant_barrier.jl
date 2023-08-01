@@ -132,7 +132,7 @@ function guided_constant_barrier(regions::Vector{<:RegionWithProbabilities}, ini
 end
 
 
-function distribution_constant_barrier(regions, initial_region::LazySet, obstacle_region::LazySet, Bₚ, δ, P_distribution; time_horizon=1, ϵ=1e-6)
+function distribution_constant_barrier(regions, initial_region::LazySet, obstacle_region::LazySet, P_distribution; time_horizon=1, ϵ=1e-6)
     # Using Mosek as the LP solver
     model = Model(Mosek.Optimizer)
     set_silent(model)

@@ -23,7 +23,7 @@ function iterative_barrier(regions, initial_region, obstacle_region; guided = tr
                 B, beta = guided_constant_barrier(iteration_prob, initial_region, obstacle_region, B, δ)
 
             elseif distribute == true
-                B, beta = distribution_constant_barrier(iteration_prob, initial_region, obstacle_region, B, δ, P_distribution)
+                B, beta = distribution_constant_barrier(iteration_prob, initial_region, obstacle_region, P_distribution)
             end
         end
 
