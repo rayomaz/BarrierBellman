@@ -35,16 +35,23 @@ function frank_wolfe_barrier(regions::Vector{<:RegionWithProbabilities}, initial
     end
 
     function grad!(storage, x)
-        g = gradient(loss, x)
+        g = gradient(loss, x)[1]
 
-        storage .= g[1]
+        storage[direction_indices[1]] = g[direction_indices[1]]
+
+        for idx in direction_indices[2:end]
+            storage[idx] .= -g[idx]
+        end
+
+        println(storage)
 
         return storage
     end
 
     # Initial point
-    d₀ = collect(ones(n + (n + 1) * n))
+    d₀ = collect(-ones(n + (n + 1) * n))
     x₀ = FrankWolfe.compute_extreme_point(lmo, d₀)
+    println(x₀)
 
     # Gradient (for structure)
     ∇x₀ = collect(ones(n + (n + 1) * n))
@@ -52,9 +59,9 @@ function frank_wolfe_barrier(regions::Vector{<:RegionWithProbabilities}, initial
 
     x_lmo, v, primal, dual_gap, trajectory_lmo = FrankWolfe.frank_wolfe(
         loss, grad!, lmo, x₀;
-        max_iteration=1000,
+        max_iteration=100,
         line_search=FrankWolfe.Agnostic(),
-        print_iter=1000 / 10,
+        print_iter=100 / 10,
         memory_mode=FrankWolfe.OutplaceEmphasis(),
         verbose=true
     )
@@ -67,6 +74,7 @@ function frank_wolfe_barrier(regions::Vector{<:RegionWithProbabilities}, initial
     p1, pᵤ1 = p1[1:end-1, :], p1[end, :]
     println(B)
     println(prob_unsafe_lower.(regions))
+    println(prob_unsafe_upper.(regions))
     println(pᵤ1)
 
     exp1 = vec(reshape(B, 1, :) * p1)
@@ -81,6 +89,7 @@ function frank_wolfe_barrier(regions::Vector{<:RegionWithProbabilities}, initial
     βⱼ = @. max(exp1 + pᵤ1 - B, 0)
     println(βⱼ)
 
+    println(grad!(∇x₀, x_lmo))
     # βⱼ = map(enumerate(direction_indices[2:end])) do (j, idx)
     #     pⱼ = x_lmo[idx]
     #     p = @view pⱼ[1:end-1]
