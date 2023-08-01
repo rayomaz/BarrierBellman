@@ -4,6 +4,8 @@ function iterative_barrier(regions, initial_region, obstacle_region; guided = tr
     B, beta = constant_barrier(iteration_prob, initial_region, obstacle_region)
     beta_updated, p_distribution = accelerated_post_compute_beta(B, regions)
 
+    println("Iterations started ... ")
+
     P_distribution = []
 
     for i in 1:(max_iterations - 1)
@@ -28,9 +30,11 @@ function iterative_barrier(regions, initial_region, obstacle_region; guided = tr
         beta_updated, p_distribution = accelerated_post_compute_beta(B, regions)
 
         # Stopping criterion
-        if maximum(beta_updated) - maximum(beta) < 1e-6
-            println("Iterations: ", i)
-             return B, beta 
+        if distribute == true
+            if maximum(beta_updated) - maximum(beta) < 1e-6
+                println("Iterations: ", i)
+                return B, beta 
+            end
         end
 
     end
