@@ -51,10 +51,10 @@ function frank_wolfe_barrier(regions::Vector{<:RegionWithProbabilities}, initial
     grad!(∇x₀, x₀)
 
     x_lmo, v, primal, dual_gap, trajectory_lmo = FrankWolfe.frank_wolfe(
-        loss, grad!, lmo, x₀; 
-        max_iteration=100, 
-        line_search=FrankWolfe.Shortstep(2.0),
-        print_iter=100 / 10,
+        loss, grad!, lmo, x₀;
+        max_iteration=1000,
+        line_search=FrankWolfe.Agnostic(),
+        print_iter=1000 / 10,
         memory_mode=FrankWolfe.OutplaceEmphasis(),
         verbose=true
     )
@@ -62,15 +62,34 @@ function frank_wolfe_barrier(regions::Vector{<:RegionWithProbabilities}, initial
     B = x_lmo[direction_indices[1]]
     η = maximum(B[η_indices])
 
-    βⱼ = map(enumerate(direction_indices[2:end])) do (j, idx)
-        pⱼ = x_lmo[idx]
-        p = @view pⱼ[1:end - 1]
-        pᵤ = pⱼ[end]
+    p1 = reshape(x_lmo[n + 1:end], n + 1, n)
+    println(map(sum, eachcol(p1)))
+    p1, pᵤ1 = p1[1:end-1, :], p1[end, :]
+    println(B)
+    println(prob_unsafe_lower.(regions))
+    println(pᵤ1)
 
-        return max(dot(B, p) + pᵤ - B[j], 0)
-    end
+    exp1 = vec(reshape(B, 1, :) * p1)
+    β1 = max(dot(B, p1[:, 1]) + pᵤ1[1] - B[1], 0)
+    println(β1)
 
-    @info "Solution Frank-Wolfe" η β=maximum(βⱼ)
+    println(prob_lower(regions[1]) .<= p1[:, 1])
+    println(prob_upper(regions[1]) .>= p1[:, 1])
+    println(prob_unsafe_lower(regions[1]) <= pᵤ1[1])
+    println(prob_unsafe_upper(regions[1]) >= pᵤ1[1])
+
+    βⱼ = @. max(exp1 + pᵤ1 - B, 0)
+    println(βⱼ)
+
+    # βⱼ = map(enumerate(direction_indices[2:end])) do (j, idx)
+    #     pⱼ = x_lmo[idx]
+    #     p = @view pⱼ[1:end-1]
+    #     pᵤ = pⱼ[end]
+
+    #     return max(dot(B, p) + pᵤ - B[j], 0)
+    # end
+
+    @info "Solution Frank-Wolfe" η β = maximum(βⱼ)
 
     return B, βⱼ
 end
