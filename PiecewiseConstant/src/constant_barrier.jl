@@ -195,7 +195,7 @@ function distribution_constant_barrier(regions, initial_region::LazySet, obstacl
     β_values = value.(β_parts)
     max_β = maximum(β_values)
     η = value(η)
-    println("Solution upper bound approach: [η = $(value(η)), β = $max_β]")
+    @info "Solution upper bound approach" η β=$max_β
 
     return B, β_values
 
