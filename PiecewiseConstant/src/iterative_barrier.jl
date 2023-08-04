@@ -28,12 +28,6 @@ function iterative_barrier(regions, initial_region, obstacle_region; guided = tr
 
         beta_updated, p_distribution = accelerated_post_compute_beta(B, regions)
 
-        # Stopping criterion
-    #     if maximum(beta_updated) - maximum(beta) < 1e-6
-    #         println("Iterations: ", i)
-    #         return B, beta 
-    #     end
-
     end
 
     return B, beta_updated
