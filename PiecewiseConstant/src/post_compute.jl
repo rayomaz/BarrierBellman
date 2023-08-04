@@ -74,7 +74,7 @@ function accelerated_post_compute_beta(B, regions::Vector{<:RegionWithProbabilit
 
         model = get!(task_local_storage(), "post_compute_model") do
             # Using HiGHS as the LP solver
-            model = Model(HiGHS.Optimizer)
+            model = Model(Mosek.Optimizer)
             set_silent(model)
 
             # Create optimization variables
