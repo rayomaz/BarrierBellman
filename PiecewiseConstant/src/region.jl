@@ -1,7 +1,11 @@
 struct RegionWithProbabilities{T, S<:LazySet{T}}
     region::S
-    transition_to_other_regions::Tuple{Vector{T}, Vector{T}}
-    transition_to_unsafe::Tuple{T, T}
+    lower::Vector{T}
+    upper::Vector{T}
+    gap::Vector{T}
+
+    sum_lower::T
+    sum_upper::T
 
     function RegionWithProbabilities(region::S, transition_to_other_regions::Tuple{Vector{T}, Vector{T}}, transition_to_unsafe::Tuple{T, T}) where {T, S<:LazySet{T}}
         # Include custom constructor only for safety checks
@@ -12,15 +16,40 @@ struct RegionWithProbabilities{T, S<:LazySet{T}}
         joint_upper_bound = sum(transition_to_other_regions[2]) + transition_to_unsafe[2]
         @assert joint_upper_bound >= 1 - 10 * eps(Float64) "The joint upper bound transition probability (is $joint_upper_bound) should be greater than or equal to 1."
 
-        return new{T, S}(region, transition_to_other_regions, transition_to_unsafe)
+        lower, upper = vcat(transition_to_other_regions[1], transition_to_unsafe[1]),
+                       vcat(transition_to_other_regions[2], transition_to_unsafe[2])
+
+        return new{T, S}(region, lower, upper, upper - lower, sum(lower), sum(upper))
     end
 end
 
 region(X::RegionWithProbabilities) = X.region
-prob_lower(X::RegionWithProbabilities) = X.transition_to_other_regions[1]
-prob_upper(X::RegionWithProbabilities) = X.transition_to_other_regions[2]
-prob_unsafe_lower(X::RegionWithProbabilities) = X.transition_to_unsafe[1]
-prob_unsafe_upper(X::RegionWithProbabilities) = X.transition_to_unsafe[2]
+prob_lower(X::RegionWithProbabilities) = X.lower[1:end - 1]
+prob_upper(X::RegionWithProbabilities) = X.upper[1:end - 1]
+prob_unsafe_lower(X::RegionWithProbabilities) = X.lower[end]
+prob_unsafe_upper(X::RegionWithProbabilities) = X.upper[end]
+
+function ivi_prob(X::RegionWithProbabilities, p::AbstractVector{<:Int})
+    v = Vector{Float64}(undef, length(p))
+    return ivi_prob!(v, X, p)
+end
+
+function ivi_prob!(cache, X::RegionWithProbabilities, p::AbstractVector{<:Int})
+    copyto!(cache, X.lower)
+    
+    remaining = 1 - X.sum_lower
+    
+    @inbounds for i in p
+        if X.gap[i] < remaining
+            remaining -= X.gap[i]
+            cache[i] = X.upper[i]
+        else
+            cache[i] += remaining
+            break
+        end
+    end
+    return cache
+end
 
 function update_regions(regions::Vector{<:RegionWithProbabilities}, p_distribution::Matrix{Float64})
     new_regions = Vector{RegionWithProbabilities}(undef, length(regions))
