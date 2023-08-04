@@ -163,19 +163,16 @@ function distribution_constant_barrier(regions, initial_region::LazySet, obstacl
     end
 
     # Previous distribution bounds
-    if !isempty(P_distribution)
+    for p in eachindex(P_distribution)
 
-        for p in eachindex(P_distribution)
+        for (index, dist) in enumerate(eachcol(P_distribution[p]))
+            P = dist[1:end-1]
+            P̅ᵤ = dist[end]
+            Bⱼ = B[index]
+            βⱼ = β_parts[index]
 
-            for (index, dist) in enumerate(eachcol(P_distribution[p]))
-                P = dist[1:end-1]
-                P̅ᵤ = dist[end]
-                Bⱼ = B[index]
-                βⱼ = β_parts[index]
-
-                @constraint(model, dot(B, P) + P̅ᵤ <= Bⱼ + βⱼ)
-            end    
-        end
+            @constraint(model, dot(B, P) + P̅ᵤ <= Bⱼ + βⱼ)
+        end    
     end
 
     # println("Synthesizing barries ... ")
