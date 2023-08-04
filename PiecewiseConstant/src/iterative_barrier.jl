@@ -4,7 +4,7 @@ function iterative_barrier(regions, initial_region, obstacle_region; guided = tr
     B, beta = constant_barrier(iteration_prob, initial_region, obstacle_region)
     beta_updated, p_distribution = accelerated_post_compute_beta(B, regions)
 
-    # @debug "Iterations $i"
+    @debug "Iterations $i"
 
     P_distribution = []
 
