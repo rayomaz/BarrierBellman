@@ -31,7 +31,7 @@ include("probabilities.jl")
 export transition_probabilities, plot_posterior
 
 include("constant_barrier.jl")
-export constant_barrier, guided_constant_barrier
+export constant_barrier
 
 include("post_compute.jl")
 export post_compute_beta, accelerated_post_compute_beta

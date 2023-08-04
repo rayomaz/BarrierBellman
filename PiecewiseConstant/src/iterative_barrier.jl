@@ -1,10 +1,10 @@
-function iterative_barrier(regions, initial_region, obstacle_region; guided = true, distribute = true, δ = 0.025, max_iterations=10)
+function iterative_barrier(regions, initial_region, obstacle_region; guided = true, distributed = false, max_iterations=10)
     iteration_prob = regions
 
     B, beta = constant_barrier(iteration_prob, initial_region, obstacle_region)
     beta_updated, p_distribution = accelerated_post_compute_beta(B, regions)
 
-    println("Iterations started ... ")
+    # @debug "Iterations $i"
 
     P_distribution = []
 
@@ -12,30 +12,27 @@ function iterative_barrier(regions, initial_region, obstacle_region; guided = tr
 
         iteration_prob = update_regions(iteration_prob, p_distribution)
 
-        # Keep of track of distributions
-        push!(P_distribution, p_distribution)
+        if guided
+            B, beta = constant_barrier(iteration_prob, initial_region, obstacle_region, guided=true, Bₚ = B, δ = 0.025)    
 
-        if guided == false
+        elseif distributed 
+            B, beta = constant_barrier(iteration_prob, initial_region, obstacle_region, distributed=true, probability_distribution = P_distribution) 
+            
+            # Keep of track of distributions
+            push!(P_distribution, p_distribution)
+
+        else
             B, beta = constant_barrier(iteration_prob, initial_region, obstacle_region)    
-
-        elseif guided == true
-            if distribute == false
-                B, beta = guided_constant_barrier(iteration_prob, initial_region, obstacle_region, B, δ)
-
-            elseif distribute == true
-                B, beta = distribution_constant_barrier(iteration_prob, initial_region, obstacle_region, P_distribution)
-            end
+           
         end
 
         beta_updated, p_distribution = accelerated_post_compute_beta(B, regions)
 
         # Stopping criterion
-        if distribute == true
-            if maximum(beta_updated) - maximum(beta) < 1e-6
-                println("Iterations: ", i)
-                return B, beta 
-            end
-        end
+    #     if maximum(beta_updated) - maximum(beta) < 1e-6
+    #         println("Iterations: ", i)
+    #         return B, beta 
+    #     end
 
     end
 

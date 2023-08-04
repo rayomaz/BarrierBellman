@@ -5,13 +5,19 @@
 """
 
 # Optimization function
-function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1, ϵ=1e-6)
+function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; 
+    guided = false, distributed = false, Bₚ = [], δ = [], probability_distribution = [], time_horizon=1, ϵ=1e-6)
+
     # Using Mosek as the LP solver
     model = Model(Mosek.Optimizer)
     set_silent(model)
 
     # Create optimization variables
-    @variable(model, B[eachindex(regions)], lower_bound=ϵ, upper_bound=1)
+    if guided
+        @variable(model, max(Bₚ[j] - δ, ϵ) <= B[j=eachindex(regions)] <= min(Bₚ[j] + δ, 1))
+    else
+        @variable(model, B[eachindex(regions)], lower_bound=ϵ, upper_bound=1)
+    end
 
     # Create probability decision variables η and β
     @variable(model, η, lower_bound=ϵ)
@@ -34,6 +40,21 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
         expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
     end
 
+    # Previous distribution bounds
+    if distributed
+        for p in eachindex(probability_distribution)
+
+            for (index, dist) in enumerate(eachcol(probability_distribution[p]))
+                P = dist[1:end-1]
+                P̅ᵤ = dist[end]
+                Bⱼ = B[index]
+                βⱼ = β_parts[index]
+
+                @constraint(model, dot(B, P) + P̅ᵤ <= Bⱼ + βⱼ)
+            end    
+        end
+    end
+    
     # println("Synthesizing barries ... ")
 
     # Define optimization objective
@@ -79,126 +100,6 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
 
 end
 
-function guided_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet, Bₚ, δ; time_horizon=1, ϵ=1e-6)
-    # Using Mosek as the LP solver
-    model = Model(Mosek.Optimizer)
-    set_silent(model)
-
-    # Create optimization variables
-    @variable(model, max(Bₚ[j] - δ, ϵ) <= B[j=eachindex(regions)] <= min(Bₚ[j] + δ, 1))
-
-    # Create probability decision variables η and β
-    @variable(model, η, lower_bound=ϵ)
-    @variable(model, β_parts[eachindex(regions)], lower_bound=ϵ)
-    @variable(model, β)
-    @constraint(model, β_parts .<= β)
-
-    # Construct barriers
-    @inbounds for (Xⱼ, Bⱼ, βⱼ) in zip(regions, B, β_parts)
-        # Initial set
-        if !isdisjoint(initial_region, region(Xⱼ))
-            @constraint(model, Bⱼ .≤ η)
-        end
-
-        # Obstacle
-        if !isdisjoint(obstacle_region, region(Xⱼ))
-            @constraint(model, Bⱼ == 1)
-        end
-
-        expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
-    end
-
-    # println("Synthesizing barries ... ")
-
-    # Define optimization objective
-    @objective(model, Min, η + β * time_horizon)
-
-    # println("Objective made ... ")
-
-    # Optimize model
-    JuMP.optimize!(model)
-
-    # Barrier certificate
-    B = value.(B)
-
-    # Print optimal values
-    β_values = value.(β_parts)
-    max_β = maximum(β_values)
-    η = value(η)
-    println("Solution upper bound approach: [η = $(value(η)), β = $max_β]")
-
-    return B, β_values
-
-end
-
-
-function distribution_constant_barrier(regions, initial_region::LazySet, obstacle_region::LazySet, P_distribution; time_horizon=1, ϵ=1e-6)
-    # Using Mosek as the LP solver
-    model = Model(Mosek.Optimizer)
-    set_silent(model)
-
-    # Create optimization variables
-    @variable(model, B[j=eachindex(regions)], lower_bound=ϵ, upper_bound = 1)
-    # @variable(model, max(Bₚ[j] - δ, ϵ) <= B[j=eachindex(regions)] <= min(Bₚ[j] + δ, 1))
-
-    # Create probability decision variables η and β
-    @variable(model, η, lower_bound=ϵ)
-    @variable(model, β_parts[eachindex(regions)], lower_bound=ϵ,  upper_bound = 1)
-    @variable(model, β)
-    @constraint(model, β_parts .<= β)
-
-    # Construct barriers
-    @inbounds for (Xⱼ, Bⱼ, βⱼ) in zip(regions, B, β_parts)
-        # Initial set
-        if !isdisjoint(initial_region, region(Xⱼ))
-            @constraint(model, Bⱼ .≤ η)
-        end
-
-        # Obstacle
-        if !isdisjoint(obstacle_region, region(Xⱼ))
-            @constraint(model, Bⱼ == 1)
-        end
-
-        expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
-    end
-
-    # Previous distribution bounds
-    for p in eachindex(P_distribution)
-
-        for (index, dist) in enumerate(eachcol(P_distribution[p]))
-            P = dist[1:end-1]
-            P̅ᵤ = dist[end]
-            Bⱼ = B[index]
-            βⱼ = β_parts[index]
-
-            @constraint(model, dot(B, P) + P̅ᵤ <= Bⱼ + βⱼ)
-        end    
-    end
-
-    # println("Synthesizing barries ... ")
-
-    # Define optimization objective
-    @objective(model, Min, η + β * time_horizon)
-
-    # println("Objective made ... ")
-
-    # Optimize model
-    JuMP.optimize!(model)
-
-    # Barrier certificate
-    B = value.(B)
-
-    # Print optimal values
-    β_values = value.(β_parts)
-    max_β = maximum(β_values)
-    η = value(η)
-    @info "Solution upper bound approach" η β=$max_β
-
-    return B, β_values
-
-end
-
-
 function expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
 
     """ Barrier martingale condition
@@ -216,14 +117,3 @@ function expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
     # Constraint martingale
     @constraint(model, dot(B, P̅) + P̅ᵤ <= Bⱼ + βⱼ)
 end
-
-function distribution_expectation_constraint!(model, B, P, Bⱼ, βⱼ)
-
-    """ Barrier martingale condition
-    * ∑B[f(x)]*p(x) + Pᵤ <= B(x) + β: expanded in summations
-    """
-
-    # Constraint martingale
-    @constraint(model, dot(B, P) + P̅ᵤ <= Bⱼ + βⱼ)
-end
-
