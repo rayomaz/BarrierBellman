@@ -42,11 +42,11 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
 
     # Previous distribution bounds
     if distributed
-        for p in eachindex(probability_distribution)
+        for dist in probability_distribution
 
-            for (index, dist) in enumerate(eachcol(probability_distribution[p]))
-                P = dist[1:end-1]
-                P̅ᵤ = dist[end]
+            for (index, prob) in enumerate(eachcol(dist))
+                P  = prob[1:end-1]
+                P̅ᵤ = prob[end]
                 Bⱼ = B[index]
                 βⱼ = β_parts[index]
 
