@@ -40,11 +40,9 @@ function ivi_prob!(cache, X::RegionWithProbabilities, p::AbstractVector{<:Int})
     remaining = 1 - X.sum_lower
     
     @inbounds for i in p
-        if X.gap[i] < remaining
-            remaining -= X.gap[i]
-            cache[i] = X.upper[i]
-        else
-            cache[i] += remaining
+        cache[i] += min(remaining, X.gap[i])
+        remaining -= X.gap[i]
+        if remaining < 0
             break
         end
     end
