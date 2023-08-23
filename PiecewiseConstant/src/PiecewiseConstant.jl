@@ -5,7 +5,7 @@ using MultivariatePolynomials, DynamicPolynomials, MultivariateBases
 using SpecialFunctions: erf
 using JuMP, HiGHS, Optim, NLopt, Ipopt, MosekTools, Mosek
 using LazySets, Polyhedra, CDDLib
-using FrankWolfe, Optimisers, ParameterSchedulers
+using Optimisers, ParameterSchedulers
 using ReachabilityBase.Commutative
 using YAXArrays, YAXArrayBase, DimensionalData
 using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5, DelimitedFiles
@@ -42,9 +42,6 @@ export iterative_barrier
 
 include("dual_barrier.jl")
 export dual_constant_barrier
-
-include("frank_wolfe_barrier.jl")
-export frank_wolfe_barrier
 
 include("gradient_descent_barrier.jl")
 export gradient_descent_barrier
