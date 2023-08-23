@@ -34,12 +34,8 @@ function gradient_descent_barrier(regions::Vector{<:RegionWithProbabilities}, in
     βⱼ = zeros(n)
 
     for t in 1:10000
-        fill!(dB, 0)
         sortperm!(q, B, rev=true)
-
-        for j in 1:n
-            ivi_prob!(p[j], regions[j], q)
-        end
+        ivi_prob!.(p, regions, tuple(q))
         βⱼ .= dot.(tuple(B), p)
         βⱼ .-= B_regions
         j = argmax(βⱼ)
@@ -68,14 +64,10 @@ function gradient_descent_barrier(regions::Vector{<:RegionWithProbabilities}, in
     η = maximum(B_init)
 
     sortperm!(q, B, rev=true)
-    for j in 1:n
-        ivi_prob!(p[j], regions[j], q)
-    end
+    ivi_prob!.(p, regions, tuple(q))
     βⱼ .= dot.(tuple(B), p)
     βⱼ .-= B_regions
     clamp!(βⱼ, 0, Inf)
-
-    B = B[1:end - 1]
 
     @info "Solution Gradient Descent" η β = maximum(βⱼ)
 
