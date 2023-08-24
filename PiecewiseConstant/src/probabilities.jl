@@ -79,7 +79,7 @@ function post(system::AdditiveGaussianUncertainPWASystem, Xs)
 end
 
 # Transition probability P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
-function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ)
+function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ; gradient_descent = false)
     vₗ = low(Xᵢ)
     vₕ = high(Xᵢ)
     v = LazySets.center(Xᵢ)
@@ -110,28 +110,31 @@ function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ)
             return T(v)
         end
 
-        model = Model(Ipopt.Optimizer)
-        set_silent(model)
-        register(model, :logT, m, logT; autodiff = true)
-        register(model, :Tsplat, m, Tsplat; autodiff = true)
+        if gradient_descent == true
 
-        @variable(model, y[1:m])
+            model = Model(Ipopt.Optimizer)
+            set_silent(model)
+            register(model, :logT, m, logT; autodiff = true)
+            register(model, :Tsplat, m, Tsplat; autodiff = true)
 
-        H, h = tosimplehrep(Y)
-        @constraint(model, H * y <= h)
+            @variable(model, y[1:m])
 
-        @NLobjective(model, Max, Tsplat(y...))
+            H, h = tosimplehrep(Y)
+            @constraint(model, H * y <= h)
 
-        # Optimize for maximum
-        JuMP.optimize!(model)
-        P_max = JuMP.objective_value(model)
+            @NLobjective(model, Max, Tsplat(y...))
 
-        # Uncomment this code to compare against Steven's box_approximation method
-        # l, h = low(box_Y), high(box_Y)
-        # y_max = @. min(h, max(v, l))
-        # P_max2 = T(y_max)
+            # Optimize for maximum
+            JuMP.optimize!(model)
+            P_max = JuMP.objective_value(model)
 
-        # println("$P_max, $P_max2")
+        elseif gradient_descent == false
+
+           # Steven's box_approximation method
+            l, h = low(box_Y), high(box_Y)
+            y_max = @. min(h, max(v, l))
+            P_max = T(y_max)
+        end
 
         return P_max
     end
