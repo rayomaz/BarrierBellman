@@ -91,7 +91,7 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
     #     println(io, B)
     # end
 
-    return B, β_values
+    return B, β_values, η
 
 end
 
