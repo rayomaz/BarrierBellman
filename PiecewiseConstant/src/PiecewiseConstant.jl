@@ -30,6 +30,7 @@ export load_regions, load_dynamics, load_probabilities
 
 include("probabilities.jl")
 export transition_probabilities, plot_posterior
+export TransitionProbabilityMethod, BoxApproximation, GradientDescent
 
 include("constant_barrier.jl")
 export constant_barrier
