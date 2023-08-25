@@ -51,13 +51,7 @@ function dual_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initi
     β_values = value.(β_parts)
     max_β = maximum(β_values)
     η = value(η)
-    println("Solution dual approach: [η = $(value(η)), β = $max_β]")
-
-    # Print model summary and number of constraints
-    # println("")
-    # println(solution_summary(model))
-    # println("")
-    # println(" Number of constraints ", sum(num_constraints(model, F, S) for (F, S) in list_of_constraint_types(model)))
+    @info "Dual Solution: [η = $(value(η)), β = $(value(max_β))], Pₛ = $(value(1 - value(η) - value(max_β)*time_horizon))"
 
     # # Print beta values to txt file
     # if isfile("probabilities/beta_dual.txt") == true
