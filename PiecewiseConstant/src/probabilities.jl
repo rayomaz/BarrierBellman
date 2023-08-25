@@ -6,8 +6,12 @@
 
 """
 
-transition_probabilities(system::AdditiveGaussianUncertainPWASystem) = transition_probabilities(system, regions(system))
-function transition_probabilities(system, Xs)
+abstract type TransitionProbabilityMethod end
+struct GradientDescent <: TransitionProbabilityMethod end
+struct BoxApproximation <: TransitionProbabilityMethod end
+
+transition_probabilities(system::AdditiveGaussianUncertainPWASystem; kwargs...) = transition_probabilities(system, regions(system); kwargs...)
+function transition_probabilities(system, Xs; method::TransitionProbabilityMethod=GradientDescent())
 
     # Construct barriers
     @info "Computing transition probabilities"
@@ -24,7 +28,7 @@ function transition_probabilities(system, Xs)
 
     # Generate
     Threads.@threads for ii in eachindex(Xs)
-        P̲ᵢ, P̅ᵢ = transition_prob_to_region(system, VYs, HYs, box_Ys, Xs[ii])
+        P̲ᵢ, P̅ᵢ = transition_prob_to_region(system, VYs, HYs, box_Ys, Xs[ii], method)
 
         P̲[ii, :] = P̲ᵢ
         P̅[ii, :] = P̅ᵢ
@@ -32,7 +36,7 @@ function transition_probabilities(system, Xs)
 
     Xₛ = Hyperrectangle(low=minimum(low.(Xs)), high=maximum(high.(Xs)))
 
-    P̲ₛ, P̅ₛ  = transition_prob_to_region(system, VYs, HYs, box_Ys, Xₛ)
+    P̲ₛ, P̅ₛ = transition_prob_to_region(system, VYs, HYs, box_Ys, Xₛ, method)
     P̲ᵤ, P̅ᵤ = (1 .- P̅ₛ), (1 .- P̲ₛ)
 
     axlist = (Dim{:to}(1:number_hypercubes), Dim{:from}(1:number_hypercubes))
@@ -79,7 +83,7 @@ function post(system::AdditiveGaussianUncertainPWASystem, Xs)
 end
 
 # Transition probability P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
-function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ; gradient_descent = false)
+function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ, method)
     vₗ = low(Xᵢ)
     vₕ = high(Xᵢ)
     v = LazySets.center(Xᵢ)
@@ -93,53 +97,55 @@ function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ; gradient_desc
     erf_upper(y, i) = erf((y[i] - vₕ[i]) / (σ[i] * sqrt(2)))
 
     T(y) = (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
-    Tsplat(y...) = T(y)
-    logT(y...) = log(1) - m * log(2) + sum(i -> log(erf_lower(y, i) - erf_upper(y, i)), 1:m)
 
     # Obtain min of T(qᵢ | x) over Ys
-    prob_transition_lower = map(VYs) do Y
-        vertices = vertices_list(Y)
-
-        P_min = minimum(T, vertices)
-        return P_min
-    end
+    prob_transition_lower = min_log_concave_over_polytope.(T, VYs)
 
     # Obtain max of T(qᵢ | x) over Ys
-    prob_transition_upper = map(zip(HYs, box_Ys)) do (Y, box_Y)
-        if v in Y
-            return T(v)
-        end
-
-        if gradient_descent == true
-
-            model = Model(Ipopt.Optimizer)
-            set_silent(model)
-            register(model, :logT, m, logT; autodiff = true)
-            register(model, :Tsplat, m, Tsplat; autodiff = true)
-
-            @variable(model, y[1:m])
-
-            H, h = tosimplehrep(Y)
-            @constraint(model, H * y <= h)
-
-            @NLobjective(model, Max, Tsplat(y...))
-
-            # Optimize for maximum
-            JuMP.optimize!(model)
-            P_max = JuMP.objective_value(model)
-
-        elseif gradient_descent == false
-
-           # Steven's box_approximation method
-            l, h = low(box_Y), high(box_Y)
-            y_max = @. min(h, max(v, l))
-            P_max = T(y_max)
-        end
-
-        return P_max
-    end
+    prob_transition_upper = max_log_concave_over_polytope.(tuple(method), T, tuple(v), HYs, box_Ys)
 
     return prob_transition_lower, prob_transition_upper
+end
+
+function min_log_concave_over_polytope(f, X)
+    vertices = vertices_list(X)
+
+    return minimum(f, vertices)
+end
+
+function max_log_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
+    if global_max in X
+        return f(global_max)
+    end
+
+    l, h = low(box_X), high(box_X)
+    x_max = @. min(h, max(global_max, l))
+
+    return f(x_max)
+end
+
+function max_log_concave_over_polytope(::GradientDescent, f, global_max, X, box_X)
+    if global_max in X
+        return f(global_max)
+    end
+
+    m = LazySets.dim(X)
+    fsplat(y...) = f(y)
+
+    model = Model(Ipopt.Optimizer)
+    set_silent(model)
+    register(model, :fsplat, m, fsplat; autodiff = true)
+
+    @variable(model, x[1:m])
+
+    H, h = tosimplehrep(X)
+    @constraint(model, H * x <= h)
+
+    @NLobjective(model, Max, fsplat(x...))
+
+    # Optimize for maximum
+    JuMP.optimize!(model)
+    return JuMP.objective_value(model)
 end
 
 plot_posterior(system::AdditiveGaussianUncertainPWASystem; kwargs...) = plot_posterior(system, regions(system); kwargs...)
