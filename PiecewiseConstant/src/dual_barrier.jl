@@ -51,7 +51,7 @@ function dual_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initi
     β_values = value.(β_parts)
     max_β = maximum(β_values)
     η = value(η)
-    @info "Dual Solution: [η = $(value(η)), β = $(value(max_β))], Pₛ = $(value(1 - value(η) - value(max_β)*time_horizon))"
+    @info "Dual Solution" η β=$β_values Pₛ=$(1 - η - max_β * time_horizon)
 
     # # Print beta values to txt file
     # if isfile("probabilities/beta_dual.txt") == true
