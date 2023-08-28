@@ -72,12 +72,7 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
     β_values = value.(β_parts)
     max_β = maximum(β_values)
     η = value(η)
-    println("Solution upper bound approach: [η = $(value(η)), β = $max_β]")
-
-    # Print model summary and number of constraints
-    # println("")
-    # println(" Number of constraints ", sum(num_constraints(model, F, S) for (F, S) in list_of_constraint_types(model)))
-    # println("")
+    @info "Constant Barrier Solution" η β=$β_values Pₛ=$(1 - η - max_β * time_horizon)
 
     # # Print beta values to txt file
     # if isfile("probabilities/beta.txt") == true
@@ -96,7 +91,7 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
     #     println(io, B)
     # end
 
-    return B, β_values
+    return B, β_values, η
 
 end
 
