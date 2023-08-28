@@ -31,7 +31,7 @@ function iterative_barrier(regions, initial_region, obstacle_region; guided = tr
     end
 
     β = maximum(beta_updated)
-    @info "CEGS terminated in $(value(i)) iterations [η = $(value(η)), β = $(value(β))], Pₛ = $(value(1 - value(η) - value(β)*time_horizon))"
+    @info "CEGS terminated in $(value(i)) iterations" η β=$β_values Pₛ=$(1 - η - max_β * time_horizon)
 
     return B, beta_updated
 end
