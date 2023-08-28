@@ -47,9 +47,6 @@ export dual_constant_barrier
 include("gradient_descent_barrier.jl")
 export gradient_descent_barrier
 
-include("polytope_barrier.jl")
-export polytope_constant_barrier
-
 include("plots.jl")
 export plot_environment, plot_3d_barrier
 
