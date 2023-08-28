@@ -72,7 +72,7 @@ function constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_re
     β_values = value.(β_parts)
     max_β = maximum(β_values)
     η = value(η)
-    @info "Constant Barrier Solution: [η = $(value(η)), β = $(value(β))], Pₛ = $(value(1 - value(η) - value(max_β)*time_horizon))"
+    @info "Constant Barrier Solution" η β=$β_values Pₛ=$(1 - η - max_β * time_horizon)
 
     # # Print beta values to txt file
     # if isfile("probabilities/beta.txt") == true
