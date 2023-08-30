@@ -7,7 +7,9 @@
 """
 
 abstract type TransitionProbabilityMethod end
-struct GradientDescent <: TransitionProbabilityMethod end
+Base.@kwdef struct GradientDescent <: TransitionProbabilityMethod
+    non_linear_solver = default_non_linear_solver()
+end
 struct BoxApproximation <: TransitionProbabilityMethod end
 
 transition_probabilities(system::AdditiveGaussianUncertainPWASystem; kwargs...) = transition_probabilities(system, regions(system); kwargs...)
@@ -124,7 +126,7 @@ function max_log_concave_over_polytope(::BoxApproximation, f, global_max, X, box
     return f(x_max)
 end
 
-function max_log_concave_over_polytope(::GradientDescent, f, global_max, X, box_X)
+function max_log_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X)
     if global_max in X
         return f(global_max)
     end
@@ -132,7 +134,7 @@ function max_log_concave_over_polytope(::GradientDescent, f, global_max, X, box_
     m = LazySets.dim(X)
     fsplat(y...) = f(y)
 
-    model = Model(Ipopt.Optimizer)
+    model = Model(alg.non_linear_solver)
     set_silent(model)
     register(model, :fsplat, m, fsplat; autodiff = true)
 

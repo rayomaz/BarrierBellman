@@ -41,12 +41,12 @@ abstract type SOSBarrierAlgorithm <: StochasticBarrierAlgorithm end
 
 Base.@kwdef struct DualAlgorithm <: ConstantBarrierAlgorithm
     ϵ = 1e-6
-    linear_solver = Mosek.Optimizer
+    linear_solver = default_lp_solver()
 end
 
 Base.@kwdef struct UpperBoundAlgorithm <: ConstantBarrierAlgorithm
     ϵ = 1e-6
-    linear_solver = Mosek.Optimizer
+    linear_solver = default_lp_solver()
 end
 
 Base.@kwdef struct IterativeUpperBoundAlgorithm <: ConstantBarrierAlgorithm
@@ -61,7 +61,8 @@ Base.@kwdef struct GradientDescentAlgorithm <: ConstantBarrierAlgorithm
 end
 
 Base.@kwdef struct SumOfSquaresAlgorithm <: SOSBarrierAlgorithm
+    ϵ = 1e-6
     barrier_degree = 4
     lagrange_degree = 2
-    sdp_solver = Mosek.Optimizer
+    sdp_solver = default_sdp_solver()
 end

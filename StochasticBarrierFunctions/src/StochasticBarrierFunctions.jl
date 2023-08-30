@@ -1,15 +1,27 @@
 module StochasticBarrierFunctions
 
 using LinearAlgebra, StatsBase, Combinatorics
-using MultivariatePolynomials, DynamicPolynomials, MultivariateBases
+
 using SpecialFunctions: erf
-using JuMP, HiGHS, Optim, NLopt, Ipopt, MosekTools, Mosek
+# TODO: Make Mosek and Ipopt optional through extensions
+using JuMP, MosekTools, Mosek, Ipopt
+
+function default_lp_solver end
+function default_sdp_solver end
+function default_non_linear_solver end
+
+default_lp_solver() = Mosek.Optimizer
+default_sdp_solver() = Mosek.Optimizer
+default_non_linear_solver() = Ipopt.Optimizer
+
+using MultivariatePolynomials, DynamicPolynomials
+using PolyJuMP, SumOfSquares
+
 using LazySets, Polyhedra, CDDLib
 using Optimisers, ParameterSchedulers
 using ReachabilityBase.Commutative
 
 const MP = MultivariatePolynomials
-const MB = MultivariateBases
 
 const APL{T} = MP.AbstractPolynomialLike{T}
 
@@ -41,6 +53,7 @@ include("constant_barrier.jl")
 include("iterative_barrier.jl")
 include("dual_barrier.jl")
 include("gradient_descent_barrier.jl")
+include("sum_of_squares_barrier.jl")
 
 
 # Plotting
