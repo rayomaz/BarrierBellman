@@ -6,7 +6,7 @@
 
 # Import packages
 using Revise, BenchmarkTools
-using PiecewiseConstant
+using StochasticBarrierFunctions
 using LazySets
 using YAXArrays, NetCDF
 

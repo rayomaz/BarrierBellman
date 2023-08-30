@@ -9,7 +9,7 @@
 
 # Import packages
 using Revise, BenchmarkTools
-using PiecewiseConstant
+using StochasticBarrierFunctions
 using YAXArrays, NetCDF, MAT
 
 # System

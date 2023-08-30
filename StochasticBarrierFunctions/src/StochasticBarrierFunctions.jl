@@ -1,4 +1,4 @@
-module PiecewiseConstant
+module StochasticBarrierFunctions
 
 using LinearAlgebra, StatsBase, Combinatorics
 using MultivariatePolynomials, DynamicPolynomials, MultivariateBases
@@ -59,4 +59,4 @@ const MatlabFile = Union{MAT_v4.Matlabv4File, MAT_v5.Matlabv5File, MAT_HDF5.Matl
 include("data.jl")
 export load_regions, load_dynamics, load_probabilities
 
-end # module PiecewiseConstant
+end # module StochasticBarrierFunctions
