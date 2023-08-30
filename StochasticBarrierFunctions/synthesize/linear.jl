@@ -29,4 +29,10 @@ obstacle_region = EmptySet(1)
 # Optimize: method 2 (dual approach)
 @time B_dual, beta_dual = synthesize_barrier(DualAlgorithm(), probabilities, initial_region, obstacle_region)
 
+# Optimize: method 3 (iterative approach)
+@time B_it, beta_it = synthesize_barrier(IterativeUpperBoundAlgorithm(), probabilities, initial_region, obstacle_region)
+
+# Optimize: method 4 (project gradient descent approach)
+@time B_pgd, beta_pgd = synthesize_barrier(GradientDescentAlgorithm(), probabilities, initial_region, obstacle_region)
+
 println("Linear model verified.")

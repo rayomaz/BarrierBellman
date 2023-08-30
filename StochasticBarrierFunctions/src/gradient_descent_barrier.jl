@@ -5,7 +5,7 @@
 """
 
 # Optimization function
-function gradient_descent_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1, ϵ=1e-6)
+function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
     n = length(regions)
 
     initial_indices = findall(X -> !isdisjoint(initial_region, region(X)), regions)
@@ -18,11 +18,8 @@ function gradient_descent_barrier(regions::Vector{<:RegionWithProbabilities}, in
     B_regions = @view(B[1:end - 1])
     dB = similar(B)
 
-    B[initial_indices] .= 0
-    B[unsafe_indices] .= 1
-    
-    # decay = Step(λ = 1e-1, γ = 0.995, step_sizes = 10)
-    # optim = Optimisers.Adam(1e-2)
+    B_init .= 0
+    B_unsafe .= 1
 
     decay = Exp(λ = 1e-1, γ = 0.9995)
     optim = Optimisers.Adam(1e-1, (8e-1, 9.99e-1))
@@ -69,10 +66,10 @@ function gradient_descent_barrier(regions::Vector{<:RegionWithProbabilities}, in
     βⱼ .-= B_regions
     clamp!(βⱼ, 0, Inf)
 
-    @info "Solution Gradient Descent" η β = maximum(βⱼ)
+    @info "Solution Gradient Descent" η β=maximum(βⱼ) Pₛ=1 - (η + maximum(βⱼ) * time_horizon) iterations=alg.num_iterations
 
     Xs = map(region, regions)
-    return ConstantBarrier(Xs, B), βⱼ
+    return ConstantBarrier(Xs, B_regions), βⱼ
 end
 
 # This function bould be useful as a template for parallelizing onto the gpu.

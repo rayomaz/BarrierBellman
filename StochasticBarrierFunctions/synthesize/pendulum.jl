@@ -23,18 +23,15 @@ initial_region = Hyperrectangle([0.0, 0.0], [0.01, 0.01])
 obstacle_region = EmptySet(2)
 
 # Optimize: method 1 (revise beta values)
-@time B, beta = constant_barrier(probabilities, initial_region, obstacle_region)
-@time beta_updated, p_distribution = post_compute_beta(B, probabilities)
-# @btime beta_updated = accelerated_poWst_compute_beta(B, regions)
+@time B_ub, beta_ub = synthesize_barrier(UpperBoundAlgorithm(), probabilities, initial_region, obstacle_region)
 
 # Optimize: method 2 (dual approach)
-@time B_dual, beta_dual = dual_constant_barrier(probabilities, initial_region, obstacle_region)
-# @time beta_dual_updated, p_distribution = post_compute_beta(B_dual, probabilities)
+@time B_dual, beta_dual = synthesize_barrier(DualAlgorithm(), probabilities, initial_region, obstacle_region)
 
-# Optimize: method 3 (polytope approach)
-# @time B_poly, beta_poly = polytope_constant_barrier(probabilities, initial_region, obstacle_region)
+# Optimize: method 3 (iterative approach)
+@time B_it, beta_it = synthesize_barrier(IterativeUpperBoundAlgorithm(), probabilities, initial_region, obstacle_region)
 
-# Optimize: method 4 (iterative approach)
-@time B_iterative, beta_iterative = iterative_barrier(probabilities, initial_region, obstacle_region, guided=false, distributed = true)
+# Optimize: method 4 (project gradient descent approach)
+@time B_pgd, beta_pgd = synthesize_barrier(GradientDescentAlgorithm(), probabilities, initial_region, obstacle_region)
 
 println("Pendulum model verified.")

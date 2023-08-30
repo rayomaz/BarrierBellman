@@ -1,4 +1,4 @@
-struct RegionWithProbabilities{N, T, S<:LazySet{T}} <: AbstractDiscreteTimeStochasticSystem{N}
+struct RegionWithProbabilities{T, S<:LazySet{T}}
     region::S
     lower::Vector{T}
     upper::Vector{T}
@@ -19,7 +19,7 @@ struct RegionWithProbabilities{N, T, S<:LazySet{T}} <: AbstractDiscreteTimeStoch
         lower, upper = vcat(transition_to_other_regions[1], transition_to_unsafe[1]),
                        vcat(transition_to_other_regions[2], transition_to_unsafe[2])
 
-        return new{LazySets.dim(first(region)), T, S}(region, lower, upper, upper - lower, sum(lower), sum(upper))
+        return new{T, S}(region, lower, upper, upper - lower, sum(lower), sum(upper))
     end
 end
 
