@@ -1,8 +1,8 @@
-function iterative_barrier(regions, initial_region, obstacle_region; guided = true, distributed = false, max_iterations=10)
+function synthesize_barrier(alg::IterativeUpperBoundAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
     iteration_prob = regions
 
-    B, beta = constant_barrier(iteration_prob, initial_region, obstacle_region)
-    beta_updated, p_distribution = accelerated_post_compute_beta(B, regions)
+    B, beta = constant_barrier(iteration_prob, initial_region, obstacle_region; ϵ=alg.ϵ)
+    beta_updated, p_distribution = verify_beta(B, regions)
 
     @debug "Iterations $i"
 
@@ -13,10 +13,10 @@ function iterative_barrier(regions, initial_region, obstacle_region; guided = tr
         iteration_prob = update_regions(iteration_prob, p_distribution)
 
         if guided
-            B, beta, η = constant_barrier(iteration_prob, initial_region, obstacle_region, guided=true, Bₚ = B, δ = 0.025)    
+            B, beta, η = constant_barrier(iteration_prob, initial_region, obstacle_region, guided=true, Bₚ = B, δ = 0.025; ϵ=alg.ϵ)    
 
         elseif distributed 
-            B, beta, η = constant_barrier(iteration_prob, initial_region, obstacle_region, distributed=true, probability_distribution = P_distribution) 
+            B, beta, η = constant_barrier(iteration_prob, initial_region, obstacle_region, distributed=true, probability_distribution = P_distribution; ϵ=alg.ϵ) 
             
             # Keep of track of distributions
             push!(P_distribution, p_distribution)
@@ -26,12 +26,13 @@ function iterative_barrier(regions, initial_region, obstacle_region; guided = tr
            
         end
 
-        beta_updated, p_distribution = accelerated_post_compute_beta(B, regions)
+        beta_updated, p_distribution = verify_beta(B, regions)
 
     end
 
     β = maximum(beta_updated)
-    @info "CEGS terminated in $(value(i)) iterations" η β=$β_values Pₛ=$(1 - η - max_β * time_horizon)
+    # @info "CEGS terminated in $(value(i)) iterations" η β=$β_values Pₛ=$(1 - η - max_β * time_horizon)
 
-    return B, beta_updated
+    Xs = map(region, regions)
+    return ConstantBarrier(Xs, B), beta_updated
 end

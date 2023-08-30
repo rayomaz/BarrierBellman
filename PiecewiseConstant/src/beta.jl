@@ -4,7 +4,7 @@
 
 """
 
-function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities})
+function verify_beta(B, regions::Vector{<:RegionWithProbabilities})
     # Don't ask. It's not pretty... But it's fast!
 
     β_parts = Vector{Float64}(undef, length(B))
@@ -13,7 +13,7 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities})
     Threads.@threads for jj in eachindex(regions)
         Xⱼ, Bⱼ = regions[jj], B[jj]
 
-        model = get!(task_local_storage(), "post_compute_model") do
+        model = get!(task_local_storage(), "verify_beta_model") do
             # Using Mosek as the LP solver
             model = Model(Mosek.Optimizer)
             set_silent(model)
@@ -55,7 +55,7 @@ function post_compute_beta(B, regions::Vector{<:RegionWithProbabilities})
         @inbounds p_distribution[:, jj] = p_values
     end
    
-    @info "Solution updated beta" β = maximum(β_parts)
+    @debug "Solution updated beta" β = maximum(β_parts)
 
     return β_parts, p_distribution
 end

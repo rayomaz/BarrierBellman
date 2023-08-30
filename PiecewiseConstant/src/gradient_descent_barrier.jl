@@ -71,7 +71,8 @@ function gradient_descent_barrier(regions::Vector{<:RegionWithProbabilities}, in
 
     @info "Solution Gradient Descent" η β = maximum(βⱼ)
 
-    return B_regions, βⱼ
+    Xs = map(region, regions)
+    return ConstantBarrier(Xs, B), βⱼ
 end
 
 # This function bould be useful as a template for parallelizing onto the gpu.

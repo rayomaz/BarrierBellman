@@ -7,47 +7,56 @@ using JuMP, HiGHS, Optim, NLopt, Ipopt, MosekTools, Mosek
 using LazySets, Polyhedra, CDDLib
 using Optimisers, ParameterSchedulers
 using ReachabilityBase.Commutative
-using YAXArrays, YAXArrayBase, DimensionalData
-using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5, DelimitedFiles
-using Plots
-
-const MatlabFile = Union{MAT_v4.Matlabv4File, MAT_v5.Matlabv5File, MAT_HDF5.MatlabHDF5File}
 
 const MP = MultivariatePolynomials
-
 const MB = MultivariateBases
 
-include("region.jl")
-export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper, update_regions
+const APL{T} = MP.AbstractPolynomialLike{T}
 
+# Basic system types
 include("system.jl")
 export AbstractDiscreteTimeStochasticSystem, AbstractAdditiveGaussianSystem
 export AdditiveGaussianLinearSystem, AdditiveGaussianUncertainPWASystem, UncertainPWARegion
 export dynamics, noise_distribution, dimensionality
 
-include("data.jl")
-export load_regions, load_dynamics, load_probabilities
+include("region.jl")
+export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper, update_regions
 
 include("probabilities.jl")
 export transition_probabilities, plot_posterior
 export TransitionProbabilityMethod, BoxApproximation, GradientDescent
 
+include("barrier.jl")
+export StochasticBarrier, SOSBarrier, ConstantBarrier
+export StochasticBarrierAlgorithm, DualAlgorithm, UpperBoundAlgorithm, IterativeUpperBoundAlgorithm
+export GradientDescentAlgorithm, SumOfSquaresAlgorithm
+
+function synthesize_barrier end
+export synthesize_barrier
+
+include("beta.jl")
+
+# Various barrier synthesis algorithms
 include("constant_barrier.jl")
-export constant_barrier
-
-include("post_compute.jl")
-export post_compute_beta, accelerated_post_compute_beta
-
 include("iterative_barrier.jl")
-export iterative_barrier
-
 include("dual_barrier.jl")
-export dual_constant_barrier
-
 include("gradient_descent_barrier.jl")
-export gradient_descent_barrier
+
+
+# Plotting
+using Plots
 
 include("plots.jl")
 export plot_environment, plot_3d_barrier
+
+
+# Helper functions for loading data
+using YAXArrays, YAXArrayBase, DimensionalData
+using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5, DelimitedFiles
+
+const MatlabFile = Union{MAT_v4.Matlabv4File, MAT_v5.Matlabv5File, MAT_HDF5.MatlabHDF5File}
+
+include("data.jl")
+export load_regions, load_dynamics, load_probabilities
 
 end # module PiecewiseConstant
