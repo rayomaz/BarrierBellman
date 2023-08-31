@@ -14,6 +14,7 @@ from bounds.bounds import MinimizeGap, MinimizePosteriorRect
 from bounds.certifier import GaussianCertifier, check_gap
 from linear.linear import LinearExperiment
 from nndm.nndm import NNDMExperiment
+from harrier.harrier import HarrierExperiment
 
 from log import configure_logging
 from utils import load_config
@@ -99,8 +100,10 @@ def load_mat_linear_bounds(path):
 def experiment_builder(args, config):
     if config['system'] == 'linear':
         return LinearExperiment(args, config)
-    if config['system'] == 'nndm':
+    elif config['system'] == 'nndm':
         return NNDMExperiment(args, config)
+    elif config['system'] == 'harrier':
+        return HarrierExperiment(args, config)
     else:
         raise ValueError(f'System "{config["system"]}" not defined')
 
