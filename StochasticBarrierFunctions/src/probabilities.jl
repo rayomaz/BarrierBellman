@@ -24,6 +24,8 @@ function transition_probabilities(system, Xs; method::TransitionProbabilityMetho
     # Compute post(qⱼ, f(x)) for all qⱼ ∈ Q
     VYs, HYs, box_Ys = post(system, Xs)
 
+    @info "Done computing post-images"
+
     # Pre-allocate probability matrices
     P̲ = zeros(number_hypercubes, number_hypercubes)
     P̅ = zeros(number_hypercubes, number_hypercubes)
@@ -54,7 +56,7 @@ end
 function post(system::AdditiveGaussianLinearSystem, Xs)
     # Compute post(qᵢ, f(x)) for all qⱼ ∈ Q
     A, b = dynamics(system)
-    f(x) = A * x + b
+    f(x) = affine_map(A, x, b)
 
     Xs = convert.(VPolytope, Xs)
     VYs = f.(Xs)
@@ -74,7 +76,7 @@ function post(system::AdditiveGaussianUncertainPWASystem, Xs)
         X = convert(VPolytope, X)
 
         vertices = mapreduce(vcat, dyn) do (A, b)
-            vertices_list(A * X + b)
+            vertices_list(affine_map(A, X, b))
         end
         return VPolytope(vertices)
     end

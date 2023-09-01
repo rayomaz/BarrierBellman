@@ -5,7 +5,7 @@ using YAXArrays, NetCDF
 
 # System
 system_flag = "harrier"
-number_hypercubes = 36000
+number_hypercubes = 12960
 σ = [0.1, 0.1, 0.01, 0.1, 0.1, 0.01]
 
 filename = "../data/$system_flag/dynamics_$number_hypercubes.nc"
