@@ -5,10 +5,11 @@
 """
 
 # Optimization function
-function dual_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1, ϵ=1e-6)
-    # Using Mosek as the LP solver
-    model = Model(Mosek.Optimizer)
+function synthesize_barrier(alg::DualAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
+    model = Model(alg.linear_solver)
     set_silent(model)
+
+    ϵ = alg.ϵ
 
     # Create optimization variables
     @variable(model, B[eachindex(regions)], lower_bound=ϵ, upper_bound=1)   
@@ -20,7 +21,7 @@ function dual_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initi
     @constraint(model, β_parts .<= β)
 
     # Construct barriers
-    @inbounds for (Xⱼ, Bⱼ, βⱼ) in zip(regions, B, β_parts)
+    for (Xⱼ, Bⱼ, βⱼ) in zip(regions, B, β_parts)
         # Initial set
         if !isdisjoint(initial_region, region(Xⱼ))
             @constraint(model, Bⱼ .≤ η)
@@ -34,44 +35,20 @@ function dual_constant_barrier(regions::Vector{<:RegionWithProbabilities}, initi
         dual_expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
     end
 
-    # println("Synthesizing barries ... ")
-
     # Define optimization objective
     @objective(model, Min, η + β * time_horizon)
-
-    # println("Objective made ... ")
 
     # Optimize model
     JuMP.optimize!(model)
 
     # Barrier certificate
     B = value.(B)
-
-    # Print optimal values
     β_values = value.(β_parts)
-    max_β = maximum(β_values)
-    η = value(η)
-    @info "Dual Solution" η β=$β_values Pₛ=$(1 - η - max_β * time_horizon)
 
-    # # Print beta values to txt file
-    # if isfile("probabilities/beta_dual.txt") == true
-    #     rm("probabilities/beta_dual.txt")
-    # end
+    @info "Dual Solution" η=value(η) β=maximum(β_values) Pₛ=1 - (value(η) + maximum(β_values) * time_horizon)
 
-    # open("probabilities/beta_dual.txt", "a") do io
-    #     println(io, β_values)
-    # end
-
-    # if isfile("probabilities/barrier_dual.txt") == true
-    #     rm("probabilities/barrier_dual.txt")
-    # end
-
-    # open("probabilities/barrier_dual.txt", "a") do io
-    #     println(io, B)
-    # end
-
-
-    return B, β_values
+    Xs = map(region, regions)
+    return ConstantBarrier(Xs, B), β_values
 end
 
 function dual_expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ) 

@@ -32,6 +32,8 @@ end
 Base.iterate(X::UncertainPWARegion) = (X.X, Val(:dyn))
 Base.iterate(X::UncertainPWARegion, ::Val{:dyn}) = (X.dyn, Val(:done))
 Base.iterate(X::UncertainPWARegion, ::Val{:done}) = nothing
+dynamics(X::UncertainPWARegion) = X.dyn
+region(X::UncertainPWARegion) = X.X
 
 struct AdditiveGaussianUncertainPWASystem{T, N, S<:UncertainPWARegion{T}} <: AbstractAdditiveGaussianSystem{N}
     # This struct represents a system with the dynamics x(k + 1) = f(x(k)) + v(k)
