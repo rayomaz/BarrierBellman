@@ -19,8 +19,10 @@ struct AdditiveGaussianLinearSystem{T, N} <: AbstractAdditiveGaussianSystem{N}
     A::AbstractMatrix{T}
     b::AbstractVector{T}
     σ::AbstractVector{T}
+
+    state_space::Union{AbstractHyperrectangle{T}, Nothing}
 end
-AdditiveGaussianLinearSystem(A, b, σ) = AdditiveGaussianLinearSystem{eltype(A), length(σ)}(A, b, σ)
+AdditiveGaussianLinearSystem(A, b, σ, state_space=nothing) = AdditiveGaussianLinearSystem{eltype(A), length(σ)}(A, b, σ, state_space)
 dynamics(system::AdditiveGaussianLinearSystem) = (system.A, system.b)
 
 
