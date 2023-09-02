@@ -5,87 +5,144 @@
     © Rayan Mazouz, Frederik Baymler Mathiesen
 
 """
+abstract type AbstractLowerBoundAlgorithm end
+struct VertexEnumeration <: AbstractLowerBoundAlgorithm end
 
-abstract type TransitionProbabilityMethod end
-Base.@kwdef struct GradientDescent <: TransitionProbabilityMethod
+abstract type AbstractUpperBoundAlgorithm end
+Base.@kwdef struct GradientDescent <: AbstractUpperBoundAlgorithm
     non_linear_solver = default_non_linear_solver()
 end
-struct BoxApproximation <: TransitionProbabilityMethod end
+struct BoxApproximation <: AbstractUpperBoundAlgorithm end
+
+Base.@kwdef struct TransitionProbabilityAlgorithm
+    lower_bound_method::AbstractLowerBoundAlgorithm = VertexEnumeration()
+    upper_bound_method::AbstractUpperBoundAlgorithm = GradientDescent()
+    sparisty_ϵ = 1e-12
+end
 
 transition_probabilities(system::AdditiveGaussianUncertainPWASystem; kwargs...) = transition_probabilities(system, regions(system); kwargs...)
-function transition_probabilities(system, Xs; method::TransitionProbabilityMethod=GradientDescent())
-
+function transition_probabilities(system, Xs; alg=TransitionProbabilityAlgorithm())
     # Construct barriers
     @info "Computing transition probabilities"
+
+    safe_set = Hyperrectangle(low=minimum(low.(Xs)), high=maximum(high.(Xs)))
+    # TODO: Check if ⋃Xs = state_space
+
+    # Anything beyond `μ ± σ * nσ_search` will always have a probability < sparisty_ϵ
+    nσ_search = -quantile(Normal(), alg.sparisty_ϵ)
 
     # Size definition
     number_hypercubes = length(Xs)
 
-    # Compute post(qⱼ, f(x)) for all qⱼ ∈ Q
-    VYs, HYs, box_Ys = post(system, Xs)
-
     # Pre-allocate probability matrices
-    P̲ = zeros(number_hypercubes, number_hypercubes)
-    P̅ = zeros(number_hypercubes, number_hypercubes)
+    P̲ = Vector{SparseVector{Float64, Int32}}(undef, number_hypercubes)
+    P̅ = Vector{SparseVector{Float64, Int32}}(undef, number_hypercubes)
 
     # Generate
-    Threads.@threads for ii in eachindex(Xs)
-        P̲ᵢ, P̅ᵢ = transition_prob_to_region(system, VYs, HYs, box_Ys, Xs[ii], method)
+    Threads.@threads for jj in eachindex(Xs)
+        P̲ⱼ, P̅ⱼ = transition_prob_from_region(system, (jj, Xs[jj]), Xs, safe_set, alg; nσ_search=nσ_search)
 
-        P̲[ii, :] = P̲ᵢ
-        P̅[ii, :] = P̅ᵢ
+        P̲[jj] = P̲ⱼ
+        P̅[jj] = P̅ⱼ
     end
 
-    Xₛ = Hyperrectangle(low=minimum(low.(Xs)), high=maximum(high.(Xs)))
+    # Combine into a single matrix
+    P̲ = reduce(sparse_hcat, P̲)
+    P̅ = reduce(sparse_hcat, P̅)
 
-    P̲ₛ, P̅ₛ = transition_prob_to_region(system, VYs, HYs, box_Ys, Xₛ, method)
-    P̲ᵤ, P̅ᵤ = (1 .- P̅ₛ), (1 .- P̲ₛ)
+    density = nnz(P̅) / length(P̅)
+    @info "Density of the probability matrix" density sparsity=1-density
 
-    axlist = (Dim{:to}(1:number_hypercubes), Dim{:from}(1:number_hypercubes))
+    axlist = (Dim{:to}(1:number_hypercubes + 1), Dim{:from}(1:number_hypercubes))
     P̲, P̅ = DimArray(P̲, axlist), DimArray(P̅, axlist)
-    
-    axlist = (Dim{:from}(1:number_hypercubes),)
-    P̲ᵤ, P̅ᵤ = DimArray(P̲ᵤ, axlist), DimArray(P̅ᵤ, axlist)
 
     # Return as a YAXArrays dataset
-    return create_probability_dataset(Xs, P̲, P̅, P̲ᵤ, P̅ᵤ)
+    return create_sparse_probability_dataset(Xs, P̲, P̅)
 end
 
-function post(system::AdditiveGaussianLinearSystem, Xs)
+function post(system::AdditiveGaussianLinearSystem, Xind)
+    (jj, X) = Xind
+
+    X = convert(VPolytope, X)
+
     # Compute post(qᵢ, f(x)) for all qⱼ ∈ Q
     A, b = dynamics(system)
-    f(x) = A * x + b
 
-    Xs = convert.(VPolytope, Xs)
-    VYs = f.(Xs)
-    HYs = convert.(HPolytope, VYs)
-    box_Ys = box_approximation.(VYs)
+    VY = affine_map(A, X, b)
+    HY = convert(HPolytope, VY)
+    box_Y = box_approximation(VY)
 
-    return VYs, HYs, box_Ys
+    return VY, HY, box_Y
 end
 
-function post(system::AdditiveGaussianUncertainPWASystem, Xs)
-    # Input Xs is also contained in dynamics(system) since _piece-wise_ affine.
+function post(system::AdditiveGaussianUncertainPWASystem, Xind)
+    (jj, X) = Xind
 
     # Compute post(qᵢ, f(x)) for all qⱼ ∈ Q    
-    pwa_dynamics = dynamics(system)
+    (Xprime, dyn) = dynamics(system)[jj]
+    # This is a necessary but not suffiecient condition.
+    # The complete condition is that the intersection of the two regions has a non-zero measure.
+    @assert !isdisjoint(X, Xprime)
 
-    VYs = map(pwa_dynamics) do (X, dyn)
-        X = convert(VPolytope, X)
+    X = convert(VPolytope, X)
+    VY = VPolytope(mapreduce(vcat, dyn) do (A, b)
+        vertices_list(affine_map(A, X, b))
+    end)
 
-        vertices = mapreduce(vcat, dyn) do (A, b)
-            vertices_list(A * X + b)
-        end
-        return VPolytope(vertices)
-    end
-    HYs = convert.(HPolytope, VYs)
-    box_Ys = box_approximation.(VYs)
+    HY = convert(HPolytope, VY)
+    box_Y = box_approximation(VY)
 
-    return VYs, HYs, box_Ys
+    return VY, HY, box_Y
 end
 
 # Transition probability P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
-function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ, method)
+function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search)
+    VY, HY, box_Y = post(system, Xⱼ)
+
+    # Fetch noise
+    n = length(Xs)
+    m = dimensionality(system)
+    σ = noise_distribution(system)
+
+    # Search for overlap with box(f(Xⱼ)) + σ * nσ_search as 
+    # any region beyond that will always have a probability < sparisty_ϵ
+    query_set = minkowski_sum(box_Y, Hyperrectangle(zero(σ), σ * nσ_search)) 
+
+    indices = findall(X -> !isdisjoint(X, query_set), Xs)
+
+    P̲ⱼ = zeros(Float64, length(indices))
+    P̅ⱼ = zeros(Float64, length(indices))
+
+    for (i, Xᵢ) in enumerate(@view(Xs[indices]))    
+        # Obtain min and max of T(qᵢ | x) over Y
+        P̲ᵢⱼ, P̅ᵢⱼ = transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
+        
+        P̲ⱼ[i] = P̲ᵢⱼ
+        P̅ⱼ[i] = P̅ᵢⱼ
+    end
+
+    # Prune regions with P(f(x) ∈ qᵢ | x ∈ qⱼ) < sparisty_ϵ
+    keep_indices = findall(p -> p >= alg.sparisty_ϵ, P̅ⱼ)
+    P̲ⱼ = P̲ⱼ[keep_indices]
+    P̅ⱼ = P̅ⱼ[keep_indices]
+
+    # Compute P(f(x) ∈ qᵤ | x ∈ qⱼ) including sparsity pruning
+    P̲ₛⱼ, P̅ₛⱼ = transition_prob_to_region(system, VY, HY, box_Y, safe_set, alg)
+    Psparse = (n - length(keep_indices)) * alg.sparisty_ϵ
+    P̲ᵤⱼ, P̅ᵤⱼ = (1 - P̅ₛⱼ), (1 - P̲ₛⱼ) + Psparse
+    
+    # If you ever hit this case, then you are in trouble. Either sparisty_ϵ
+    # is too high for the amount of regions, or the system is inherently unsafe.
+    @assert P̅ᵤⱼ <= 1.0
+
+    P̲ⱼ = SparseVector(n + 1, [keep_indices; [n + 1]], [P̲ⱼ; [P̲ᵤⱼ]])
+    P̅ⱼ = SparseVector(n + 1, [keep_indices; [n + 1]], [P̅ⱼ; [P̅ᵤⱼ]])
+
+    return P̲ⱼ, P̅ⱼ
+end
+
+# Transition probability P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
+function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
     vₗ = low(Xᵢ)
     vₕ = high(Xᵢ)
     v = LazySets.center(Xᵢ)
@@ -100,16 +157,16 @@ function transition_prob_to_region(system, VYs, HYs, box_Ys, Xᵢ, method)
 
     T(y) = (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
 
-    # Obtain min of T(qᵢ | x) over Ys
-    prob_transition_lower = min_log_concave_over_polytope.(T, VYs)
+    # Obtain min of T(qᵢ | x) over Y
+    prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, T, VY)
 
-    # Obtain max of T(qᵢ | x) over Ys
-    prob_transition_upper = max_log_concave_over_polytope.(tuple(method), T, tuple(v), HYs, box_Ys)
+    # Obtain max of T(qᵢ | x) over Y
+    prob_transition_upper = max_log_concave_over_polytope(alg.upper_bound_method, T, v, HY, box_Y)
 
     return prob_transition_lower, prob_transition_upper
 end
 
-function min_log_concave_over_polytope(f, X)
+function min_log_concave_over_polytope(::VertexEnumeration, f, X)
     vertices = vertices_list(X)
 
     return minimum(f, vertices)
@@ -158,12 +215,16 @@ function plot_posterior(system, Xs; figname_prefix="")
         X = convert(VPolytope, X)
 
         Y = map(dyn) do (A, b)
-            A * X + b
+            affine_map(A, X, b)
         end
         return Y
     end
 
-    _, HYs, box_Ys = post(system, Xs)
+    postXs = post.(tuple(system), zip(eachindex(Xs), Xs))
+
+    box_Ys = map(postXs) do (VY, HY, box_Y)
+        box_Y
+    end
 
     for (i, (X, Y, box_Y)) in enumerate(zip(Xs[1:10], VYs, box_Ys))
         p = plot(X, color=:blue, alpha=0.2, xlim=(-deg2rad(15), deg2rad(15)), ylim=(-1.2, 1.2), size=(1200, 800))

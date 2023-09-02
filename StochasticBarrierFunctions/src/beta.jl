@@ -35,8 +35,10 @@ function verify_beta(B, regions::Vector{<:RegionWithProbabilities})
         val_low, val_up = min.(P̲, P̅), max.(P̲, P̅)
 
         P = model[:P]
-        set_lower_bound.(P, val_low)
-        set_upper_bound.(P, val_up)
+        for ii in eachindex(P)
+            @inbounds set_lower_bound(P[ii], val_low[ii])
+            @inbounds set_upper_bound(P[ii], val_up[ii])
+        end
 
         P̲ᵤ, P̅ᵤ = prob_unsafe_lower(Xⱼ), prob_unsafe_upper(Xⱼ)
         val_low, val_up = min(P̲ᵤ, P̅ᵤ), max(P̲ᵤ, P̅ᵤ)
