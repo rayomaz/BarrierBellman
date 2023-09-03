@@ -50,7 +50,7 @@ function transition_probabilities(system, Xs; alg=TransitionProbabilityAlgorithm
     P̲ = reduce(sparse_hcat, P̲)
     P̅ = reduce(sparse_hcat, P̅)
 
-    density = nnz(P̅) / length(P̅)
+    density = (nnz(P̅) + nnz(P̲)) / (length(P̅) + length(P̲))
     @info "Density of the probability matrix" density sparsity=1-density
 
     axlist = (Dim{:to}(1:number_hypercubes + 1), Dim{:from}(1:number_hypercubes))
