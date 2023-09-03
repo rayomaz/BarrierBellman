@@ -101,7 +101,6 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
 
     # Fetch noise
     n = length(Xs)
-    m = dimensionality(system)
     σ = noise_distribution(system)
 
     # Search for overlap with box(f(Xⱼ)) + σ * nσ_search as 
@@ -125,18 +124,19 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
     keep_indices = findall(p -> p >= alg.sparisty_ϵ, P̅ⱼ)
     P̲ⱼ = P̲ⱼ[keep_indices]
     P̅ⱼ = P̅ⱼ[keep_indices]
+    indices = indices[keep_indices]
 
     # Compute P(f(x) ∈ qᵤ | x ∈ qⱼ) including sparsity pruning
     P̲ₛⱼ, P̅ₛⱼ = transition_prob_to_region(system, VY, HY, box_Y, safe_set, alg)
-    Psparse = (n - length(keep_indices)) * alg.sparisty_ϵ
+    Psparse = (n - length(indices)) * alg.sparisty_ϵ
     P̲ᵤⱼ, P̅ᵤⱼ = (1 - P̅ₛⱼ), (1 - P̲ₛⱼ) + Psparse
     
     # If you ever hit this case, then you are in trouble. Either sparisty_ϵ
     # is too high for the amount of regions, or the system is inherently unsafe.
     @assert P̅ᵤⱼ <= 1.0
 
-    P̲ⱼ = SparseVector(n + 1, [keep_indices; [n + 1]], [P̲ⱼ; [P̲ᵤⱼ]])
-    P̅ⱼ = SparseVector(n + 1, [keep_indices; [n + 1]], [P̅ⱼ; [P̅ᵤⱼ]])
+    P̲ⱼ = SparseVector(n + 1, [indices; [n + 1]], [P̲ⱼ; [P̲ᵤⱼ]])
+    P̅ⱼ = SparseVector(n + 1, [indices; [n + 1]], [P̅ⱼ; [P̅ᵤⱼ]])
 
     return P̲ⱼ, P̅ⱼ
 end
