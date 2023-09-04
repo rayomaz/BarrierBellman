@@ -1,4 +1,4 @@
-""" Piecewise Barrier Function: Neural Network Dynamic Model [Pendulum]
+""" Piecewise Barrier Function: Linear Dynamic Model [Single Mode]
 
     © Rayan Mazouz
 
