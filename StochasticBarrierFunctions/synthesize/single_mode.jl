@@ -34,3 +34,13 @@ elseif dim == 2
                         for (low_x, high_x) in zip(x[1:end-1], x[2:end])
                             for (low_y, high_y) in zip(x[1:end-1], x[2:end])]
 end
+
+# Initial range and obstacle space
+initial_range, obstacle_range = 0.25, 0.02
+initial_region = Hyperrectangle([-0.70, -0.1], initial_range*ones(dim))
+# initial_region = Hyperrectangle(zeros(dim), initial_range*ones(dim))
+
+obstacle1 = Hyperrectangle([-0.55, 0.30], obstacle_range*ones(dim))
+obstacle2 = Hyperrectangle([-0.55, -0.15], obstacle_range*ones(dim))
+obstacle_region = obstacle1, obstacle2
+# obstacle_region = EmptySet(dim)
