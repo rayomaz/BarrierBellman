@@ -18,6 +18,7 @@ Base.@kwdef struct TransitionProbabilityAlgorithm
     lower_bound_method::AbstractLowerBoundAlgorithm = VertexEnumeration()
     upper_bound_method::AbstractUpperBoundAlgorithm = GradientDescent()
     sparisty_ϵ = 1e-12
+    log_ϵ = 1e-16
 end
 
 transition_probabilities(system::AdditiveGaussianUncertainPWASystem; kwargs...) = transition_probabilities(system, regions(system); kwargs...)
@@ -156,12 +157,14 @@ function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
     erf_upper(y, i) = erf((y[i] - vₕ[i]) / (σ[i] * sqrt(2)))
 
     T(y) = (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
+    # clamp to ϵ is added to avoid log(0).
+    logT(y) = log(1) - m * log(2) + sum(i -> log(max(erf_lower(y, i) - erf_upper(y, i), alg.log_ϵ)), 1:m)
 
     # Obtain min of T(qᵢ | x) over Y
     prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, T, VY)
 
     # Obtain max of T(qᵢ | x) over Y
-    prob_transition_upper = max_log_concave_over_polytope(alg.upper_bound_method, T, v, HY, box_Y)
+    prob_transition_upper = exp(max_concave_over_polytope(alg.upper_bound_method, logT, v, HY, box_Y))
 
     return prob_transition_lower, prob_transition_upper
 end
@@ -204,6 +207,43 @@ function max_log_concave_over_polytope(alg::GradientDescent, f, global_max, X, b
 
     # Optimize for maximum
     JuMP.optimize!(model)
+
+    return JuMP.objective_value(model)
+end
+
+function max_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
+    if global_max in X
+        return f(global_max)
+    end
+
+    l, h = low(box_X), high(box_X)
+    x_max = @. min(h, max(global_max, l))
+
+    return f(x_max)
+end
+
+function max_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X)
+    if global_max in X
+        return f(global_max)
+    end
+
+    m = LazySets.dim(X)
+    fsplat(y...) = f(y)
+
+    model = Model(alg.non_linear_solver)
+    set_silent(model)
+    register(model, :fsplat, m, fsplat; autodiff = true)
+
+    @variable(model, x[1:m])
+
+    H, h = tosimplehrep(X)
+    @constraint(model, H * x <= h)
+
+    @NLobjective(model, Max, fsplat(x...))
+
+    # Optimize for maximum
+    JuMP.optimize!(model)
+
     return JuMP.objective_value(model)
 end
 
