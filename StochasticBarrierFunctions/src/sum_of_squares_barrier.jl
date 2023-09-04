@@ -5,7 +5,7 @@
 """
 
 # Sum of squares optimization function
-function synthesize_barrier(alg::SumOfSquaresAlgorithm, system::AdditiveGaussianUncertainPWASystem, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
+function synthesize_barrier(alg::SumOfSquaresAlgorithm, system, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
     model = SOSModel(alg.sdp_solver)
 
     # Create decision variables eta and beta
