@@ -26,23 +26,26 @@ function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:Reg
 
     state = Optimisers.setup(optim, B)
 
-    p = [zeros(n + 1) for j in 1:n]
-    q = collect(1:n + 1)
+    p = [zero(region.gap) for region in regions]
+    q = collect(UnitRange{Int64}(1, n + 1))
     βⱼ = zeros(n)
 
-    for t in 1:10000
+    prev_q = copy(q)
+
+    for t in 0:10000
         sortperm!(q, B, rev=true)
-        ivi_prob!.(p, regions, tuple(q))
+
+        if q != prev_q
+            copyto!(prev_q, q)
+            ivi_prob!.(p, regions, tuple(q))
+        end
+
         βⱼ .= dot.(tuple(B), p)
         βⱼ .-= B_regions
         j = argmax(βⱼ)
 
-        # if t % 100 == 99
-        #     println(βⱼ[j])
-        # end
-
         copyto!(dB, B)
-        dB .-= decay(t) .* p[j] #ivi_prob!(p[j], regions[j], q)
+        dB .-= decay(t) .* p[j]
         dB[j] += decay(t) * 1
         clamp!(dB, 0, 1)
         dB .*= -1
