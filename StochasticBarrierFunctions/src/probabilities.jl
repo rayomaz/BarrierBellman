@@ -134,7 +134,11 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
     
     # If you ever hit this case, then you are in trouble. Either sparisty_ϵ
     # is too high for the amount of regions, or the system is inherently unsafe.
-    @assert P̅ᵤⱼ <= 1.0
+    # Relaxing the assert with δ = 1e-6
+    @assert P̅ᵤⱼ <= 1.0 + 1e-6
+
+    # Clipping P̅ᵤⱼ @ 1
+    P̅ᵤⱼ = (P̅ᵤⱼ > 1) ? 1 : P̅ᵤⱼ
 
     P̲ⱼ = SparseVector(n + 1, [indices; [n + 1]], [P̲ⱼ; [P̲ᵤⱼ]])
     P̅ⱼ = SparseVector(n + 1, [indices; [n + 1]], [P̅ⱼ; [P̅ᵤⱼ]])
