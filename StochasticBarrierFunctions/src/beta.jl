@@ -4,11 +4,11 @@
 
 """
 
-function verify_beta(B, regions::Vector{<:RegionWithProbabilities})
+function verify_beta(B, regions::Vector{<:RegionWithProbabilities{T}}) where {T}
     # Don't ask. It's not pretty... But it's fast!
 
-    β_parts = Vector{Float64}(undef, length(B))
-    p_distribution = Matrix{Float64}(undef, length(B) + 1, length(B))
+    β_parts = Vector{T}(undef, length(B))
+    p_distribution = [zero(region.gap) for region in regions]
 
     Threads.@threads for jj in eachindex(regions)
         Xⱼ, Bⱼ = regions[jj], B[jj]
@@ -54,7 +54,7 @@ function verify_beta(B, regions::Vector{<:RegionWithProbabilities})
         @inbounds β_parts[jj] = max(objective_value(model) - Bⱼ, 0)
         
         p_values = [value.(P); [value(Pᵤ)]]
-        @inbounds p_distribution[:, jj] = p_values
+        @inbounds copyto!(p_distribution[jj], p_values)
     end
    
     @debug "Solution updated beta" β = maximum(β_parts)

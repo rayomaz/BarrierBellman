@@ -36,8 +36,8 @@ function transition_probabilities(system, Xs; alg=TransitionProbabilityAlgorithm
     number_hypercubes = length(Xs)
 
     # Pre-allocate probability matrices
-    P̲ = Vector{SparseVector{Float64, Int32}}(undef, number_hypercubes)
-    P̅ = Vector{SparseVector{Float64, Int32}}(undef, number_hypercubes)
+    P̲ = Vector{SparseVector{Float64, Int64}}(undef, number_hypercubes)
+    P̅ = Vector{SparseVector{Float64, Int64}}(undef, number_hypercubes)
 
     # Generate
     Threads.@threads for jj in eachindex(Xs)
