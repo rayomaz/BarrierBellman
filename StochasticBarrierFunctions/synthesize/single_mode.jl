@@ -30,7 +30,7 @@ initial_region = Hyperrectangle([-0.70, -0.1], initial_range*ones(dim))
 
 obstacle1 = Hyperrectangle([-0.55, 0.30], obstacle_range*ones(dim))
 obstacle2 = Hyperrectangle([-0.55, -0.15], obstacle_range*ones(dim))
-obstacle_region = union(obstacle1, obstacle2)
+obstacle_region = UnionSet(obstacle1, obstacle2)
 # obstacle_region = EmptySet(dim)
 
 # Optimize: method 1 (revise beta values)
