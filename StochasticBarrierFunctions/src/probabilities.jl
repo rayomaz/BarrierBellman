@@ -148,30 +148,59 @@ end
 
 # Transition probability P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ based on proposition 1, http://dx.doi.org/10.1145/3302504.3311805
 function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
-    vₗ = low(Xᵢ)
-    vₕ = high(Xᵢ)
     v = LazySets.center(Xᵢ)
-
-    # Fetch noise
-    m = dimensionality(system)
     σ = noise_distribution(system)
     
     # Transition kernel T(qᵢ | x)
-    erf_lower(y, i) = erf((y[i] - vₗ[i]) / (σ[i] * sqrt(2)))
-    erf_upper(y, i) = erf((y[i] - vₕ[i]) / (σ[i] * sqrt(2)))
-
-    T(y) = (1 / 2^m) * prod(i -> erf_lower(y, i) - erf_upper(y, i), 1:m)
-    # clamp to ϵ is added to avoid log(0).
-    logT(y) = log(1) - m * log(2) + sum(i -> log(max(erf_lower(y, i) - erf_upper(y, i), alg.log_ϵ)), 1:m)
+    kernel = GaussianTransitionKernel(Xᵢ, σ)
+    log_kernel = GaussianLogTransitionKernel(Xᵢ, σ, alg.log_ϵ)
 
     # Obtain min of T(qᵢ | x) over Y
-    prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, T, VY)
+    prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, kernel, VY)
 
     # Obtain max of T(qᵢ | x) over Y
-    prob_transition_upper = exp(max_concave_over_polytope(alg.upper_bound_method, logT, v, HY, box_Y))
+    prob_transition_upper = exp(max_concave_over_polytope(alg.upper_bound_method, log_kernel, v, HY, box_Y))
 
     return prob_transition_lower, prob_transition_upper
 end
+
+struct GaussianTransitionKernel{S, VS<:AbstractVector{S}, H<:AbstractHyperrectangle{S}}
+    X::H
+    σ::VS
+end
+function (T::GaussianTransitionKernel)(y)
+    m = LazySets.dim(T.X)
+    vₗ, vₕ = low(T.X), high(T.X)
+
+    acc = 1 / 2^m
+    @inbounds for i in 1:m
+        @inbounds acc *= erf_axis(y[i], vₗ[i], T.σ[i]) - erf_axis(y[i], vₕ[i], T.σ[i])
+    end
+
+    return acc
+end
+
+struct GaussianLogTransitionKernel{S, VS<:AbstractVector{S}, H<:AbstractHyperrectangle{S}}
+    X::H
+    σ::VS
+    ϵ::S
+end
+function (T::GaussianLogTransitionKernel)(y)
+    m = LazySets.dim(T.X)
+    vₗ, vₕ = low(T.X), high(T.X)
+
+    acc = log(1) - m * log(2)
+    @inbounds for i in 1:m
+        @inbounds prob_axis = erf_axis(y[i], vₗ[i], T.σ[i]) - erf_axis(y[i], vₕ[i], T.σ[i])
+
+        # clamp to ϵ is added to avoid log(0).
+        acc += log(max(prob_axis, T.ϵ))
+    end
+
+    return acc
+end
+
+erf_axis(y, v, σ) = erf((y - v) / (σ * sqrt(2)))
 
 function min_log_concave_over_polytope(::VertexEnumeration, f, X)
     vertices = vertices_list(X)
