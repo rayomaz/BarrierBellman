@@ -138,10 +138,13 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
     @assert P̅ᵤⱼ <= 1.0 + 1e-6
 
     # Clipping P̅ᵤⱼ @ 1
-    P̅ᵤⱼ = (P̅ᵤⱼ > 1) ? 1 : P̅ᵤⱼ
+    P̅ᵤⱼ = min(P̅ᵤⱼ, 1.0)
 
     P̲ⱼ = SparseVector(n + 1, [indices; [n + 1]], [P̲ⱼ; [P̲ᵤⱼ]])
     P̅ⱼ = SparseVector(n + 1, [indices; [n + 1]], [P̅ⱼ; [P̅ᵤⱼ]])
+
+    # Enforce consistency (this is useful particularly with BoxApproximation)
+    P̲ⱼ, P̅ⱼ = enforce_consistency(P̲ⱼ, P̅ⱼ)
 
     return P̲ⱼ, P̅ⱼ
 end
@@ -278,6 +281,14 @@ function max_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X
     JuMP.optimize!(model)
 
     return JuMP.objective_value(model)
+end
+
+function enforce_consistency(P̲, P̅)
+    # Enforce consistency
+    sum_lower = 1 - sum(P̲)
+    P̅ = min.(P̅, sum_lower .+ P̲)
+
+    return P̲, P̅
 end
 
 plot_posterior(system::AdditiveGaussianUncertainPWASystem; kwargs...) = plot_posterior(system, regions(system); kwargs...)
