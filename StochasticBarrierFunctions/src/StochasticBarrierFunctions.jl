@@ -1,6 +1,7 @@
 module StochasticBarrierFunctions
 
-using LinearAlgebra, StatsBase, Combinatorics
+using LinearAlgebra, SparseArrays
+using Distributions, Combinatorics
 
 using SpecialFunctions: erf
 # TODO: Make Mosek and Ipopt optional through extensions
@@ -36,7 +37,7 @@ export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper, upd
 
 include("probabilities.jl")
 export transition_probabilities, plot_posterior
-export TransitionProbabilityMethod, BoxApproximation, GradientDescent
+export TransitionProbabilityAlgorithm, BoxApproximation, GradientDescent
 
 include("barrier.jl")
 export StochasticBarrier, SOSBarrier, ConstantBarrier

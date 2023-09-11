@@ -5,15 +5,12 @@
 """
 
 # Sum of squares optimization function
-function synthesize_barrier(alg::SumOfSquaresAlgorithm, system::AdditiveGaussianUncertainPWASystem, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
+function synthesize_barrier(alg::SumOfSquaresAlgorithm, system, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
     model = SOSModel(alg.sdp_solver)
 
-    # State space
-    number_state_hypercubes = length(regions(system))
-    state_space = check_hypercube_state_space(system)
-
-    # Create probability decision variables eta
+    # Create decision variables eta and beta
     @variable(model, η >= alg.ϵ)
+    @variable(model, β ≥ alg.ϵ)
 
     # Create barrier candidate
     @polyvar x[1:dimensionality(system)]
@@ -22,29 +19,9 @@ function synthesize_barrier(alg::SumOfSquaresAlgorithm, system::AdditiveGaussian
     # Non-negative in ℝⁿ
     @variable(model, B, SOSPoly(barrier_monomials))
 
-    # Barrier constraints and β variable
-    @variable(model, β_parts_var[1:number_state_hypercubes] >= alg.ϵ)
-    @variable(model, β)
-    @constraint(model, β_parts_var .<= β)
-
-    # Unsafe set
-    sos_unsafe_constraint!(alg, model, B, x, state_space)
-
-    for (dyn_region, βⱼ) in zip(dynamics(system), β_parts_var)
-        X = region(dyn_region)
-        # Initial set
-        if !isdisjoint(initial_region, X)
-            sos_initial_constraint!(alg, model, B, x, η, X)
-        end
-
-        # Obstacle
-        if !isdisjoint(obstacle_region, X)
-            sos_unsafe_constraint!(alg, model, B, x, X)
-        end
-
-        # Expectation constraint
-        sos_expectation_constraint!(alg, model, system, B, x, dyn_region, βⱼ)
-    end
+    sos_initial_constraint!(alg, model, B, x, η, initial_region)
+    sos_obstacle_constraint!(alg, model, B, x, obstacle_region)
+    sos_system_specific_constraints!(alg, model, B, x, β, system)
 
     # Define optimization objective
     @objective(model, Min, η + β * time_horizon)
@@ -54,11 +31,11 @@ function synthesize_barrier(alg::SumOfSquaresAlgorithm, system::AdditiveGaussian
 
     # Barrier certificate
     B = value(B)
-    β_values = value.(β_parts_var)
+    β = value(β)
 
-    @info "Solution Gradient Descent" η=value(η) β=maximum(β_values) Pₛ=1 - (value(η) + maximum(β_values) * time_horizon)
+    @info "Solution Sum of Squares" η=value(η) β Pₛ=1 - (value(η) + β * time_horizon)
 
-    return SOSBarrier(B), β_values
+    return SOSBarrier(B), β
 end
 
 function check_hypercube_state_space(system)
@@ -71,6 +48,64 @@ function check_hypercube_state_space(system)
     return state_space
 end
 
+function sos_initial_constraint!(alg, model, B, x, η, regions::Vector{<:AbstractHyperrectangle})
+    """ Barrier condition: initial
+        * B(x) <= η
+    """
+    for region in regions
+        initial_domain = sos_hyperrectangle_lag(alg, model, x, region)
+        @constraint(model, -B + η - initial_domain >= 0)
+    end
+end
+sos_initial_constraint!(alg, model, B, x, η, region::AbstractHyperrectangle) = sos_initial_constraint!(alg, model, B, x, η, [region])
+sos_initial_constraint!(alg, model, B, x, η, region::UnionSet{T, <:AbstractHyperrectangle, <:AbstractHyperrectangle}) where {T} = sos_initial_constraint!(alg, model, B, x, η, [region.X, region.Y])
+sos_initial_constraint!(alg, model, B, x, η, region::UnionSetArray{T, <:AbstractHyperrectangle}) where {T} = sos_initial_constraint!(alg, model, B, x, η, region.array)
+
+function sos_obstacle_constraint!(alg, model, B, x, regions::Vector{<:AbstractHyperrectangle})
+    """ Barrier obstacle region conditions
+        * B(x) >= 1
+    """
+    for region in regions
+        obstacle_domain = sos_hyperrectangle_lag(alg, model, x, region)
+        @constraint(model, B - 1 - obstacle_domain >= 0)
+    end
+end
+sos_obstacle_constraint!(alg, model, B, x, region::AbstractHyperrectangle) = sos_obstacle_constraint!(alg, model, B, x, [region])
+sos_obstacle_constraint!(alg, model, B, x, region::EmptySet) = nothing
+sos_obstacle_constraint!(alg, model, B, x, region::UnionSet{T, <:AbstractHyperrectangle, <:AbstractHyperrectangle}) where {T} = sos_obstacle_constraint!(alg, model, B, x, [region.X, region.Y])
+sos_obstacle_constraint!(alg, model, B, x, region::UnionSetArray{T, <:AbstractHyperrectangle}) where {T} = sos_obstacle_constraint!(alg, model, B, x, region.array)
+
+
+function sos_system_specific_constraints!(alg, model, B, x, β, system::AdditiveGaussianUncertainPWASystem)
+    # Unsafe set
+    state_space = check_hypercube_state_space(system)
+    sos_unsafe_constraint!(alg, model, B, x, state_space)
+
+    # Expectation constraint
+    for dyn_region in dynamics(system)
+        sos_expectation_constraint!(alg, model, system, B, x, dyn_region, β)
+    end
+end
+
+function sos_system_specific_constraints!(alg, model, B, x, β, system::AdditiveGaussianLinearSystem)
+    # Unsafe set
+    sos_unsafe_constraint!(alg, model, B, x, system.state_space)
+
+    # Expectation constraint
+    @polyvar z[eachindex(x)]
+
+    A, b = dynamics(system)
+    fx = subs(B, x => A * x + b + z)
+
+    σ_noise = noise_distribution(system)
+    exp = expectation_noise(fx, σ_noise, z)
+
+    exp_domain = sos_hyperrectangle_lag(alg, model, x, system.state_space)
+
+    # Add constraint
+    @constraint(model, -exp + B + β - exp_domain >= 0)
+end
+
 function sos_unsafe_constraint!(alg, model, B, x, state_space)
     """ Barrier unsafe region conditions
         * B(x) >= 1
@@ -78,54 +113,30 @@ function sos_unsafe_constraint!(alg, model, B, x, state_space)
 
     product_set_lower = low(state_space) - x
     product_set_upper = x - high(state_space)
+    monos = monomials(x, 0:floor(Int64, alg.lagrange_degree / 2))
 
-    for (xi, dim_set_lower, dim_set_upper) in zip(x, product_set_lower, product_set_upper)
-
+    for (dim_set_lower, dim_set_upper) in zip(product_set_lower, product_set_upper)
         # Lagragian multiplier
-        monos = monomials(xi, 0:alg.lagrange_degree)
         lag_poly_lower = @variable(model, variable_type=SOSPoly(monos))
         domain_lower = lag_poly_lower * dim_set_lower
 
         lag_poly_upper = @variable(model, variable_type=SOSPoly(monos))
         domain_upper = lag_poly_upper * dim_set_upper
 
-        # Add constraints to model
         @constraint(model, B - 1 - domain_lower >= 0)
         @constraint(model, B - 1 - domain_upper >= 0)
-
     end
-end
-
-function sos_initial_constraint!(alg, model, B, x, η, region)
-    """ Barrier condition: initial
-        * B(x) <= η
-    """
-    initial_domain = sos_hyperrectangle_lag(alg, model, x, region)
-
-    # Add constraint to model
-    @constraint(model, -B + η - initial_domain >= 0)
-end
-
-function sos_obstacle_constraint!(alg, model, B, x, region)
-    """ Barrier obstacle region conditions
-        * B(x) >= 1
-    """
-    obstacle_domain = sos_hyperrectangle_lag(alg, model, x, region)
-
-    # Add constraint to model
-    @constraint(model, B - η - obstacle_domain >= 0)
 end
 
 function sos_hyperrectangle_lag(alg, model, x, region)
     lower_state = low(region)
     upper_state = high(region)
     product_set = (upper_state - x) .* (x - lower_state)
+    monos = monomials(x, 0:floor(Int64, alg.lagrange_degree / 2))
 
-    domain = sum(zip(x, product_set)) do (xi, dim_set)
+    domain = sum(product_set) do dim_set
         # Lagragian multiplier
-        monos = monomials(xi, 0:alg.lagrange_degree)
         lag_poly = @variable(model, variable_type=SOSPoly(monos))
-
         return lag_poly * dim_set
     end
 
@@ -149,11 +160,10 @@ function sos_expectation_constraint!(alg, model, system, B, x, dyn_region, β)
     dyn_upper = dyn[2][1] * x + dyn[2][2]
     product_set = (dyn_upper - y) .* (y - dyn_lower)
 
-    dyn_domain = sum(zip(x, product_set)) do (xi, dim_set)
+    monos_y = monomials(y, 0:floor(Int64, alg.lagrange_degree / 2))
+    dyn_domain = sum(product_set) do dim_set
         # Lagragian multiplier
-        monos = monomials(xi, 0:alg.lagrange_degree)
-        lag_poly = @variable(model, variable_type=SOSPoly(monos))
-
+        lag_poly = @variable(model, variable_type=SOSPoly(monos_y))
         return lag_poly * dim_set
     end
 

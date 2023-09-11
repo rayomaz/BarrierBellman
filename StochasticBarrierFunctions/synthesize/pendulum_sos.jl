@@ -7,7 +7,7 @@
 # Import packages
 using Revise, BenchmarkTools
 using StochasticBarrierFunctions, LazySets
-using YAXArrays, NetCDF
+using YAXArrays, NetCDF, MAT
 
 # System
 system_flag = "pendulum"
@@ -17,8 +17,12 @@ number_layers = 1
 
 filename = "../data/nndm/$system_flag/$(number_layers)_layer/dynamics_$number_hypercubes.nc"
 dataset = open_dataset(joinpath(@__DIR__, filename))
-
 Xs = load_dynamics(dataset)
+
+# filename = "models/$system_flag/partition_data_$number_hypercubes.mat"
+# file = matopen(filename)
+# Xs = load_dynamics(file)
+# close(file)
 
 system = AdditiveGaussianUncertainPWASystem(Xs, σ)
 
