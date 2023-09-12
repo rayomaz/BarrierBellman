@@ -238,24 +238,8 @@ class MinimizePosteriorRect(nn.Sequential):
 
 class BoundMinimizePosteriorRect(BoundSequential):
     def alpha_loss(self, linear_bounds, bound_lower, bound_upper):
-        n = linear_bounds.lower[0].size(-1)
-        dtype = linear_bounds.lower[0].dtype
-        device = linear_bounds.lower[0].device
-        ell = torch.cat([torch.eye(n, dtype=dtype, device=device), -torch.eye(n, dtype=dtype, device=device)], dim=1)
-
-        c, r = linear_bounds.region.center.unsqueeze(-2), linear_bounds.region.width.unsqueeze(-2) / 2
-
-        lower_Aell = torch.matmul(linear_bounds.lower[0].transpose(-1, -2), ell)
-        phi_lower_Ax_b = torch.matmul(c, lower_Aell) + torch.matmul(r, lower_Aell.abs()) + torch.matmul(linear_bounds.lower[1].unsqueeze(-2), ell)
-
-        upper_Aell = torch.matmul(linear_bounds.upper[0].transpose(-1, -2), ell)
-        phi_upper_Ax_b = torch.matmul(c, upper_Aell) + torch.matmul(r, upper_Aell.abs()) + torch.matmul(linear_bounds.upper[1].unsqueeze(-2), ell)
-
-        phi_max = torch.max(phi_lower_Ax_b, phi_upper_Ax_b)[..., 0, :]
-        left = -phi_max[..., n:]
-        right = phi_max[..., :n]
-
-        vol = (right - left).prod(dim=-1)
+        interval_bounds = linear_bounds.concretize()
+        vol = (interval_bounds.upper - interval_bounds.lower).prod(dim=-1)
 
         return vol.sum()
 
