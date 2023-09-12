@@ -41,12 +41,12 @@ class Harrier(nn.Sequential, AdditiveGaussianDynamics):
             Parallel(
                 nn.Identity(),  # (x, y, theta, dx, dy, dtheta)
                 nn.Sequential(
-                    Select([2]),
+                    Select([2]),  # theta
                     Parallel(
                         Sin(),
                         Cos()
-                    )
-                ),  # (sin theta, cos theta)
+                    )  # (sin theta, cos theta)
+                ),
                 HarrierController()  # (u1, u2)
             ),
             Cat(
@@ -62,7 +62,7 @@ class Harrier(nn.Sequential, AdditiveGaussianDynamics):
                     [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]
                 ]) +
                 Ts * torch.as_tensor([
                     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -70,9 +70,9 @@ class Harrier(nn.Sequential, AdditiveGaussianDynamics):
                     [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, -c/m, 0, 0, -g, 0, 0, 0, 0, 1/m, -1/m, 0],
                     [0, 0, 0, 0, -c/m, 0, 0, g, 0, 0, 1/m, 0, 0, 1/m],
-                    [0, 0, 0, 0, 0, 0, 0, 0, r/J, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, r/J, 0, 0, 0, 0, 0]
                 ]),
-                torch.as_tensor([0, 0, 0, 0, -g, 0])
+                Ts * torch.as_tensor([0, 0, 0, 0, -g, 0])
             )
         )
 
