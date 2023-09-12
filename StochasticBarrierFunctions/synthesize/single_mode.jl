@@ -32,11 +32,6 @@ obstacle2 = Hyperrectangle([-0.55, -0.15], obstacle_range*ones(dim))
 obstacle_region = UnionSet(obstacle1, obstacle2)
 # obstacle_region = EmptySet(dim)
 
-obstacle1 = Hyperrectangle([-0.55, 0.30], obstacle_range*ones(dim))
-obstacle2 = Hyperrectangle([-0.55, -0.15], obstacle_range*ones(dim))
-obstacle_region = UnionSet(obstacle1, obstacle2)
-# obstacle_region = EmptySet(dim)
-
 # Set horizon
 N = 10
 
