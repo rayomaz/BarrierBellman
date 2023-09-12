@@ -40,11 +40,14 @@ function transition_probabilities(system, Xs; alg=TransitionProbabilityAlgorithm
     P̅ = Vector{SparseVector{Float64, Int64}}(undef, number_hypercubes)
 
     # Generate
+    bar = Progress(number_hypercubes)
     Threads.@threads for jj in eachindex(Xs)
         P̲ⱼ, P̅ⱼ = transition_prob_from_region(system, (jj, Xs[jj]), Xs, safe_set, alg; nσ_search=nσ_search)
 
         P̲[jj] = P̲ⱼ
         P̅[jj] = P̅ⱼ
+        
+        next!(bar)
     end
 
     # Combine into a single matrix
