@@ -24,34 +24,42 @@ r = 0.25
 g = 9.81
 c = 0.05
 
+A = [
+    0 0 0 1 0 0;
+    0 0 0 0 1 0;
+    0 0 0 0 0 1;
+    0 0 -g -c/m 0 0;
+    0 0 0 0 -c/m 0;
+    0 0 0 0 0 0
+]
+B = [0 0; 0 0; 0 0; 1/m 0; 0 1/m; r/J 0]
+C = I
+D = 0
+
+sys = ss(A, B, C, D)
+
 Ts = 0.01
-
-A = I + Ts .* [0 0 0 1 0 0; 0 0 0 0 1 0; 0 0 0 0 0 1; 0 0 -g -c/m 0 0; 0 0 0 0 -c/m 0; 0 0 0 0 0 0]
-B = Ts .* [0 0; 0 0; 0 0; 1/m 0; 0 1/m; r/J 0]
-C = [1 0 0 0 0 0; 0 1 0 0 0 0; 0 0 1 0 0 0; 0 0 0 0 0 0; 0 0 0 0 0 0]
-D = [0 0; 0 0; 0 0; 1 0; 0 1]
-
-sys = ss(A, B, C, D, Ts)
+dsys = c2d(sys, Ts)
 
 function solve_lqr(Q, R)
-    F = lqr(Discrete, A, B, Q, R)
+    F = lqr(dsys, Q, R)
     u(x, t) = -F * x
     
-    Te = 7
-    t = 0:Ts:Te
+    Te = 20
     x0 = [1; -1; 20 * 2 * π / 360; 0; 0; 0]
-    y = lsim(sys, u, t, x0)[1]
+    x0 = [10.0; 10.0; deg2rad(12); 3.0; 3.0; 1.0]
+    res = lsim(dsys, u, Te; x0=x0)
     
-    p1 = plot(t, y[4:5, :]', title="Control")
-    p2 = plot(t, y[1:3, :]', title="First 3 States")
+    p1 = plot(res.t, res.u', title="Control")
+    p2 = plot(res.t, res.y[[3, 6], :]', title="States")
     p = plot(p1, p2, layout=(2, 1))
     display(p)
 
     return F
 end
 
-# Design LQR controller with Q = diag(10, 100, 1, 1, 1, 1), R = 0.1I
-Q = Diagonal([10, 100, 1, 1, 1, 1])
-ρ = 0.1
+# Design LQR controller with Q = diag(1e-2, 1e-2, 100, 1e-4, 1e-4, 1), R = 1I
+Q = Diagonal([1e-2, 1e-2, 100, 1e-4, 1e-4, 1])
+ρ = 1.0
 R = ρ * I(2)
 display(solve_lqr(Q, R))
