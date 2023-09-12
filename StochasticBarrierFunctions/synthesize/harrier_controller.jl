@@ -38,7 +38,7 @@ D = 0
 
 sys = ss(A, B, C, D)
 
-Ts = 0.01
+Ts = 0.1
 dsys = c2d(sys, Ts)
 
 function solve_lqr(Q, R)

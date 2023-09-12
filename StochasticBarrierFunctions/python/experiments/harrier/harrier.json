@@ -9,7 +9,7 @@
     "r": 0.25,
     "g": 9.81,
     "c": 0.05,
-    "Ts": 0.01
+    "Ts": 0.1
   },
   "partitioning": {
     "method": "grid",
