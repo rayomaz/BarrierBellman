@@ -31,7 +31,10 @@ function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:Reg
     η = maximum(ws.B_init)
 
     sortperm!(q, ws.B, rev=true)
-    ivi_prob!.(p, regions, tuple(q))
+        
+    Threads.@threads for i in eachindex(p)
+        @inbounds ivi_prob!(p[i], regions[i], q)
+    end
 
     βⱼ = beta(ws, p)
 
@@ -96,7 +99,10 @@ function gradient_descent_barrier_iteration!(ws, state, regions, prev_q, q, p, l
 
     if q != prev_q
         copyto!(prev_q, q)
-        ivi_prob!.(p, regions, tuple(q))
+        
+        Threads.@threads for i in eachindex(p)
+            @inbounds ivi_prob!(p[i], regions[i], q)
+        end
     end
 
     gradient!(ws, p)
