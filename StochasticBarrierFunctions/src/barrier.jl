@@ -57,7 +57,10 @@ Base.@kwdef struct IterativeUpperBoundAlgorithm <: ConstantBarrierAlgorithm
 end
 
 Base.@kwdef struct GradientDescentAlgorithm <: ConstantBarrierAlgorithm
-    num_iterations = 10000
+    num_iterations = 1000
+    initial_lr = 1e-2
+    decay = 0.995
+    momentum = 0.99
 end
 
 Base.@kwdef struct SumOfSquaresAlgorithm <: SOSBarrierAlgorithm

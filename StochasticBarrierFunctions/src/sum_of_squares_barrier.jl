@@ -30,7 +30,7 @@ function synthesize_barrier(alg::SumOfSquaresAlgorithm, system, initial_region::
     optimize!(model)
 
     # Barrier certificate
-    B = value(B)
+    B = MP.polynomial(value(B))
     β = value(β)
 
     @info "Solution Sum of Squares" η=value(η) β Pₛ=1 - (value(η) + β * time_horizon)
