@@ -14,6 +14,7 @@ from bounds.bounds import MinimizeGap, MinimizePosteriorRect
 from bounds.certifier import GaussianCertifier, check_gap
 from linear.linear import LinearExperiment
 from nndm.nndm import NNDMExperiment
+from unicycle.unicycle import UnicycleExperiment
 
 from log import configure_logging
 from utils import load_config
@@ -101,6 +102,8 @@ def experiment_builder(args, config):
         return LinearExperiment(args, config)
     if config['system'] == 'nndm':
         return NNDMExperiment(args, config)
+    if config['system'] == 'unicycle':
+        return UnicycleExperiment(args, config)
     else:
         raise ValueError(f'System "{config["system"]}" not defined')
 
