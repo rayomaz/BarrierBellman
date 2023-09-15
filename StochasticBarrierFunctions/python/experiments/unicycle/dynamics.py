@@ -53,7 +53,7 @@ class Unicycle(nn.Sequential, AdditiveGaussianDynamics):
                 Div(
                     Select([10, 13]),
                     Select([3, 3])
-                )  # (u1 / v * sin theta, u2 / v * cos theta)
+                )  # (u1 * sin theta / v, u2 * cos theta / v)
             ),
             FixedLinear(
                 torch.as_tensor([
