@@ -77,7 +77,9 @@ class Unicycle(nn.Sequential, AdditiveGaussianDynamics):
 
     @property
     def v(self):
-        return torch.tensor([0.0]), torch.as_tensor(self.sigma)
+        sigma = torch.as_tensor(self.sigma)
+        mu = torch.zeros_like(sigma)
+        return mu, sigma
 
     @property
     def safe_set(self):
