@@ -76,6 +76,8 @@ function GradientDescentWorkspace(P̅ᵤ::AbstractVector, initial_indices::Abstr
     return ws
 end
 
+num_regions(ws::GradientDescentWorkspace) = length(ws.B_regions)
+
 function project!(ws::GradientDescentWorkspace)
     # Projection onto [0, 1]^n x {1}
     clamp!(ws.B, 0, 1)
@@ -91,12 +93,23 @@ function beta!(ws::GradientDescentWorkspace, p)
     return ws.β
 end
 
-function gradient!(ws::GradientDescentWorkspace, p)
-    βⱼ = beta!(ws, p)
-    j = argmax(βⱼ)
+function gradient!(ws::GradientDescentWorkspace, p; t=200.0)
+    # Gradient for the following loss: ||βⱼ||ₜ
+    # This is an Lp-norm, which approaches a suprenum norm as t -> Inf
 
-    ws.dB .= p[j]
-    ws.dB[j] -= 1
+    # It turns out it is equivalent to a tempered LogSumExp loss, 1/t * log(sum(exp.(t .* x)))
+    # where we assume xⱼ = ln(βⱼ)
+
+    βⱼ = beta!(ws, p)
+
+    z = norm(βⱼ, t)
+    βⱼ ./= z
+    βⱼ .^= t - 1
+
+    @view(ws.dB[1:num_regions(ws)]) .= -βⱼ
+    for j in eachindex(βⱼ)
+        ws.dB .+= βⱼ[j] * p[j]
+    end
 
     return ws.dB
 end
