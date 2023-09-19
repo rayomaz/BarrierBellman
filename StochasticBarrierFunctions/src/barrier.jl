@@ -58,7 +58,7 @@ end
 
 Base.@kwdef struct GradientDescentAlgorithm <: ConstantBarrierAlgorithm
     num_iterations = 1000
-    initial_lr = 1e-2
+    initial_lr = 1e-1
     decay = 0.995
     momentum = 0.99
 end

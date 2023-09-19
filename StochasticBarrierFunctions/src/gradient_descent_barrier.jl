@@ -11,7 +11,8 @@ function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:Reg
     initial_indices = findall(X -> !isdisjoint(initial_region, region(X)), regions)
     unsafe_indices = findall(X -> !isdisjoint(obstacle_region, region(X)), regions)
 
-    ws = GradientDescentWorkspace(n, initial_indices, unsafe_indices)
+    P̅ᵤ = map(X -> prob_unsafe_upper(X), regions)
+    ws = GradientDescentWorkspace(P̅ᵤ, initial_indices, unsafe_indices)
     project!(ws)
 
     decay = Exp(λ = alg.initial_lr, γ = alg.decay)
@@ -36,7 +37,7 @@ function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:Reg
         @inbounds ivi_prob!(p[i], regions[i], q)
     end
 
-    βⱼ = beta(ws, p)
+    βⱼ = beta!(ws, p)
 
     @info "Solution Gradient Descent" η β=maximum(βⱼ) Pₛ=1 - (η + maximum(βⱼ) * time_horizon) iterations=alg.num_iterations
 
@@ -52,6 +53,7 @@ mutable struct GradientDescentWorkspace{T, BT<:AbstractVector{T}, VT<:AbstractVe
     B_init::VT
     B_unsafe::VT
     B_regions::RT
+    dB_regions::RT
 end
 
 function GradientDescentWorkspace(n::Integer, initial_indices::AbstractVector, unsafe_indices::AbstractVector)
@@ -65,9 +67,21 @@ function GradientDescentWorkspace(n::Integer, initial_indices::AbstractVector, u
     B_init = @view(B[initial_indices])
     B_unsafe = @view(B[unsafe_indices])
     B_regions = @view(B[1:end - 1])
+    dB_regions = @view(dB[1:end - 1])
 
-    return GradientDescentWorkspace(B, dB, β, B_init, B_unsafe, B_regions)
+    return GradientDescentWorkspace(B, dB, β, B_init, B_unsafe, B_regions, dB_regions)
 end
+
+function GradientDescentWorkspace(P̅ᵤ::AbstractVector, initial_indices::AbstractVector, unsafe_indices::AbstractVector)
+    n = length(P̅ᵤ)
+
+    ws = GradientDescentWorkspace(n, initial_indices, unsafe_indices)
+    ws.B_regions .= P̅ᵤ
+
+    return ws
+end
+
+num_regions(ws::GradientDescentWorkspace) = length(ws.B_regions)
 
 function project!(ws::GradientDescentWorkspace)
     # Projection onto [0, 1]^n x {1}
@@ -76,20 +90,34 @@ function project!(ws::GradientDescentWorkspace)
     ws.B_unsafe .= 1
 end
 
-function beta(ws::GradientDescentWorkspace{T}, p) where {T}
+function beta!(ws::GradientDescentWorkspace, p)
     ws.β .= dot.(tuple(ws.B), p)
     ws.β .-= ws.B_regions
-    clamp!(ws.β, T(0), T(Inf))
+    clamp!(ws.β, 0, Inf)
 
     return ws.β
 end
 
-function gradient!(ws::GradientDescentWorkspace, p)
-    βⱼ = beta(ws, p)
-    j = argmax(βⱼ)
+function gradient!(ws::GradientDescentWorkspace, p; t=200.0)
+    # Gradient for the following loss: ||βⱼ||ₜ
+    # This is an Lp-norm, which approaches a suprenum norm as t -> Inf
 
-    ws.dB .= p[j]
-    ws.dB[j] -= 1
+    # It turns out it is equivalent to a tempered LogSumExp loss, 1/t * log(sum(exp.(t .* x)))
+    # where we assume xⱼ = ln(βⱼ)
+
+    βⱼ = beta!(ws, p)
+
+    z = norm(βⱼ, t)
+    βⱼ ./= z
+    βⱼ .^= t - 1
+    
+    βⱼ .*= -1
+
+    ws.dB[end] = 0
+    ws.dB_regions .= βⱼ
+    for j in eachindex(βⱼ)
+        ws.dB .-= βⱼ[j] .* p[j]
+    end
 
     return ws.dB
 end
