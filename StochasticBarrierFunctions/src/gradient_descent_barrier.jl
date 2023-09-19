@@ -50,6 +50,7 @@ mutable struct GradientDescentWorkspace{T, BT<:AbstractVector{T}, VT<:AbstractVe
     B_init::VT
     B_unsafe::VT
     B_regions::RT
+    dB_regions::RT
 end
 
 function GradientDescentWorkspace(n::Integer, initial_indices::AbstractVector, unsafe_indices::AbstractVector)
@@ -63,8 +64,9 @@ function GradientDescentWorkspace(n::Integer, initial_indices::AbstractVector, u
     B_init = @view(B[initial_indices])
     B_unsafe = @view(B[unsafe_indices])
     B_regions = @view(B[1:end - 1])
+    dB_regions = @view(dB[1:end - 1])
 
-    return GradientDescentWorkspace(B, dB, β, B_init, B_unsafe, B_regions)
+    return GradientDescentWorkspace(B, dB, β, B_init, B_unsafe, B_regions, dB_regions)
 end
 
 function GradientDescentWorkspace(P̅ᵤ::AbstractVector, initial_indices::AbstractVector, unsafe_indices::AbstractVector)
@@ -105,10 +107,13 @@ function gradient!(ws::GradientDescentWorkspace, p; t=200.0)
     z = norm(βⱼ, t)
     βⱼ ./= z
     βⱼ .^= t - 1
+    
+    βⱼ .*= -1
 
-    @view(ws.dB[1:num_regions(ws)]) .= -βⱼ
+    ws.dB[end] = 0
+    ws.dB_regions .= βⱼ
     for j in eachindex(βⱼ)
-        ws.dB .+= βⱼ[j] * p[j]
+        ws.dB .-= βⱼ[j] .* p[j]
     end
 
     return ws.dB
