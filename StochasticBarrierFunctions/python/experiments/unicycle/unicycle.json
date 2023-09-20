@@ -1,0 +1,17 @@
+{
+    "system": "unicycle",
+    "dynamics": {
+      "dim": 4,
+      "sigma": [0.1, 0.1, 0.01, 0.1],
+      "safe_set": [[-1.0, -0.5, -0.2617993877991494, 1e-2], [2.0, 0.5, 0.5235987755982988, 0.30]],
+      "Ts": 0.1
+    },
+    "partitioning": {
+      "method": "grid",
+      "num_slices": [8, 8, 8, 8]
+    },
+    "save_path": {
+      "transition_prob": "../../data/unicycle/unicycle_transition_prob_{regions}_sigma_{noise}.nc",
+      "nominal_dynamics": "../../data/unicycle/dynamics_{regions}.nc"
+    }
+  }
