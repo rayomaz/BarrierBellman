@@ -44,8 +44,8 @@ function solve_lqr(Q, R)
     return F
 end
 
-# Design LQR controller with Q = diag(1e-1, 1e-1, 100, 1e-4), R = 1I
-Q = Diagonal([1e-1, 1e-1, 100, 1e-4])
+# Design LQR controller with Q = diag(1e-6, 1e-4, 1e-6, 1e-4), R = 1I
+Q = Diagonal([1e-6, 1e-4, 1e-6, 1e-4])
 ρ = 1.0
 R = ρ * I(2)
 display(solve_lqr(Q, R))
