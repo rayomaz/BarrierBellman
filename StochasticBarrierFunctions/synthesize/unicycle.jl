@@ -11,8 +11,8 @@ using YAXArrays, NetCDF
 
 # System
 system_flag = "unicycle"
-number_hypercubes = 4096
-σ = [0.1, 0.1, 0.01, 0.1]
+number_hypercubes = 12000
+σ = [0.1, 0.1, 0.05, 0.1]
 
 filename = "models/$system_flag/probability_data_$(number_hypercubes)_sigma_$σ.nc"
 dataset = open_dataset(joinpath(@__DIR__, filename))
