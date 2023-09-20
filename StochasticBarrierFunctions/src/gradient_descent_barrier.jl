@@ -6,6 +6,28 @@
 
 # Optimization function
 function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
+    ws, p, q = setup_gd(regions, initial_region, obstacle_region)
+
+    decay = Exp(λ = alg.initial_lr, γ = alg.decay)
+    optim = Optimisers.Nesterov(alg.initial_lr, alg.momentum)
+
+    state = Optimisers.setup(optim, ws.B)
+
+        state = gradient_descent_barrier_iteration!(ws, state, regions, p, q, decay(k))
+    end
+
+    η = maximum(ws.B_init)
+
+    ivi_value_assignment!(ws, regions, p, q)
+    βⱼ = beta!(ws, p)
+
+    @info "Solution Gradient Descent" η β=maximum(βⱼ) Pₛ=1 - (η + maximum(βⱼ) * time_horizon) iterations=alg.num_iterations
+
+    Xs = map(region, regions)
+    return ConstantBarrier(Xs, ws.B_regions), βⱼ
+end
+
+function setup_gd(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet)
     n = length(regions)
 
     initial_indices = findall(X -> !isdisjoint(initial_region, region(X)), regions)
@@ -15,34 +37,10 @@ function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:Reg
     ws = GradientDescentWorkspace(P̅ᵤ, initial_indices, unsafe_indices)
     project!(ws)
 
-    decay = Exp(λ = alg.initial_lr, γ = alg.decay)
-    optim = Optimisers.Nesterov(alg.initial_lr, alg.momentum)
-
-    state = Optimisers.setup(optim, ws.B)
-
     p = [zero(region.gap) for region in regions]
     q = collect(UnitRange{Int64}(1, n + 1))
 
-    prev_q = copy(q)
-
-    for k in 0:alg.num_iterations
-        state = gradient_descent_barrier_iteration!(ws, state, regions, prev_q, q, p, decay(k))
-    end
-
-    η = maximum(ws.B_init)
-
-    sortperm!(q, ws.B, rev=true)
-        
-    Threads.@threads for i in eachindex(p)
-        @inbounds ivi_prob!(p[i], regions[i], q)
-    end
-
-    βⱼ = beta!(ws, p)
-
-    @info "Solution Gradient Descent" η β=maximum(βⱼ) Pₛ=1 - (η + maximum(βⱼ) * time_horizon) iterations=alg.num_iterations
-
-    Xs = map(region, regions)
-    return ConstantBarrier(Xs, ws.B_regions), βⱼ
+    return ws, p, q
 end
 
 mutable struct GradientDescentWorkspace{T, BT<:AbstractVector{T}, VT<:AbstractVector{T}, RT<:AbstractVector{T}}
@@ -98,7 +96,7 @@ function beta!(ws::GradientDescentWorkspace, p)
     return ws.β
 end
 
-function gradient!(ws::GradientDescentWorkspace, p; t=200.0)
+function gradient!(ws::GradientDescentWorkspace, p; t=5000.0)
     # Gradient for the following loss: ||βⱼ||ₜ
     # This is an Lp-norm, which approaches a suprenum norm as t -> Inf
 
@@ -122,17 +120,8 @@ function gradient!(ws::GradientDescentWorkspace, p; t=200.0)
     return ws.dB
 end
 
-function gradient_descent_barrier_iteration!(ws, state, regions, prev_q, q, p, lr)
-    sortperm!(q, ws.B, rev=true)
-
-    if q != prev_q
-        copyto!(prev_q, q)
-        
-        Threads.@threads for i in eachindex(p)
-            @inbounds ivi_prob!(p[i], regions[i], q)
-        end
-    end
-
+function gradient_descent_barrier_iteration!(ws, state, regions, p, q, lr)
+    ivi_value_assignment!(ws, regions, p, q)
     gradient!(ws, p)
 
     Optimisers.adjust!(state, lr)
@@ -141,4 +130,12 @@ function gradient_descent_barrier_iteration!(ws, state, regions, prev_q, q, p, l
     project!(ws)
 
     return state
+end
+
+function ivi_value_assignment!(ws, regions, p, q)
+    sortperm!(q, ws.B, rev=true)
+        
+    Threads.@threads for i in eachindex(p)
+        @inbounds ivi_prob!(p[i], regions[i], q)
+    end
 end
