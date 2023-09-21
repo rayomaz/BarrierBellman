@@ -52,6 +52,7 @@ Q = Diagonal([1e-2, 1e-2, 100, 1e-4, 1e-4, 1])
 R = ρ * I(2)
 
 F = lqr(dsys, Q, R)
+display(F)
 
 # Construct closed-loop system
 u = [u₁, u₂]
