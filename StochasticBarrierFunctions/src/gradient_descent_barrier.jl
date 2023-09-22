@@ -158,6 +158,9 @@ function gradient!(ws::GradientDescentWorkspace, p::VVT; t=5000.0) where {VVT<:A
     # It turns out it is equivalent to a tempered LogSumExp loss, 1/t * log(sum(exp.(t .* x)))
     # where we assume xⱼ = ln(βⱼ)
 
+    # Because we do exponentiation with large values, we use logspace arithmetic
+    # Also, don't look - it's ugly
+
     βⱼ = beta!(ws, p)
 
     logz = log(norm(βⱼ, t))
@@ -183,7 +186,7 @@ function logspace_add_prod!(dB, β, p::VT) where {VT<:AbstractSparseVector}
     values = nonzeros(p)
 
     for (i, v) in zip(ids, values)
-        dB[i] += exp(β + log(v))
+        dB[i] += exp(β + log(max(v, 1e-16)))
     end
 end
 
