@@ -160,31 +160,30 @@ function gradient!(ws::GradientDescentWorkspace, p::VVT; t=5000.0) where {VVT<:A
 
     βⱼ = beta!(ws, p)
 
-    z = norm(βⱼ, t)
-    βⱼ ./= z
-    βⱼ .^= t - 1
-    
-    βⱼ .*= -1
+    logz = log(norm(βⱼ, t))
+    βⱼ .= log.(βⱼ)
+    βⱼ .-= logz
+    βⱼ .*= t - 1
 
     ws.dB[end] = 0
-    ws.dB_regions .= βⱼ
+    ws.dB_regions .= (-).(exp.(βⱼ))
     for j in eachindex(βⱼ)
-        sub_prod!(ws.dB, βⱼ[j], p[j])
+        logspace_add_prod!(ws.dB, βⱼ[j], p[j])
     end
 
     return ws.dB
 end
 
-function sub_prod!(dB, β, p::VT) where {VT<:AbstractVector}
-    dB .-= β .* p
+function logspace_add_prod!(dB, β, p::VT) where {VT<:AbstractVector}
+    dB .+= exp.(β .+ log.(p))
 end
 
-function sub_prod!(dB, β, p::VT) where {VT<:AbstractSparseVector}
+function logspace_add_prod!(dB, β, p::VT) where {VT<:AbstractSparseVector}
     ids = SparseArrays.nonzeroinds(p)
     values = nonzeros(p)
 
     for (i, v) in zip(ids, values)
-        dB[i] -= β * v
+        dB[i] += exp(β + log(v))
     end
 end
 
