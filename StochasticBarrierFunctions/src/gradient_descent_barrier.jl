@@ -194,6 +194,13 @@ function gradient_descent_barrier_iteration!(ws, state, regions, p, q, lr)
     ivi_value_assignment!(ws, regions, p, q)
     gradient!(ws, p)
 
+    # Grad norm clipping
+    # This allows us to take bigger step sizes without worrying about overstepping
+    norm_grad = norm(ws.dB)
+    if norm_grad > 0.05
+        rmul!(ws.dB, 0.05 / norm_grad)
+    end
+
     Optimisers.adjust!(state, lr)
     state, ws.B = Optimisers.update!(state, ws.B, ws.dB)
 
