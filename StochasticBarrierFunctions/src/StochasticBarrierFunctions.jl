@@ -1,6 +1,6 @@
 module StochasticBarrierFunctions
 
-using LinearAlgebra, SparseArrays
+using LinearAlgebra, SparseArrays, StaticArrays
 using Distributions, Combinatorics
 using ProgressMeter
 
