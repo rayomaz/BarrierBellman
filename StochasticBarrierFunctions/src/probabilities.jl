@@ -120,15 +120,12 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
         # Obtain min and max of T(qᵢ | x) over Y
         P̲ᵢⱼ, P̅ᵢⱼ = transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
         
-        P̲ⱼ[i] = P̲ᵢⱼ
-        P̅ⱼ[i] = P̅ᵢⱼ
+        # Prune regions with P(f(x) ∈ qᵢ | x ∈ qⱼ) < sparisty_ϵ
+        if P̅ᵢⱼ >= alg.sparisty_ϵ
+            P̲ⱼ[i] = P̲ᵢⱼ
+            P̅ⱼ[i] = P̅ᵢⱼ
+        end
     end
-
-    # Prune regions with P(f(x) ∈ qᵢ | x ∈ qⱼ) < sparisty_ϵ
-    keep_indices = findall(p -> p >= alg.sparisty_ϵ, P̅ⱼ)
-    zero_indices = setdiff(SparseArrays.nonzeroinds(P̅ⱼ), keep_indices)
-    P̲ⱼ[zero_indices] .= 0.0
-    P̅ⱼ[zero_indices] .= 0.0
 
     # Compute P(f(x) ∈ qᵤ | x ∈ qⱼ) including sparsity pruning
     P̲ₛⱼ, P̅ₛⱼ = transition_prob_to_region(system, VY, HY, box_Y, safe_set, alg)
@@ -165,7 +162,7 @@ function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
     prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, kernel, VY)
 
     # Obtain max of T(qᵢ | x) over Y
-    prob_transition_upper = exp(max_concave_over_polytope(alg.upper_bound_method, log_kernel, v, HY, box_Y))
+    prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, HY, box_Y))
 
     return prob_transition_lower, prob_transition_upper
 end
@@ -179,7 +176,7 @@ function (T::GaussianTransitionKernel)(y)
     vₗ, vₕ = low(T.X), high(T.X)
 
     acc = 1 / 2^m
-    @inbounds for i in 1:m
+    @turbo for i in 1:m
         @inbounds acc *= erf_axis(y[i], vₗ[i], T.σ[i]) - erf_axis(y[i], vₕ[i], T.σ[i])
     end
 
@@ -196,7 +193,7 @@ function (T::GaussianLogTransitionKernel)(y)
     vₗ, vₕ = low(T.X), high(T.X)
 
     acc = log(1) - m * log(2)
-    @inbounds for i in 1:m
+    @turbo for i in 1:m
         @inbounds prob_axis = erf_axis(y[i], vₗ[i], T.σ[i]) - erf_axis(y[i], vₕ[i], T.σ[i])
 
         # clamp to ϵ is added to avoid log(0).
@@ -214,54 +211,21 @@ function min_log_concave_over_polytope(::VertexEnumeration, f, X)
     return minimum(f, vertices)
 end
 
-function max_log_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
+function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
     if global_max in X
         return f(global_max)
     end
 
-    l, h = low(box_X), high(box_X)
-    x_max = @. min(h, max(global_max, l))
-
+    x_max = project_onto_hyperrect(box_X, global_max)
     return f(x_max)
 end
 
-function max_log_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X)
-    if global_max in X
-        return f(global_max)
-    end
-
-    m = LazySets.dim(X)
-    fsplat(y...) = f(y)
-
-    model = Model(alg.non_linear_solver)
-    set_silent(model)
-    register(model, :fsplat, m, fsplat; autodiff = true)
-
-    @variable(model, x[1:m])
-
-    H, h = tosimplehrep(X)
-    @constraint(model, H * x <= h)
-
-    @NLobjective(model, Max, fsplat(x...))
-
-    # Optimize for maximum
-    JuMP.optimize!(model)
-
-    return JuMP.objective_value(model)
+function project_onto_hyperrect(X, p)
+    l, h = low(X), high(X)
+    return @. min(h, max(p, l))
 end
 
-function max_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
-    if global_max in X
-        return f(global_max)
-    end
-
-    l, h = low(box_X), high(box_X)
-    x_max = @. min(h, max(global_max, l))
-
-    return f(x_max)
-end
-
-function max_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X)
+function max_quasi_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X)
     if global_max in X
         return f(global_max)
     end
