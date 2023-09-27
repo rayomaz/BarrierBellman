@@ -1,0 +1,22 @@
+{
+  "system": "harrier",
+  "dynamics": {
+    "dim": 6,
+    "sigma": [0.1, 0.1, 0.01, 0.1, 0.1, 0.05],
+    "safe_set": [[-10.0, -10.0, -0.20943951023931956, -3.0, -3.0, -1.0], [10.0, 10.0, 0.20943951023931956, 3.0, 3.0, 1.0]],
+    "m": 4.0,
+    "J": 0.0475,
+    "r": 0.25,
+    "g": 9.81,
+    "c": 0.05,
+    "Ts": 0.1
+  },
+  "partitioning": {
+    "method": "grid",
+    "num_slices": [3, 3, 8, 6, 6, 10]
+  },
+  "save_path": {
+    "transition_prob": "../../data/harrier/harrier_transition_prob_{regions}_sigma_{noise}.nc",
+    "nominal_dynamics": "../../data/harrier/dynamics_{regions}.nc"
+  }
+}

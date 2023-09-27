@@ -6,8 +6,28 @@
 
 # Optimization function
 function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
-    n = length(regions)
+    ws, p, q = setup_gd(regions, initial_region, obstacle_region)
 
+    decay = Exp(λ = alg.initial_lr, γ = alg.decay)
+    optim = Optimisers.Nesterov(alg.initial_lr, alg.momentum)
+
+    state = Optimisers.setup(optim, ws.B)
+
+        state = gradient_descent_barrier_iteration!(ws, state, regions, p, q, decay(k))
+    end
+
+    η = maximum(ws.B_init)
+
+    ivi_value_assignment!(ws, regions, p, q)
+    βⱼ = beta!(ws, p)
+
+    @info "Solution Gradient Descent" η β=maximum(βⱼ) Pₛ=1 - (η + maximum(βⱼ) * time_horizon) iterations=alg.num_iterations
+
+    Xs = map(region, regions)
+    return ConstantBarrier(Xs, ws.B_regions), βⱼ
+end
+
+function setup_gd(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet)
     initial_indices = findall(X -> !isdisjoint(initial_region, region(X)), regions)
     unsafe_indices = findall(X -> !isdisjoint(obstacle_region, region(X)), regions)
 
@@ -15,31 +35,67 @@ function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:Reg
     ws = GradientDescentWorkspace(P̅ᵤ, initial_indices, unsafe_indices)
     project!(ws)
 
-    decay = Exp(λ = alg.initial_lr, γ = alg.decay)
-    optim = Optimisers.Nesterov(alg.initial_lr, alg.momentum)
+    p = [copy(region.gap) for region in regions]
+    q = prepare_q(p)
 
-    state = Optimisers.setup(optim, ws.B)
+    return ws, p, q
+end
 
-    p = [zero(region.gap) for region in regions]
+function prepare_q(p::VVT) where {VVT<:AbstractVector{<:AbstractVector}}
+    n = length(p)
+    return collect(UnitRange{Int64}(1, n + 1))
+end
+
+mutable struct PermutationSubset{T<:Integer, VT<:AbstractVector{T}}
+    ptr::T
+    items::VT
+end
+
+struct ReversiblePermutationItem{T<:Integer, VT<:AbstractVector{T}}
+    value::T
+    index::VT
+end
+
+function reset_subsets!(q_subsets)
+    for j in eachindex(q_subsets)
+        q_subsets[j].ptr = 1
+    end
+end
+
+function populate_subsets!(q, q_order, q_subsets)
+    reset_subsets!(q_subsets)
+
+    for i in q
+        qo = q_order[i]
+        @assert qo.value == i
+
+        for j in qo.index
+            q_subsets[j].items[q_subsets[j].ptr] = qo.value
+            q_subsets[j].ptr += 1
+        end
+    end
+end
+
+function prepare_q(p::VVT) where {VVT<:AbstractVector{<:AbstractSparseVector}}
+    n = length(p)
     q = collect(UnitRange{Int64}(1, n + 1))
 
-    prev_q = copy(q)
-
-    for k in 0:alg.num_iterations
-        state = gradient_descent_barrier_iteration!(ws, state, regions, prev_q, q, p, decay(k))
+    q_order = Vector{ReversiblePermutationItem{Int64, Vector{Int64}}}(undef, n + 1)
+    for i in 1:n + 1
+        q_order[i] = ReversiblePermutationItem(i, Int64[])
     end
 
-    η = maximum(ws.B_init)
+    q_subsets = Vector{PermutationSubset{Int64, Vector{Int64}}}(undef, n)
+    for j in 1:n
+        q_subsets[j] = PermutationSubset(1, Vector{Int64}(undef, nnz(p[j])))
 
-    sortperm!(q, ws.B, rev=true)
-    ivi_prob!.(p, regions, tuple(q))
+        ids = SparseArrays.nonzeroinds(p[j])
+        for i in ids
+            push!(q_order[i].index, j)
+        end
+    end
 
-    βⱼ = beta!(ws, p)
-
-    @info "Solution Gradient Descent" η β=maximum(βⱼ) Pₛ=1 - (η + maximum(βⱼ) * time_horizon) iterations=alg.num_iterations
-
-    Xs = map(region, regions)
-    return ConstantBarrier(Xs, ws.B_regions), βⱼ
+    return q, q_order, q_subsets
 end
 
 mutable struct GradientDescentWorkspace{T, BT<:AbstractVector{T}, VT<:AbstractVector{T}, RT<:AbstractVector{T}}
@@ -95,39 +151,55 @@ function beta!(ws::GradientDescentWorkspace, p)
     return ws.β
 end
 
-function gradient!(ws::GradientDescentWorkspace, p; t=200.0)
+function gradient!(ws::GradientDescentWorkspace, p::VVT; t=5000.0) where {VVT<:AbstractVector{<:AbstractVector}}
     # Gradient for the following loss: ||βⱼ||ₜ
     # This is an Lp-norm, which approaches a suprenum norm as t -> Inf
 
     # It turns out it is equivalent to a tempered LogSumExp loss, 1/t * log(sum(exp.(t .* x)))
     # where we assume xⱼ = ln(βⱼ)
 
+    # Because we do exponentiation with large values, we use logspace arithmetic
+    # Also, don't look - it's ugly
+
     βⱼ = beta!(ws, p)
 
-    z = norm(βⱼ, t)
-    βⱼ ./= z
-    βⱼ .^= t - 1
-    
-    βⱼ .*= -1
+    logz = log(norm(βⱼ, t))
+    βⱼ .= log.(βⱼ)
+    βⱼ .-= logz
+    βⱼ .*= t - 1
 
     ws.dB[end] = 0
-    ws.dB_regions .= βⱼ
+    ws.dB_regions .= (-).(exp.(βⱼ))
     for j in eachindex(βⱼ)
-        ws.dB .-= βⱼ[j] .* p[j]
+        logspace_add_prod!(ws.dB, βⱼ[j], p[j])
     end
 
     return ws.dB
 end
 
-function gradient_descent_barrier_iteration!(ws, state, regions, prev_q, q, p, lr)
-    sortperm!(q, ws.B, rev=true)
+function logspace_add_prod!(dB, β, p::VT) where {VT<:AbstractVector}
+    dB .+= exp.(β .+ log.(p))
+end
 
-    if q != prev_q
-        copyto!(prev_q, q)
-        ivi_prob!.(p, regions, tuple(q))
+function logspace_add_prod!(dB, β, p::VT) where {VT<:AbstractSparseVector}
+    ids = SparseArrays.nonzeroinds(p)
+    values = nonzeros(p)
+
+    for (i, v) in zip(ids, values)
+        dB[i] += exp(β + log(max(v, 1e-16)))
     end
+end
 
+function gradient_descent_barrier_iteration!(ws, state, regions, p, q, lr)
+    ivi_value_assignment!(ws, regions, p, q)
     gradient!(ws, p)
+
+    # Grad norm clipping
+    # This allows us to take bigger step sizes without worrying about overstepping
+    norm_grad = norm(ws.dB)
+    if norm_grad > 0.05
+        rmul!(ws.dB, 0.05 / norm_grad)
+    end
 
     Optimisers.adjust!(state, lr)
     state, ws.B = Optimisers.update!(state, ws.B, ws.dB)
@@ -135,4 +207,30 @@ function gradient_descent_barrier_iteration!(ws, state, regions, prev_q, q, p, l
     project!(ws)
 
     return state
+end
+
+function ivi_value_assignment!(ws, regions, p, q)
+    sortperm!(q, ws.B, rev=true)
+        
+    Threads.@threads for i in eachindex(p)
+        @inbounds ivi_prob!(p[i], regions[i], q)
+    end
+end
+
+function ivi_value_assignment!(ws, regions, p::VVT, q) where {VVT<:AbstractVector{<:AbstractVector}}
+    sortperm!(q, ws.B, rev=true)
+        
+    Threads.@threads for j in eachindex(p)
+        @inbounds ivi_prob!(p[j], regions[j], q)
+    end
+end
+
+function ivi_value_assignment!(ws, regions, p::VVT, q) where {VVT<:AbstractVector{<:AbstractSparseVector}}
+    q, q_order, q_subsets = q
+    sortperm!(q, ws.B, rev=true)
+    populate_subsets!(q, q_order, q_subsets)
+        
+    Threads.@threads for j in eachindex(p)
+        @inbounds ivi_prob!(p[j], regions[j], q_subsets[j].items)
+    end
 end

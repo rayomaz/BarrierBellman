@@ -1,9 +1,10 @@
 module StochasticBarrierFunctions
 
-using LinearAlgebra, SparseArrays
+using LinearAlgebra, SparseArrays, StaticArrays
+using LoopVectorization, ProgressMeter
 using Distributions, Combinatorics
 
-using SpecialFunctions: erf
+using SpecialFunctions
 # TODO: Make Mosek and Ipopt optional through extensions
 using JuMP, MosekTools, Mosek, Ipopt
 

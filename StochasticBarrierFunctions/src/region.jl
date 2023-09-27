@@ -41,39 +41,23 @@ function ivi_prob(X::RegionWithProbabilities{T}, q::AbstractVector{<:Integer}) w
     return ivi_prob!(v, X, q)
 end
 
-function ivi_prob!(p::VT, X::RegionWithProbabilities{T}, q::QT) where {T, VT<:AbstractVector{T}, QT<:AbstractVector{<:Integer}}
+function ivi_prob!(p, X::RegionWithProbabilities, q)
     copyto!(p, X.lower)
     
-    remaining::T = 1.0 - X.sum_lower
-
+    remaining = 1.0 - X.sum_lower
+    
     @inbounds for i in q
         @inbounds p[i] += X.gap[i]
         @inbounds remaining -= X.gap[i]
         if remaining < 0.0
             @inbounds p[i] += remaining
+            remaining = 0.0
             break
         end
     end
-    return p
-end
 
-function ivi_prob!(p::VT, X::RegionWithProbabilities{T}, q::QT) where {T, VT<:AbstractSparseVector{T}, QT<:AbstractVector{<:Integer}}
-    copyto!(p, X.lower)
-    
-    remaining::T = 1.0 - X.sum_lower
-    
-    @inbounds for i in q
-        if !Base.isstored(X.gap, i)
-            continue
-        end
+    @assert remaining == 0.0 "The remaining probability should be zero, but is $remaining."
 
-        @inbounds p[i] += X.gap[i]
-        @inbounds remaining -= X.gap[i]
-        if remaining < 0.0
-            @inbounds p[i] += remaining
-            break
-        end
-    end
     return p
 end
 

@@ -40,11 +40,14 @@ function transition_probabilities(system, Xs; alg=TransitionProbabilityAlgorithm
     P̅ = Vector{SparseVector{Float64, Int64}}(undef, number_hypercubes)
 
     # Generate
+    bar = Progress(number_hypercubes)
     Threads.@threads for jj in eachindex(Xs)
         P̲ⱼ, P̅ⱼ = transition_prob_from_region(system, (jj, Xs[jj]), Xs, safe_set, alg; nσ_search=nσ_search)
 
         P̲[jj] = P̲ⱼ
         P̅[jj] = P̅ⱼ
+        
+        next!(bar)
     end
 
     # Combine into a single matrix
@@ -104,32 +107,29 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
     n = length(Xs)
     σ = noise_distribution(system)
 
+    P̲ⱼ = SparseVector{Float64, Int64}(undef, n + 1)
+    P̅ⱼ = SparseVector{Float64, Int64}(undef, n + 1)
+
     # Search for overlap with box(f(Xⱼ)) + σ * nσ_search as 
     # any region beyond that will always have a probability < sparisty_ϵ
     query_set = minkowski_sum(box_Y, Hyperrectangle(zero(σ), σ * nσ_search)) 
 
     indices = findall(X -> !isdisjoint(X, query_set), Xs)
 
-    P̲ⱼ = zeros(Float64, length(indices))
-    P̅ⱼ = zeros(Float64, length(indices))
-
     for (i, Xᵢ) in enumerate(@view(Xs[indices]))    
         # Obtain min and max of T(qᵢ | x) over Y
         P̲ᵢⱼ, P̅ᵢⱼ = transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
         
-        P̲ⱼ[i] = P̲ᵢⱼ
-        P̅ⱼ[i] = P̅ᵢⱼ
+        # Prune regions with P(f(x) ∈ qᵢ | x ∈ qⱼ) < sparisty_ϵ
+        if P̅ᵢⱼ >= alg.sparisty_ϵ
+            P̲ⱼ[i] = P̲ᵢⱼ
+            P̅ⱼ[i] = P̅ᵢⱼ
+        end
     end
-
-    # Prune regions with P(f(x) ∈ qᵢ | x ∈ qⱼ) < sparisty_ϵ
-    keep_indices = findall(p -> p >= alg.sparisty_ϵ, P̅ⱼ)
-    P̲ⱼ = P̲ⱼ[keep_indices]
-    P̅ⱼ = P̅ⱼ[keep_indices]
-    indices = indices[keep_indices]
 
     # Compute P(f(x) ∈ qᵤ | x ∈ qⱼ) including sparsity pruning
     P̲ₛⱼ, P̅ₛⱼ = transition_prob_to_region(system, VY, HY, box_Y, safe_set, alg)
-    Psparse = (n - length(indices)) * alg.sparisty_ϵ
+    Psparse = (n - nnz(P̅ⱼ)) * alg.sparisty_ϵ
     P̲ᵤⱼ, P̅ᵤⱼ = (1 - P̅ₛⱼ), (1 - P̲ₛⱼ) + Psparse
     
     # If you ever hit this case, then you are in trouble. Either sparisty_ϵ
@@ -140,8 +140,8 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
     # Clipping P̅ᵤⱼ @ 1
     P̅ᵤⱼ = min(P̅ᵤⱼ, 1.0)
 
-    P̲ⱼ = SparseVector(n + 1, [indices; [n + 1]], [P̲ⱼ; [P̲ᵤⱼ]])
-    P̅ⱼ = SparseVector(n + 1, [indices; [n + 1]], [P̅ⱼ; [P̅ᵤⱼ]])
+    P̲ⱼ[end] = P̲ᵤⱼ
+    P̅ⱼ[end] = P̅ᵤⱼ
 
     # Enforce consistency (this is useful particularly with BoxApproximation)
     P̲ⱼ, P̅ⱼ = enforce_consistency(P̲ⱼ, P̅ⱼ)
@@ -162,7 +162,7 @@ function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
     prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, kernel, VY)
 
     # Obtain max of T(qᵢ | x) over Y
-    prob_transition_upper = exp(max_concave_over_polytope(alg.upper_bound_method, log_kernel, v, HY, box_Y))
+    prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, HY, box_Y))
 
     return prob_transition_lower, prob_transition_upper
 end
@@ -176,7 +176,7 @@ function (T::GaussianTransitionKernel)(y)
     vₗ, vₕ = low(T.X), high(T.X)
 
     acc = 1 / 2^m
-    @inbounds for i in 1:m
+    @turbo for i in 1:m
         @inbounds acc *= erf_axis(y[i], vₗ[i], T.σ[i]) - erf_axis(y[i], vₕ[i], T.σ[i])
     end
 
@@ -193,7 +193,7 @@ function (T::GaussianLogTransitionKernel)(y)
     vₗ, vₕ = low(T.X), high(T.X)
 
     acc = log(1) - m * log(2)
-    @inbounds for i in 1:m
+    @turbo for i in 1:m
         @inbounds prob_axis = erf_axis(y[i], vₗ[i], T.σ[i]) - erf_axis(y[i], vₕ[i], T.σ[i])
 
         # clamp to ϵ is added to avoid log(0).
@@ -211,54 +211,21 @@ function min_log_concave_over_polytope(::VertexEnumeration, f, X)
     return minimum(f, vertices)
 end
 
-function max_log_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
+function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
     if global_max in X
         return f(global_max)
     end
 
-    l, h = low(box_X), high(box_X)
-    x_max = @. min(h, max(global_max, l))
-
+    x_max = project_onto_hyperrect(box_X, global_max)
     return f(x_max)
 end
 
-function max_log_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X)
-    if global_max in X
-        return f(global_max)
-    end
-
-    m = LazySets.dim(X)
-    fsplat(y...) = f(y)
-
-    model = Model(alg.non_linear_solver)
-    set_silent(model)
-    register(model, :fsplat, m, fsplat; autodiff = true)
-
-    @variable(model, x[1:m])
-
-    H, h = tosimplehrep(X)
-    @constraint(model, H * x <= h)
-
-    @NLobjective(model, Max, fsplat(x...))
-
-    # Optimize for maximum
-    JuMP.optimize!(model)
-
-    return JuMP.objective_value(model)
+function project_onto_hyperrect(X, p)
+    l, h = low(X), high(X)
+    return @. min(h, max(p, l))
 end
 
-function max_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
-    if global_max in X
-        return f(global_max)
-    end
-
-    l, h = low(box_X), high(box_X)
-    x_max = @. min(h, max(global_max, l))
-
-    return f(x_max)
-end
-
-function max_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X)
+function max_quasi_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X)
     if global_max in X
         return f(global_max)
     end

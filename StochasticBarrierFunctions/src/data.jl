@@ -75,6 +75,7 @@ end
 
 function load_probabilities(dataset::YAXArrays.Dataset)
     n = dataset.properties["num_regions"]
+    d = dataset.properties["dim"]
     format = get(dataset.properties, "format", "dense")
 
     # Pre-load data for speed
@@ -91,7 +92,7 @@ function load_probabilities(dataset::YAXArrays.Dataset)
 
             regions = [
                 RegionWithProbabilities(
-                    Hyperrectangle(low=copy(X̲[region=j].data), high=copy(X̅[region=j].data)),
+                    Hyperrectangle(low=SVector{d}(copy(X̲[region=j].data)), high=SVector{d}(copy(X̅[region=j].data))),
                     (copy(P̲[from=j].data), copy(P̅[from=j].data)),
                     (P̲ᵤ[from=j], P̅ᵤ[from=j])   # This are already scalars, no need to copy.
                 )
@@ -100,7 +101,7 @@ function load_probabilities(dataset::YAXArrays.Dataset)
         else
             regions = [
                 RegionWithProbabilities(
-                    Hyperrectangle(low=copy(X̲[region=j].data), high=copy(X̅[region=j].data)),
+                    Hyperrectangle(low=SVector{d}(copy(X̲[region=j].data)), high=SVector{d}(copy(X̅[region=j].data))),
                     (copy(P̲[from=j].data), copy(P̅[from=j].data))
                 )
                 for j in 1:n
@@ -121,7 +122,7 @@ function load_probabilities(dataset::YAXArrays.Dataset)
 
         regions = [
             RegionWithProbabilities(
-                Hyperrectangle(low=copy(X̲[region=j].data), high=copy(X̅[region=j].data)),
+                Hyperrectangle(low=SVector{d}(copy(X̲[region=j].data)), high=SVector{d}(copy(X̅[region=j].data))),
                 (P̲[:, j], P̅[:, j])
             )
             for j in 1:n
