@@ -3,6 +3,9 @@ import os
 import logging
 from argparse import ArgumentParser
 
+import sys
+sys.path.append("..")  # Add the parent directory to the import path
+
 import xarray as xr
 import torch
 from bound_propagation import HyperRectangle, LinearBounds
