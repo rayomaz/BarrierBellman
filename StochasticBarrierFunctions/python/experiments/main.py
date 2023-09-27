@@ -103,6 +103,8 @@ def experiment_builder(args, config):
         return LinearExperiment(args, config)
     elif config['system'] == 'nndm':
         return NNDMExperiment(args, config)
+    elif config['system'] == 'unicycle':
+        return UnicycleExperiment(args, config)
     elif config['system'] == 'harrier':
         return HarrierExperiment(args, config)
     else:
