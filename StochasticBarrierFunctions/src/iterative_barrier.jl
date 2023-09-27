@@ -17,7 +17,6 @@ function synthesize_barrier(alg::IterativeUpperBoundAlgorithm, regions::Vector{<
 
         elseif alg.distributed 
             # Keep of track of distributions
-            # push!(P_distribution, p_distribution)
             P_distribution = p_distribution
 
             B, η, β = upper_bound_barrier(iteration_prob, initial_region, obstacle_region; distributed=true, probability_distribution = P_distribution, ϵ=alg.ϵ) 
