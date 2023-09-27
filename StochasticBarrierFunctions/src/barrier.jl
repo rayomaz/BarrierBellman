@@ -54,6 +54,7 @@ Base.@kwdef struct IterativeUpperBoundAlgorithm <: ConstantBarrierAlgorithm
     num_iterations = 10
     guided = true
     distributed = false
+    O_maximization = true
 end
 
 Base.@kwdef struct GradientDescentAlgorithm <: ConstantBarrierAlgorithm
