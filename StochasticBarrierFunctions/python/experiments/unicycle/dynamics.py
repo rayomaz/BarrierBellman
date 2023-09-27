@@ -10,8 +10,8 @@ class UnicycleController(FixedLinear):
     def __init__(self):
         # Gain using optimal LQR controller
         F = torch.as_tensor([
-            [0.000997711,  0.0457708,    5.66972e-17,  -7.83777e-16],
-            [2.80101e-13,  6.04009e-12,  0.000997711,   0.0457708]
+            [0.0977882,   9.77833e-6,  -9.956e-11,  0.442348],
+            [9.77783e-7,  9.98119e-6,   1.0e-5,     4.42348e-6]
         ])
 
         # Negative feedback control
