@@ -67,7 +67,7 @@ function OMaximization(B, indBSorted, indBSorted_perm, regions::Vector{<:RegionW
     # O Maximization approach for quick sorting
     # Based on Section V.A of https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7029024
 
-    β_parts = Vector{T}(undef, length(indBSorted))
+    β_parts = Vector{T}(undef, length(B))
     p_distribution = [zero(region.gap) for region in regions]
 
     Threads.@threads for jj in eachindex(regions)
@@ -105,7 +105,7 @@ function OMaximization(B, indBSorted, indBSorted_perm, regions::Vector{<:RegionW
 
         end
 
-        @inbounds β_parts[jj] = dot(p_maximization, [B[1:5]; 1.0]) - Bⱼ
+        @inbounds β_parts[jj] = max(dot(p_maximization, [B[1:length(B)]; 1.0]) - Bⱼ, 0)
         @inbounds copyto!(p_distribution[jj], p_maximization)
 
     end
