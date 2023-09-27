@@ -17,7 +17,8 @@ function synthesize_barrier(alg::IterativeUpperBoundAlgorithm, regions::Vector{<
 
         elseif alg.distributed 
             # Keep of track of distributions
-            push!(P_distribution, p_distribution)
+            # push!(P_distribution, p_distribution)
+            P_distribution = p_distribution
 
             B, η, β = upper_bound_barrier(iteration_prob, initial_region, obstacle_region; distributed=true, probability_distribution = P_distribution, ϵ=alg.ϵ) 
         else
@@ -25,7 +26,14 @@ function synthesize_barrier(alg::IterativeUpperBoundAlgorithm, regions::Vector{<
            
         end
 
-        β_updated, p_distribution = verify_beta(B, regions)
+        if alg.O_maximization
+            indBSorted  = sort([B[1:length(B)]; 1.0], rev=true)
+            indBSorted_perm = sortperm([B[1:length(B)]; 1.0], rev=true)
+            β_updated, p_distribution = OMaximization(B, indBSorted, indBSorted_perm, regions)
+            
+        else     
+            β_updated, p_distribution = verify_beta(B, regions)
+        end
 
     end
 
