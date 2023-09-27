@@ -15,6 +15,7 @@ from bounds.certifier import GaussianCertifier, check_gap
 from linear.linear import LinearExperiment
 from nndm.nndm import NNDMExperiment
 from unicycle.unicycle import UnicycleExperiment
+from harrier.harrier import HarrierExperiment
 
 from log import configure_logging
 from utils import load_config
