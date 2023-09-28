@@ -39,5 +39,5 @@ end
 @time probability_bounds = transition_probabilities(system, state_partitions)
 
 # Save to a .nc file
-filename = "models/single_mode/probability_data_$(length(state_partitions))_f_$(f)_sigma_$σ.nc"
+filename = "models/single_mode/probability_data_$(length(state_partitions))_f_$(F)_sigma_$σ.nc"
 savedataset(probability_bounds; path=joinpath(@__DIR__, filename), driver=:netcdf, overwrite=true)
