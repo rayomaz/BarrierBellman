@@ -159,7 +159,7 @@ function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
     log_kernel = GaussianLogTransitionKernel(Xᵢ, σ, alg.log_ϵ)
 
     # Obtain min of T(qᵢ | x) over Y
-    prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, kernel, VY)
+    prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, kernel, v, VY)
 
     # Obtain max of T(qᵢ | x) over Y
     prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, HY, box_Y))
@@ -205,10 +205,24 @@ end
 
 erf_axis(y, v, σ) = erf((y - v) / (σ * sqrt(2)))
 
-function min_log_concave_over_polytope(::VertexEnumeration, f, X)
+function min_log_concave_over_polytope(::VertexEnumeration, f, global_max, X)
     vertices = vertices_list(X)
 
     return minimum(f, vertices)
+
+    # convex_center = sum(vertices)
+    # convex_center ./= length(vertices)
+
+    # dir = global_max - convex_center
+
+    # lb = 1.0
+    # for v in vertices
+    #     if dot(v - convex_center, dir) <= 0
+    #         lb = min(lb, f(v))
+    #     end
+    # end
+
+    # return lb
 end
 
 function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
