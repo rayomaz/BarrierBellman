@@ -156,7 +156,7 @@ function beta!(ws::GradientDescentWorkspace, p)
     return ws.β
 end
 
-function gradient!(ws::GradientDescentWorkspace, p::VVT; t=5000.0) where {VVT<:AbstractVector{<:AbstractVector}}
+function gradient!(ws::GradientDescentWorkspace, p::VVT; time_horizon, t=200.0) where {VVT<:AbstractVector{<:AbstractVector}}
     # Gradient for the following loss: ||βⱼ||ₜ
     # This is an Lp-norm, which approaches a suprenum norm as t -> Inf
 
@@ -167,6 +167,7 @@ function gradient!(ws::GradientDescentWorkspace, p::VVT; t=5000.0) where {VVT<:A
     # Also, don't look - it's ugly
 
     βⱼ = beta!(ws, p)
+    βⱼ .*= time_horizon
 
     logz = log(norm(βⱼ, t))
     βⱼ .= log.(βⱼ)
@@ -195,9 +196,9 @@ function logspace_add_prod!(dB, β, p::VT) where {VT<:AbstractSparseVector}
     end
 end
 
-function gradient_descent_barrier_iteration!(ws, state, regions, p, q, lr)
+function gradient_descent_barrier_iteration!(ws, state, regions, p, q, lr; time_horizon)
     ivi_value_assignment!(ws, regions, p, q)
-    gradient!(ws, p)
+    gradient!(ws, p; time_horizon=time_horizon)
 
     # Grad norm clipping
     # This allows us to take bigger step sizes without worrying about overstepping
