@@ -175,9 +175,8 @@ function (T::GaussianTransitionKernel)(y)
     m = LazySets.dim(T.X)
     vₗ, vₕ = low(T.X), high(T.X)
 
-    acc = 1 / 2^m
-    @turbo for i in 1:m
-        @inbounds acc *= erf_axis(y[i], vₗ[i], T.σ[i]) - erf_axis(y[i], vₕ[i], T.σ[i])
+    acc = 1 / 2^m * vmapreduce(*, y, vₗ, vₕ, T.σ) do yᵢ, vₗᵢ, vₕᵢ, σᵢ
+        erf_axis(yᵢ, vₗᵢ, σᵢ) - erf_axis(yᵢ, vₕᵢ, σᵢ)
     end
 
     return acc
@@ -192,12 +191,9 @@ function (T::GaussianLogTransitionKernel)(y)
     m = LazySets.dim(T.X)
     vₗ, vₕ = low(T.X), high(T.X)
 
-    acc = log(1) - m * log(2)
-    @turbo for i in 1:m
-        @inbounds prob_axis = erf_axis(y[i], vₗ[i], T.σ[i]) - erf_axis(y[i], vₕ[i], T.σ[i])
-
+    acc = log(1) - m * log(2) + vmapreduce(+, y, vₗ, vₕ, T.σ) do yᵢ, vₗᵢ, vₕᵢ, σᵢ
         # clamp to ϵ is added to avoid log(0).
-        acc += log(max(prob_axis, T.ϵ))
+        log(max(erf_axis(yᵢ, vₗᵢ, σᵢ) - erf_axis(yᵢ, vₕᵢ, σᵢ), T.ϵ))
     end
 
     return acc
