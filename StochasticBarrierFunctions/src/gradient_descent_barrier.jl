@@ -13,7 +13,8 @@ function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:Reg
 
     state = Optimisers.setup(optim, ws.B)
 
-        state = gradient_descent_barrier_iteration!(ws, state, regions, p, q, decay(k))
+    @showprogress for k in 0:alg.num_iterations
+        state = gradient_descent_barrier_iteration!(ws, state, regions, p, q, decay(k); time_horizon=time_horizon)
     end
 
     η = maximum(ws.B_init)
