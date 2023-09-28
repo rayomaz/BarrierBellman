@@ -145,7 +145,11 @@ function project!(ws::GradientDescentWorkspace)
 end
 
 function beta!(ws::GradientDescentWorkspace, p)
-    ws.β .= dot.(tuple(ws.B), p)
+    Threads.@threads for j in eachindex(ws.β)
+        ws.β[j] = dot(ws.B, p[j])
+    end
+
+    # ws.β .= dot.(tuple(ws.B), p)
     ws.β .-= ws.B_regions
     clamp!(ws.β, 0, Inf)
 
