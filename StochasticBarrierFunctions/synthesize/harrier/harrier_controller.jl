@@ -69,7 +69,7 @@ tspan = (0, Te)
 
 # x0 = Dict(x => 0, y => 0, θ => 0, ẋ => 0, ẏ => 0, θ̇ => 0)
 # x0 = Dict(x => 1, y => -1, θ => deg2rad(2), ẋ => 0, ẏ => 0, θ̇ => 0)
-x0 = Dict(x => 10, y => 10, θ => deg2rad(12), ẋ => 3, ẏ => 3, θ̇ => 1)
+x0 = Dict(x => 2, y => 2, θ => deg2rad(12), ẋ => 0.2, ẏ => 0.2, θ̇ => 1)
 
 prob = ODEProblem(controlled_sys, x0, tspan)
 sol = solve(prob; saveat=Ts)

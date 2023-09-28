@@ -3,8 +3,9 @@ import ColorSchemes.magma
 
 project(X, ids) = Hyperrectangle(LazySets.center(X)[ids], radius_hyperrectangle(X)[ids])
 labels = ["x", "y", "theta", "xdot", "ydot", "thetadot"]
-c = LazySets.center(region(probabilities[12385]))  # Insert the fixed region id (typical argmax_j beta_j).
+c = LazySets.center(region(probabilities[59256]))  # Insert the fixed region id (typical argmax_j beta_j).
 
+max_beta = maximum(beta_pgd)
 for x in 1:5
     for y in (x + 1):6
         vary_ids = [x, y]
@@ -15,7 +16,7 @@ for x in 1:5
         p = plot(; xlabel=labels[x], ylabel=labels[y], legend=false, size=(600, 600))
 
         for j in plot_regions
-            plot!(p, project(region(probabilities[j]), vary_ids), color=get(magma, beta_pgd[j]))
+            plot!(p, project(region(probabilities[j]), vary_ids), color=get(magma, beta_pgd[j] / max_beta))
         end
 
         savefig(p, "figures/harrier_beta_$(x)_$(y).png")
