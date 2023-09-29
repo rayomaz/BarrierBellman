@@ -5,8 +5,8 @@ using YAXArrays, NetCDF
 
 # System
 system_flag = "harrier"
-number_hypercubes = 25920
-σ = [0.1, 0.1, 0.01, 0.1, 0.1, 0.05]
+number_hypercubes = 103680
+σ = [0.05, 0.05, 0.02, 0.01, 0.01, 0.01]
 
 filename = "data/dynamics_$number_hypercubes.nc"
 dataset = open_dataset(joinpath(@__DIR__, filename))

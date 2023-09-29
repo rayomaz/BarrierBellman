@@ -18,7 +18,6 @@ Base.@kwdef struct TransitionProbabilityAlgorithm
     lower_bound_method::AbstractLowerBoundAlgorithm = VertexEnumeration()
     upper_bound_method::AbstractUpperBoundAlgorithm = GradientDescent()
     sparisty_ϵ = 1e-12
-    log_ϵ = 1e-16
 end
 
 transition_probabilities(system::AdditiveGaussianUncertainPWASystem; kwargs...) = transition_probabilities(system, regions(system); kwargs...)
@@ -156,10 +155,10 @@ function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
     
     # Transition kernel T(qᵢ | x)
     kernel = GaussianTransitionKernel(Xᵢ, σ)
-    log_kernel = GaussianLogTransitionKernel(Xᵢ, σ, alg.log_ϵ)
+    log_kernel = GaussianLogTransitionKernel(Xᵢ, σ)
 
     # Obtain min of T(qᵢ | x) over Y
-    prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, kernel, VY)
+    prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, kernel, v, VY)
 
     # Obtain max of T(qᵢ | x) over Y
     prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, HY, box_Y))
@@ -167,48 +166,54 @@ function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
     return prob_transition_lower, prob_transition_upper
 end
 
-struct GaussianTransitionKernel{S, VS<:AbstractVector{S}, H<:AbstractHyperrectangle{S}}
-    X::H
-    σ::VS
-end
-function (T::GaussianTransitionKernel)(y)
-    m = LazySets.dim(T.X)
-    vₗ, vₕ = low(T.X), high(T.X)
-
-    acc = 1 / 2^m
-    @turbo for i in 1:m
-        @inbounds acc *= erf_axis(y[i], vₗ[i], T.σ[i]) - erf_axis(y[i], vₕ[i], T.σ[i])
-    end
-
-    return acc
-end
-
 struct GaussianLogTransitionKernel{S, VS<:AbstractVector{S}, H<:AbstractHyperrectangle{S}}
     X::H
     σ::VS
-    ϵ::S
 end
+
 function (T::GaussianLogTransitionKernel)(y)
     m = LazySets.dim(T.X)
     vₗ, vₕ = low(T.X), high(T.X)
 
-    acc = log(1) - m * log(2)
-    @turbo for i in 1:m
-        @inbounds prob_axis = erf_axis(y[i], vₗ[i], T.σ[i]) - erf_axis(y[i], vₕ[i], T.σ[i])
-
-        # clamp to ϵ is added to avoid log(0).
-        acc += log(max(prob_axis, T.ϵ))
+    acc = log(1) - m * log(2) + mapreduce(+, y, vₗ, vₕ, T.σ) do yᵢ, vₗᵢ, vₕᵢ, σᵢ
+        a = invsqrt2 * (yᵢ - vₗᵢ) / σᵢ
+        b = invsqrt2 * (yᵢ - vₕᵢ) / σᵢ
+        logerf(b, a)   # log(erf(a) - erf(b))
     end
 
     return acc
 end
 
-erf_axis(y, v, σ) = erf((y - v) / (σ * sqrt(2)))
+struct GaussianTransitionKernel{S, VS<:AbstractVector{S}, H<:AbstractHyperrectangle{S}}
+    log_kernel::GaussianLogTransitionKernel{S, VS, H}
+end
+function GaussianTransitionKernel(X, σ)
+    return GaussianTransitionKernel(GaussianLogTransitionKernel(X, σ))
+end
 
-function min_log_concave_over_polytope(::VertexEnumeration, f, X)
+function (T::GaussianTransitionKernel)(y)
+    # This is more numerically stable than computing it directly
+    return exp(T.log_kernel(y))
+end
+
+function min_log_concave_over_polytope(::VertexEnumeration, f, global_max, X)
     vertices = vertices_list(X)
 
     return minimum(f, vertices)
+
+    # convex_center = sum(vertices)
+    # convex_center ./= length(vertices)
+
+    # dir = global_max - convex_center
+
+    # lb = 1.0
+    # for v in vertices
+    #     if dot(v - convex_center, dir) <= 0
+    #         lb = min(lb, f(v))
+    #     end
+    # end
+
+    # return lb
 end
 
 function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)

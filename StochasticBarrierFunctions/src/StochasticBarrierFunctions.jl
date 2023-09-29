@@ -4,7 +4,8 @@ using LinearAlgebra, SparseArrays, StaticArrays
 using LoopVectorization, ProgressMeter
 using Distributions, Combinatorics
 
-using SpecialFunctions
+using SpecialFunctions: logerf
+using IrrationalConstants: invsqrt2
 # TODO: Make Mosek and Ipopt optional through extensions
 using JuMP, MosekTools, Mosek, Ipopt
 

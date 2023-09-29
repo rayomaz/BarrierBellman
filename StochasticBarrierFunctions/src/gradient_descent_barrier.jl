@@ -12,8 +12,9 @@ function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:Reg
     optim = Optimisers.Nesterov(alg.initial_lr, alg.momentum)
 
     state = Optimisers.setup(optim, ws.B)
-    for k in 0:alg.num_iterations
-        state = gradient_descent_barrier_iteration!(ws, state, regions, p, q, decay(k))
+
+    @showprogress for k in 0:alg.num_iterations
+        state = gradient_descent_barrier_iteration!(ws, state, regions, p, q, decay(k); time_horizon=time_horizon)
     end
 
     η = maximum(ws.B_init)
@@ -144,14 +145,18 @@ function project!(ws::GradientDescentWorkspace)
 end
 
 function beta!(ws::GradientDescentWorkspace, p)
-    ws.β .= dot.(tuple(ws.B), p)
-    ws.β .-= ws.B_regions
-    clamp!(ws.β, 0, Inf)
+    Threads.@threads for j in eachindex(ws.β)
+        ws.β[j] = dot(ws.B, p[j])
+    end
+
+    # ws.β .= dot.(tuple(ws.B), p)
+    @turbo ws.β .-= ws.B_regions
+    @turbo clamp!(ws.β, 0, Inf)
 
     return ws.β
 end
 
-function gradient!(ws::GradientDescentWorkspace, p::VVT; t=5000.0) where {VVT<:AbstractVector{<:AbstractVector}}
+function gradient!(ws::GradientDescentWorkspace, p::VVT; time_horizon, t=5000.0) where {VVT<:AbstractVector{<:AbstractVector}}
     # Gradient for the following loss: ||βⱼ||ₜ
     # This is an Lp-norm, which approaches a suprenum norm as t -> Inf
 
@@ -162,14 +167,15 @@ function gradient!(ws::GradientDescentWorkspace, p::VVT; t=5000.0) where {VVT<:A
     # Also, don't look - it's ugly
 
     βⱼ = beta!(ws, p)
+    @turbo βⱼ .*= time_horizon
 
     logz = log(norm(βⱼ, t))
-    βⱼ .= log.(βⱼ)
-    βⱼ .-= logz
-    βⱼ .*= t - 1
+    @turbo βⱼ .= log.(βⱼ)
+    @turbo βⱼ .-= logz
+    @turbo βⱼ .*= t - 1
 
     ws.dB[end] = 0
-    ws.dB_regions .= (-).(exp.(βⱼ))
+    @turbo ws.dB_regions .= (-).(exp.(βⱼ))
     for j in eachindex(βⱼ)
         logspace_add_prod!(ws.dB, βⱼ[j], p[j])
     end
@@ -185,14 +191,14 @@ function logspace_add_prod!(dB, β, p::VT) where {VT<:AbstractSparseVector}
     ids = SparseArrays.nonzeroinds(p)
     values = nonzeros(p)
 
-    for (i, v) in zip(ids, values)
-        dB[i] += exp(β + log(max(v, 1e-16)))
+    @turbo for k in eachindex(ids)
+        dB[ids[k]] += exp(β + log(max(values[k], 1e-16)))
     end
 end
 
-function gradient_descent_barrier_iteration!(ws, state, regions, p, q, lr)
+function gradient_descent_barrier_iteration!(ws, state, regions, p, q, lr; time_horizon)
     ivi_value_assignment!(ws, regions, p, q)
-    gradient!(ws, p)
+    gradient!(ws, p; time_horizon=time_horizon)
 
     # Grad norm clipping
     # This allows us to take bigger step sizes without worrying about overstepping
