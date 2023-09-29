@@ -175,7 +175,7 @@ function (T::GaussianLogTransitionKernel)(y)
     m = LazySets.dim(T.X)
     vₗ, vₕ = low(T.X), high(T.X)
 
-    acc = log(1) - m * log(2) + mapreduce(+, y, vₗ, vₕ, T.σ) do yᵢ, vₗᵢ, vₕᵢ, σᵢ
+    acc = log(1) - m * log(2) + vmapreduce(+, y, vₗ, vₕ, T.σ) do yᵢ, vₗᵢ, vₕᵢ, σᵢ
         a = invsqrt2 * (yᵢ - vₗᵢ) / σᵢ
         b = invsqrt2 * (yᵢ - vₕᵢ) / σᵢ
         logerf(b, a)   # log(erf(a) - erf(b))
