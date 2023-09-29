@@ -150,13 +150,13 @@ function beta!(ws::GradientDescentWorkspace, p)
     end
 
     # ws.β .= dot.(tuple(ws.B), p)
-    ws.β .-= ws.B_regions
-    clamp!(ws.β, 0, Inf)
+    @turbo ws.β .-= ws.B_regions
+    @turbo clamp!(ws.β, 0, Inf)
 
     return ws.β
 end
 
-function gradient!(ws::GradientDescentWorkspace, p::VVT; time_horizon, t=200.0) where {VVT<:AbstractVector{<:AbstractVector}}
+function gradient!(ws::GradientDescentWorkspace, p::VVT; time_horizon, t=5000.0) where {VVT<:AbstractVector{<:AbstractVector}}
     # Gradient for the following loss: ||βⱼ||ₜ
     # This is an Lp-norm, which approaches a suprenum norm as t -> Inf
 
@@ -167,15 +167,15 @@ function gradient!(ws::GradientDescentWorkspace, p::VVT; time_horizon, t=200.0) 
     # Also, don't look - it's ugly
 
     βⱼ = beta!(ws, p)
-    βⱼ .*= time_horizon
+    @turbo βⱼ .*= time_horizon
 
     logz = log(norm(βⱼ, t))
-    βⱼ .= log.(βⱼ)
-    βⱼ .-= logz
-    βⱼ .*= t - 1
+    @turbo βⱼ .= log.(βⱼ)
+    @turbo βⱼ .-= logz
+    @turbo βⱼ .*= t - 1
 
     ws.dB[end] = 0
-    ws.dB_regions .= (-).(exp.(βⱼ))
+    @turbo ws.dB_regions .= (-).(exp.(βⱼ))
     for j in eachindex(βⱼ)
         logspace_add_prod!(ws.dB, βⱼ[j], p[j])
     end
@@ -191,8 +191,8 @@ function logspace_add_prod!(dB, β, p::VT) where {VT<:AbstractSparseVector}
     ids = SparseArrays.nonzeroinds(p)
     values = nonzeros(p)
 
-    for (i, v) in zip(ids, values)
-        dB[i] += exp(β + log(max(v, 1e-16)))
+    @turbo for k in eachindex(ids)
+        dB[ids[k]] += exp(β + log(max(values[k], 1e-16)))
     end
 end
 
