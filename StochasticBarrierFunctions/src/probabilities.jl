@@ -106,29 +106,32 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
     n = length(Xs)
     σ = noise_distribution(system)
 
-    P̲ⱼ = SparseVector{Float64, Int64}(undef, n + 1)
-    P̅ⱼ = SparseVector{Float64, Int64}(undef, n + 1)
-
     # Search for overlap with box(f(Xⱼ)) + σ * nσ_search as 
     # any region beyond that will always have a probability < sparisty_ϵ
     query_set = minkowski_sum(box_Y, Hyperrectangle(zero(σ), σ * nσ_search)) 
 
     indices = findall(X -> !isdisjoint(X, query_set), Xs)
 
+    P̲ⱼ = zeros(Float64, length(indices))
+    P̅ⱼ = zeros(Float64, length(indices))
+
     for (i, Xᵢ) in enumerate(@view(Xs[indices]))    
         # Obtain min and max of T(qᵢ | x) over Y
         P̲ᵢⱼ, P̅ᵢⱼ = transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
         
-        # Prune regions with P(f(x) ∈ qᵢ | x ∈ qⱼ) < sparisty_ϵ
-        if P̅ᵢⱼ >= alg.sparisty_ϵ
-            P̲ⱼ[i] = P̲ᵢⱼ
-            P̅ⱼ[i] = P̅ᵢⱼ
-        end
+        P̲ⱼ[i] = P̲ᵢⱼ
+        P̅ⱼ[i] = P̅ᵢⱼ
     end
+
+    # Prune regions with P(f(x) ∈ qᵢ | x ∈ qⱼ) < sparisty_ϵ
+    keep_indices = findall(p -> p >= alg.sparisty_ϵ, P̅ⱼ)
+    P̲ⱼ = P̲ⱼ[keep_indices]
+    P̅ⱼ = P̅ⱼ[keep_indices]
+    indices = indices[keep_indices]
 
     # Compute P(f(x) ∈ qᵤ | x ∈ qⱼ) including sparsity pruning
     P̲ₛⱼ, P̅ₛⱼ = transition_prob_to_region(system, VY, HY, box_Y, safe_set, alg)
-    Psparse = (n - nnz(P̅ⱼ)) * alg.sparisty_ϵ
+    Psparse = (n - length(indices)) * alg.sparisty_ϵ
     P̲ᵤⱼ, P̅ᵤⱼ = (1 - P̅ₛⱼ), (1 - P̲ₛⱼ) + Psparse
     
     # If you ever hit this case, then you are in trouble. Either sparisty_ϵ
@@ -139,8 +142,8 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
     # Clipping P̅ᵤⱼ @ 1
     P̅ᵤⱼ = min(P̅ᵤⱼ, 1.0)
 
-    P̲ⱼ[end] = P̲ᵤⱼ
-    P̅ⱼ[end] = P̅ᵤⱼ
+    P̲ⱼ = SparseVector(n + 1, [indices; [n + 1]], [P̲ⱼ; [P̲ᵤⱼ]])
+    P̅ⱼ = SparseVector(n + 1, [indices; [n + 1]], [P̅ⱼ; [P̅ᵤⱼ]])
 
     # Enforce consistency (this is useful particularly with BoxApproximation)
     P̲ⱼ, P̅ⱼ = enforce_consistency(P̲ⱼ, P̅ⱼ)
