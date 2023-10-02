@@ -9,14 +9,20 @@ abstract type AbstractLowerBoundAlgorithm end
 struct VertexEnumeration <: AbstractLowerBoundAlgorithm end
 
 abstract type AbstractUpperBoundAlgorithm end
-Base.@kwdef struct GradientDescent <: AbstractUpperBoundAlgorithm
+Base.@kwdef struct GlobalSolver <: AbstractUpperBoundAlgorithm
     non_linear_solver = default_non_linear_solver()
 end
 struct BoxApproximation <: AbstractUpperBoundAlgorithm end
+Base.@kwdef struct FrankWolfe <: AbstractUpperBoundAlgorithm
+    linear_solver = default_lp_solver()
+    num_iterations = 100
+    termination_ϵ = 1e-12
+    line_search_steps = 50
+end
 
 Base.@kwdef struct TransitionProbabilityAlgorithm
     lower_bound_method::AbstractLowerBoundAlgorithm = VertexEnumeration()
-    upper_bound_method::AbstractUpperBoundAlgorithm = GradientDescent()
+    upper_bound_method::AbstractUpperBoundAlgorithm = GlobalSolver()
     sparisty_ϵ = 1e-12
 end
 
@@ -164,7 +170,7 @@ function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
     prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, kernel, v, VY)
 
     # Obtain max of T(qᵢ | x) over Y
-    prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, HY, box_Y))
+    prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, VY, HY, box_Y))
 
     return prob_transition_lower, prob_transition_upper
 end
@@ -219,7 +225,7 @@ function min_log_concave_over_polytope(::VertexEnumeration, f, global_max, X)
     # return lb
 end
 
-function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
+function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, VX, X, box_X)
     if global_max in X
         return f(global_max)
     end
@@ -233,7 +239,7 @@ function project_onto_hyperrect(X, p)
     return @. min(h, max(p, l))
 end
 
-function max_quasi_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X)
+function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, VX, X, box_X)
     if global_max in X
         return f(global_max)
     end
@@ -256,6 +262,62 @@ function max_quasi_concave_over_polytope(alg::GradientDescent, f, global_max, X,
     JuMP.optimize!(model)
 
     return JuMP.objective_value(model)
+end
+
+function max_quasi_concave_over_polytope(alg::FrankWolfe, f, global_max, VX, X, box_X)
+    if global_max in X
+        return f(global_max)
+    end
+
+    vertices = vertices_list(VX)
+    x_cur = sum(vertices) ./ length(vertices)
+    x_max = similar(x_cur)
+    # x_mid = similar(x_cur)
+    d = similar(x_cur)
+
+    model = get!(() -> Model(alg.linear_solver), task_local_storage(), "transition_prob_lp_model")
+    set_silent(model)
+    empty!(model)
+
+    @variable(model, x[eachindex(x_cur)])
+
+    H, h = tosimplehrep(X)
+    @constraint(model, H * x <= h)
+
+    for k in 0:alg.num_iterations
+        # Compute gradient
+        ∇ₓf = gradient(f, x_cur)[1]
+
+        # Compute extreme point
+        @objective(model, Max, dot(∇ₓf, x))
+        JuMP.optimize!(model)
+
+        x_max .= JuMP.value.(x)
+        d = x_max .- x_cur
+        x_cur .+= (2 / (k + 2)) .* d
+
+        g = dot(∇ₓf, d)
+        if g < alg.termination_ϵ
+            break
+        end
+
+        # prev_val = f(x_cur)
+        # for j in 0:alg.line_search_steps
+        #     λ = j / alg.line_search_steps
+        #     x_mid .= x_max .* (1 - λ) .+ x_cur .* λ
+        #     x_mid_val = f(x_mid)
+
+        #     if prev_val > x_mid_val
+        #         λ = (j - 1) / alg.line_search_steps
+        #         x_cur .= x_max .* (1 - λ) .+ x_cur .* λ
+        #         break
+        #     else
+        #         prev_val = x_mid_val
+        #     end
+        # end
+    end
+    
+    return f(x_cur) * (1.0 - 1e-3)  # Account for covergence tolerance
 end
 
 function enforce_consistency(P̲, P̅)
