@@ -1,0 +1,22 @@
+{
+  "system": "cartpole",
+  "dynamics": {
+    "dim": 4,
+    "sigma": [0.01, 0.01, 0.01, 0.01],
+    "safe_set": [[-2.0, -2.0, -0.20943951023931956, -0.2], [2.0, 2.0, 0.20943951023931956, 0.2]],
+    "F": [-3.1623, -4.2691, 38.9192, 9.9633],
+    "masscart": 1.0,
+    "masspole": 0.1,
+    "length": 1.0,
+    "g": 9.81,
+    "Ts": 0.02
+  },
+  "partitioning": {
+    "method": "grid",
+    "num_slices": [10, 10, 20, 20]
+  },
+  "save_path": {
+    "transition_prob": "../../data/cartpole/cartpole_transition_prob_{regions}_sigma_{noise}.nc",
+    "nominal_dynamics": "../../data/cartpole/dynamics_{regions}.nc"
+  }
+}
