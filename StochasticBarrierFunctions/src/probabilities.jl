@@ -15,9 +15,9 @@ end
 struct BoxApproximation <: AbstractUpperBoundAlgorithm end
 Base.@kwdef struct FrankWolfe <: AbstractUpperBoundAlgorithm
     linear_solver = default_lp_solver()
+    sdp_solver = default_sdp_solver()
     num_iterations = 100
     termination_ϵ = 1e-12
-    line_search_steps = 50
 end
 
 Base.@kwdef struct TransitionProbabilityAlgorithm
@@ -121,7 +121,7 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
     P̲ⱼ = zeros(Float64, length(indices))
     P̅ⱼ = zeros(Float64, length(indices))
 
-    for (i, Xᵢ) in enumerate(@view(Xs[indices]))    
+    for (i, Xᵢ) in enumerate(@view(Xs[indices]))
         # Obtain min and max of T(qᵢ | x) over Y
         P̲ᵢⱼ, P̅ᵢⱼ = transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
         
@@ -170,7 +170,7 @@ function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
     prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, kernel, v, VY)
 
     # Obtain max of T(qᵢ | x) over Y
-    prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, VY, HY, box_Y))
+    prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, HY, box_Y))
 
     return prob_transition_lower, prob_transition_upper
 end
@@ -225,7 +225,7 @@ function min_log_concave_over_polytope(::VertexEnumeration, f, global_max, X)
     # return lb
 end
 
-function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, VX, X, box_X)
+function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
     if global_max in X
         return f(global_max)
     end
@@ -239,7 +239,7 @@ function project_onto_hyperrect(X, p)
     return @. min(h, max(p, l))
 end
 
-function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, VX, X, box_X)
+function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, X, box_X)
     if global_max in X
         return f(global_max)
     end
@@ -261,19 +261,20 @@ function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, VX, X
     # Optimize for maximum
     JuMP.optimize!(model)
 
-    return JuMP.objective_value(model)
+    return JuMP.objective_value(model) + 1e-8  # Account for covergence tolerance
 end
 
-function max_quasi_concave_over_polytope(alg::FrankWolfe, f, global_max, VX, X, box_X)
+function max_quasi_concave_over_polytope(alg::FrankWolfe, f, global_max, X, box_X)
     if global_max in X
         return f(global_max)
     end
 
-    vertices = vertices_list(VX)
-    x_cur = sum(vertices) ./ length(vertices)
-    x_max = similar(x_cur)
-    # x_mid = similar(x_cur)
+    # Frequently, the closest point to the global maximum is maximum within the polytope.
+    x_cur = l2_closest_point(X, global_max, alg.sdp_solver)
+
+    x_min = similar(x_cur)
     d = similar(x_cur)
+    ∇ₓf = similar(x_cur)
 
     model = get!(() -> Model(alg.linear_solver), task_local_storage(), "transition_prob_lp_model")
     set_silent(model)
@@ -286,38 +287,42 @@ function max_quasi_concave_over_polytope(alg::FrankWolfe, f, global_max, VX, X, 
 
     for k in 0:alg.num_iterations
         # Compute gradient
-        ∇ₓf = gradient(f, x_cur)[1]
+        ∇ₓf .= -gradient(f, x_cur)[1]   # We can accelerate this more if we manually derive the gradient
+        x_min .= compute_extreme_point(model, ∇ₓf, x)
 
-        # Compute extreme point
-        @objective(model, Max, dot(∇ₓf, x))
-        JuMP.optimize!(model)
+        d .= x_min .- x_cur
+        dual_grap = -dot(∇ₓf, d)
 
-        x_max .= JuMP.value.(x)
-        d = x_max .- x_cur
-        x_cur .+= (2 / (k + 2)) .* d
-
-        g = dot(∇ₓf, d)
-        if g < alg.termination_ϵ
+        if dual_grap < alg.termination_ϵ
             break
         end
 
-        # prev_val = f(x_cur)
-        # for j in 0:alg.line_search_steps
-        #     λ = j / alg.line_search_steps
-        #     x_mid .= x_max .* (1 - λ) .+ x_cur .* λ
-        #     x_mid_val = f(x_mid)
-
-        #     if prev_val > x_mid_val
-        #         λ = (j - 1) / alg.line_search_steps
-        #         x_cur .= x_max .* (1 - λ) .+ x_cur .* λ
-        #         break
-        #     else
-        #         prev_val = x_mid_val
-        #     end
-        # end
+        x_cur .+= (8 / (k + 8)) .* d  # Agnostic step size with l = 8
     end
     
-    return f(x_cur) * (1.0 - 1e-3)  # Account for covergence tolerance
+    return f(x_cur) / (1 + 4 * 10^(log10(alg.termination_ϵ) / 3)) # Account for covergence tolerance
+end
+
+function compute_extreme_point(model, ∇ₓf, x)
+    @objective(model, Min, dot(∇ₓf, x))
+    JuMP.optimize!(model)
+
+    return JuMP.value.(x)
+end
+
+function l2_closest_point(X, p, sdp_solver)
+    H, h = tosimplehrep(X)
+
+    model = get!(() -> Model(sdp_solver), task_local_storage(), "l2_closest_point_model")
+    set_silent(model)
+    empty!(model)
+
+    @variable(model, x[1:LazySets.dim(X)])
+    @constraint(model, H * x <= h)
+    @objective(model, Min, sum((x - p).^2))
+    optimize!(model)
+
+    return JuMP.value.(x)
 end
 
 function enforce_consistency(P̲, P̅)
