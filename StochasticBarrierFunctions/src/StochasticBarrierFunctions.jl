@@ -4,11 +4,11 @@ using LinearAlgebra, SparseArrays, StaticArrays
 using LoopVectorization, ProgressMeter
 using Distributions, Combinatorics
 
-using SpecialFunctions: logerf
-using IrrationalConstants: invsqrt2
+using SpecialFunctions: erf, logerf, logerfc
+using IrrationalConstants: invsqrt2, sqrtπ
+import LogExpFunctions
 # TODO: Make Mosek and Ipopt optional through extensions
 using JuMP, MosekTools, Mosek, Ipopt, HiGHS
-using Zygote
 
 function default_lp_solver end
 function default_sdp_solver end
