@@ -7,13 +7,14 @@ using Distributions, Combinatorics
 using SpecialFunctions: logerf
 using IrrationalConstants: invsqrt2
 # TODO: Make Mosek and Ipopt optional through extensions
-using JuMP, MosekTools, Mosek, Ipopt
+using JuMP, MosekTools, Mosek, Ipopt, HiGHS
+using Zygote
 
 function default_lp_solver end
 function default_sdp_solver end
 function default_non_linear_solver end
 
-default_lp_solver() = Mosek.Optimizer
+default_lp_solver() = HiGHS.Optimizer
 default_sdp_solver() = Mosek.Optimizer
 default_non_linear_solver() = Ipopt.Optimizer
 
@@ -39,7 +40,7 @@ export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper, upd
 
 include("probabilities.jl")
 export transition_probabilities, plot_posterior
-export TransitionProbabilityAlgorithm, BoxApproximation, GradientDescent
+export TransitionProbabilityAlgorithm, BoxApproximation, GlobalSolver, FrankWolfe
 
 include("barrier.jl")
 export StochasticBarrier, SOSBarrier, ConstantBarrier

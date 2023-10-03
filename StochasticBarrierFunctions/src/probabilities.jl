@@ -9,14 +9,20 @@ abstract type AbstractLowerBoundAlgorithm end
 struct VertexEnumeration <: AbstractLowerBoundAlgorithm end
 
 abstract type AbstractUpperBoundAlgorithm end
-Base.@kwdef struct GradientDescent <: AbstractUpperBoundAlgorithm
+Base.@kwdef struct GlobalSolver <: AbstractUpperBoundAlgorithm
     non_linear_solver = default_non_linear_solver()
 end
 struct BoxApproximation <: AbstractUpperBoundAlgorithm end
+Base.@kwdef struct FrankWolfe <: AbstractUpperBoundAlgorithm
+    linear_solver = default_lp_solver()
+    sdp_solver = default_sdp_solver()
+    num_iterations = 100
+    termination_ϵ = 1e-12
+end
 
 Base.@kwdef struct TransitionProbabilityAlgorithm
     lower_bound_method::AbstractLowerBoundAlgorithm = VertexEnumeration()
-    upper_bound_method::AbstractUpperBoundAlgorithm = GradientDescent()
+    upper_bound_method::AbstractUpperBoundAlgorithm = GlobalSolver()
     sparisty_ϵ = 1e-12
 end
 
@@ -115,7 +121,7 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
     P̲ⱼ = zeros(Float64, length(indices))
     P̅ⱼ = zeros(Float64, length(indices))
 
-    for (i, Xᵢ) in enumerate(@view(Xs[indices]))    
+    for (i, Xᵢ) in enumerate(@view(Xs[indices]))
         # Obtain min and max of T(qᵢ | x) over Y
         P̲ᵢⱼ, P̅ᵢⱼ = transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
         
@@ -233,7 +239,7 @@ function project_onto_hyperrect(X, p)
     return @. min(h, max(p, l))
 end
 
-function max_quasi_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X)
+function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, X, box_X)
     if global_max in X
         return f(global_max)
     end
@@ -255,7 +261,68 @@ function max_quasi_concave_over_polytope(alg::GradientDescent, f, global_max, X,
     # Optimize for maximum
     JuMP.optimize!(model)
 
-    return JuMP.objective_value(model)
+    return JuMP.objective_value(model) + 1e-8  # Account for covergence tolerance
+end
+
+function max_quasi_concave_over_polytope(alg::FrankWolfe, f, global_max, X, box_X)
+    if global_max in X
+        return f(global_max)
+    end
+
+    # Frequently, the closest point to the global maximum is maximum within the polytope.
+    x_cur = l2_closest_point(X, global_max, alg.sdp_solver)
+
+    x_min = similar(x_cur)
+    d = similar(x_cur)
+    ∇ₓf = similar(x_cur)
+
+    model = get!(() -> Model(alg.linear_solver), task_local_storage(), "transition_prob_lp_model")
+    set_silent(model)
+    empty!(model)
+
+    @variable(model, x[eachindex(x_cur)])
+
+    H, h = tosimplehrep(X)
+    @constraint(model, H * x <= h)
+
+    for k in 0:alg.num_iterations
+        # Compute gradient
+        ∇ₓf .= -gradient(f, x_cur)[1]   # We can accelerate this more if we manually derive the gradient
+        x_min .= compute_extreme_point(model, ∇ₓf, x)
+
+        d .= x_min .- x_cur
+        dual_grap = -dot(∇ₓf, d)
+
+        if dual_grap < alg.termination_ϵ
+            break
+        end
+
+        x_cur .+= (8 / (k + 8)) .* d  # Agnostic step size with l = 8
+    end
+    
+    return f(x_cur) / (1 + 4 * 10^(log10(alg.termination_ϵ) / 3)) # Account for covergence tolerance
+end
+
+function compute_extreme_point(model, ∇ₓf, x)
+    @objective(model, Min, dot(∇ₓf, x))
+    JuMP.optimize!(model)
+
+    return JuMP.value.(x)
+end
+
+function l2_closest_point(X, p, sdp_solver)
+    H, h = tosimplehrep(X)
+
+    model = get!(() -> Model(sdp_solver), task_local_storage(), "l2_closest_point_model")
+    set_silent(model)
+    empty!(model)
+
+    @variable(model, x[1:LazySets.dim(X)])
+    @constraint(model, H * x <= h)
+    @objective(model, Min, sum((x - p).^2))
+    optimize!(model)
+
+    return JuMP.value.(x)
 end
 
 function enforce_consistency(P̲, P̅)
