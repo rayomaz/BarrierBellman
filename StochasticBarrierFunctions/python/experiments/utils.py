@@ -10,10 +10,10 @@ def load_config(config_path):
 
         config_dict = {}  # Create an empty dictionary to store the data
 
-        for path in config_path:
+        for idx, path in enumerate(config_path):
             try:
                 with open(path, 'r') as f:
-                    config_dict[path] = json.load(f)
+                    config_dict[idx] = json.load(f)
             except FileNotFoundError:
                 print(f"File not found: {config_path}")
 
