@@ -8,7 +8,7 @@ from experiments.utils import grid_partition
 logger = logging.getLogger(__name__)
 
 
-class UnicycleExperiment:
+class NominalUnicycleExperiment:
 
     def __init__(self, args, config):
         logger.info('Constructing model')
