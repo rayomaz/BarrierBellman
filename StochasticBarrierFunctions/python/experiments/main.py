@@ -111,6 +111,8 @@ def experiment_builder(args, config):
             return NNDMExperiment(args, config)
         elif config['system'] == 'harrier':
             return HarrierExperiment(args, config)
+        elif config['system'] == 'unicycle_nominal':
+            return NominalUnicycleExperiment(args, config)
         else:
             raise ValueError(f'System "{config["system"]}" not defined')
 
@@ -129,6 +131,9 @@ class Runner:
         self.args = args
         self.config = config
         self.experiment = construct_experiment(self.args, self.config)
+
+        print(self.experiment)
+        exit()
 
     @property
     def device(self):
