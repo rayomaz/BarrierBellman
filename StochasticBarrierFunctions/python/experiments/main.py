@@ -104,7 +104,7 @@ def load_mat_linear_bounds(path):
 
 def experiment_builder(args, config):
 
-    if config.get("0") is None:
+    if config.get(0) is None:
         if config['system'] == 'linear':
             return LinearExperiment(args, config)
         elif config['system'] == 'nndm':
@@ -113,13 +113,13 @@ def experiment_builder(args, config):
             return HarrierExperiment(args, config)
         elif config['system'] == 'unicycle_nominal':
             return NominalUnicycleExperiment(args, config)
-        else:
-            raise ValueError(f'System "{config["system"]}" not defined')
-
+        
     # TODO: generalize this later 
-    elif config.get("0") is not None:
+    elif config.get(0) is not None:
         return NominalUnicycleExperiment(args, config[0]), ZeroVUnicycleExperiment(args, config[1])
 
+    else:
+        raise ValueError(f'System "{config["system"]}" not defined')
 
 class Runner:
     """
@@ -131,9 +131,6 @@ class Runner:
         self.args = args
         self.config = config
         self.experiment = construct_experiment(self.args, self.config)
-
-        print(self.experiment)
-        exit()
 
     @property
     def device(self):
@@ -326,8 +323,8 @@ def parse_arguments():
     parser = ArgumentParser()
     parser.add_argument('--task', choices=['bound_nominal_dynamics', 'bound_transition_prob'], type=str, default='bound_nominal_dynamics')
     parser.add_argument('--device', choices=list(map(torch.device, ['cuda', 'cpu'])), type=torch.device, default=device_default, help='Select device for tensor operations.')
-    # parser.add_argument('--config-path', type=str, default= ['unicycle/nominal/unicycle.json', 'unicycle/zeroV/unicycle.json'], help='Path to configuration of experiment.')
-    parser.add_argument('--config-path', type=str, default= 'unicycle/nominal/unicycle.json', help='Path to configuration of experiment.')
+    parser.add_argument('--config-path', type=str, default= ['unicycle/nominal/unicycle.json', 'unicycle/zeroV/unicycle.json'], help='Path to configuration of experiment.')
+    # parser.add_argument('--config-path', type=str, default= 'unicycle/nominal/unicycle.json', help='Path to configuration of experiment.')
     parser.add_argument('--log-file', type=str, help='Path to log file.')
 
     return parser.parse_args()
