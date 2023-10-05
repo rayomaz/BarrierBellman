@@ -12,7 +12,7 @@ function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:Reg
     optim = Optimisers.Nesterov(alg.initial_lr, alg.momentum)
 
     state = Optimisers.setup(optim, ws.B)
-
+    @showprogress for k in 0:alg.num_iterations
         state = gradient_descent_barrier_iteration!(ws, state, regions, p, q, decay(k))
     end
 
