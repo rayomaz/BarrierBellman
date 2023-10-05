@@ -5,8 +5,23 @@ from bounds.partitioning import Partition
 
 
 def load_config(config_path):
-    with open(config_path, 'r') as f:
-        return json.load(f)
+
+    if type(config_path) is list:
+
+        config_dict = {}  # Create an empty dictionary to store the data
+
+        for path in config_path:
+            try:
+                with open(path, 'r') as f:
+                    config_dict[path] = json.load(f)
+            except FileNotFoundError:
+                print(f"File not found: {config_path}")
+
+        return config_dict
+
+    elif type(config_path) is str:
+        with open(config_path, 'r') as f:
+            return json.load(f)
 
 
 def grid_partition(args, config):
