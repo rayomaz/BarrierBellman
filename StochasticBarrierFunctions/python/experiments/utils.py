@@ -17,7 +17,7 @@ def load_config(config_path):
             except FileNotFoundError:
                 print(f"File not found: {config_path}")
 
-        return config_dict
+        return config_dict      # Return dict of multiple .json dicts
 
     elif type(config_path) is str:
         with open(config_path, 'r') as f:
