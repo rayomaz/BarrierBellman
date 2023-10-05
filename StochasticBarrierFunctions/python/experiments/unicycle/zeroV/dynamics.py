@@ -14,8 +14,8 @@ class Unicycle(nn.Sequential, AdditiveGaussianDynamics):
         # Choose ODE formulation z = (x, y, θ, v)
         # ẋ = z₄ cos z₃
         # ẏ = z₄ sin z₃
-        # θ̇ = - [(sin z₃) / z₄ ] * u₁ + [(cos z₃) / z₄] * u₂
-        # v̇ = cos z₃ * u₁ + sin z₃ * u₂
+        # θ̇ = u₁
+        # v̇ = u₂
         
         # Nominal Control Law for v < 5e-2 
         # u₁ = - θ / dt
@@ -40,24 +40,18 @@ class Unicycle(nn.Sequential, AdditiveGaussianDynamics):
                     Select([4, 5])
                 )  # (v * sin theta, v * cos theta) #(6, 7)
             ),
-            Cat(
-                Div(
-                    Select([4, 5]),
-                    Select([3, 3])
-                )  # (sin theta / v, cos theta / v) #(8, 9)
-            ),
             FixedLinear(
                 torch.as_tensor([
-                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0]
+                    [1, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 0, 0, 0, 0]
                 ]) +
                 Ts * torch.as_tensor([
-                    [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-                    [0, 0, -1/Ts, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, -1/Ts, 0, 0, 0, 0, 0, 0]
+                    [0, 0, 0, 0, 0, 0, 0, 1],
+                    [0, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, -1/Ts, 0, 0, 0, 0, 0],
+                    [0, 0, 0, -1/Ts, 0, 0, 0, 0]
                 ])
             )
         )

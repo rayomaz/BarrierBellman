@@ -318,7 +318,7 @@ def parse_arguments():
     parser = ArgumentParser()
     parser.add_argument('--task', choices=['bound_nominal_dynamics', 'bound_transition_prob'], type=str, default='bound_nominal_dynamics')
     parser.add_argument('--device', choices=list(map(torch.device, ['cuda', 'cpu'])), type=torch.device, default=device_default, help='Select device for tensor operations.')
-    parser.add_argument('--config-path', type=str, help='Path to configuration of experiment.')
+    parser.add_argument('--config-path', type=str, default= 'unicycle/zeroV/unicycle.json', help='Path to configuration of experiment.')
     parser.add_argument('--log-file', type=str, help='Path to log file.')
 
     return parser.parse_args()
