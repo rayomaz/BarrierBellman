@@ -17,7 +17,8 @@ from bounds.bounds import MinimizeGap, MinimizePosteriorRect
 from bounds.certifier import GaussianCertifier, check_gap
 from linear.linear import LinearExperiment
 from nndm.nndm import NNDMExperiment
-from unicycle.unicycle import UnicycleExperiment
+from unicycle.nominal.unicycle import NominalUnicycleExperiment
+from unicycle.zeroV.unicycle import ZeroVUnicycleExperiment
 from harrier.harrier import HarrierExperiment
 
 from log import configure_logging
@@ -106,8 +107,10 @@ def experiment_builder(args, config):
         return LinearExperiment(args, config)
     elif config['system'] == 'nndm':
         return NNDMExperiment(args, config)
-    elif config['system'] == 'unicycle':
-        return UnicycleExperiment(args, config)
+    elif config['system'] == 'nomimal_unicycle':
+        return NominalUnicycleExperiment(args, config)
+    elif config['system'] == 'zerov_unicycle':
+        return ZeroVUnicycleExperiment(args, config)
     elif config['system'] == 'harrier':
         return HarrierExperiment(args, config)
     else:
