@@ -149,6 +149,7 @@ class Runner:
         return self.experiment.dynamics.v
 
     @torch.no_grad()
+    # TODO: construct multi controller for bound_transition_prob
     def bound_transition_prob(self):
 
         # Cons is a name from Lisp for order pairs, which allows shortened form unpacking. Nothing major.
@@ -236,70 +237,76 @@ class Runner:
 
     @torch.no_grad()
     def bound_nominal_dynamics(self):
-        partition = self.experiment.grid_partition()
-        number_hypercubes = len(partition)
-        logger.debug(f'Number of hypercubes = {number_hypercubes}')
 
-        model = self.experiment.factory.build(MinimizePosteriorRect(self.experiment.dynamics)).to(self.device)
-        logger.info('Bound propagation model created ... ')
+        if self.config.get(0) is None:
 
-        input_set = HyperRectangle(partition.lower, partition.upper)
-        dynamics_bounds = model.crown(input_set, alpha=True)
-        check_gap(dynamics_bounds)
-        logger.info('Dynamics bounds obtained ...')
+            partition = self.experiment.grid_partition()
+            number_hypercubes = len(partition)
+            logger.debug(f'Number of hypercubes = {number_hypercubes}')
 
-        # mat_dynamics_bounds = load_mat_linear_bounds("../../../PiecewiseConstant/synthesize/models/pendulum/partition_data_120.mat")
-        #
-        # for i in range(number_hypercubes):
-        #     plot_partition(model, self.args, dynamics_bounds[i], mat_dynamics_bounds[i])
+            model = self.experiment.factory.build(MinimizePosteriorRect(self.experiment.dynamics)).to(self.device)
+            logger.info('Bound propagation model created ... ')
 
-        region = ('region', list(range(1, len(partition) + 1)))
-        lu = ('dir', ['lower', 'upper'])
-        x = ('x', list(range(1, self.dim + 1)))
-        y = ('y', list(range(1, self.dim + 1)))
+            input_set = HyperRectangle(partition.lower, partition.upper)
+            dynamics_bounds = model.crown(input_set, alpha=True)
+            check_gap(dynamics_bounds)
+            logger.info('Dynamics bounds obtained ...')
 
-        safe_set = xr.DataArray(
-            name='safe_set',
-            data=torch.stack((self.safe_set[0], self.safe_set[1]), dim=0).numpy(),
-            coords=[lu, x]
-        )
+            # mat_dynamics_bounds = load_mat_linear_bounds("../../../PiecewiseConstant/synthesize/models/pendulum/partition_data_120.mat")
+            #
+            # for i in range(number_hypercubes):
+            #     plot_partition(model, self.args, dynamics_bounds[i], mat_dynamics_bounds[i])
 
-        regions = xr.DataArray(
-            name='regions',
-            data=torch.stack((partition.lower, partition.upper), dim=1).numpy(),
-            coords=[region, lu, x]
-        )
+            region = ('region', list(range(1, len(partition) + 1)))
+            lu = ('dir', ['lower', 'upper'])
+            x = ('x', list(range(1, self.dim + 1)))
+            y = ('y', list(range(1, self.dim + 1)))
 
-        nominal_dynamics_A = xr.DataArray(
-            name='nominal_dynamics_A',
-            data=torch.stack((dynamics_bounds.lower[0], dynamics_bounds.upper[0]), dim=1).numpy(),
-            coords=[region, lu, y, x]
-        )
-
-        nominal_dynamics_b = xr.DataArray(
-            name='nominal_dynamics_b',
-            data=torch.stack((dynamics_bounds.lower[1], dynamics_bounds.upper[1]), dim=1).numpy(),
-            coords=[region, lu, y]
-        )
-
-        ds = xr.Dataset(
-            data_vars=dict(
-                safe_set=safe_set,
-                regions=regions,
-                nominal_dynamics_A=nominal_dynamics_A,
-                nominal_dynamics_b=nominal_dynamics_b
-            ),
-            attrs=dict(
-                num_regions=number_hypercubes
+            safe_set = xr.DataArray(
+                name='safe_set',
+                data=torch.stack((self.safe_set[0], self.safe_set[1]), dim=0).numpy(),
+                coords=[lu, x]
             )
-        )
 
-        path = self.config['save_path']['nominal_dynamics'].format(regions=number_hypercubes)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        ds.to_netcdf(path)
+            regions = xr.DataArray(
+                name='regions',
+                data=torch.stack((partition.lower, partition.upper), dim=1).numpy(),
+                coords=[region, lu, x]
+            )
 
-        logger.info("Dynamics data saved to file {}".format(path))
+            nominal_dynamics_A = xr.DataArray(
+                name='nominal_dynamics_A',
+                data=torch.stack((dynamics_bounds.lower[0], dynamics_bounds.upper[0]), dim=1).numpy(),
+                coords=[region, lu, y, x]
+            )
 
+            nominal_dynamics_b = xr.DataArray(
+                name='nominal_dynamics_b',
+                data=torch.stack((dynamics_bounds.lower[1], dynamics_bounds.upper[1]), dim=1).numpy(),
+                coords=[region, lu, y]
+            )
+
+            ds = xr.Dataset(
+                data_vars=dict(
+                    safe_set=safe_set,
+                    regions=regions,
+                    nominal_dynamics_A=nominal_dynamics_A,
+                    nominal_dynamics_b=nominal_dynamics_b
+                ),
+                attrs=dict(
+                    num_regions=number_hypercubes
+                )
+            )
+
+            path = self.config['save_path']['nominal_dynamics'].format(regions=number_hypercubes)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            ds.to_netcdf(path)
+
+            logger.info("Dynamics data saved to file {}".format(path))
+
+        elif self.config.get(0) is not None:
+            print("Here")
+            exit()
 
 def main(args):
 
@@ -307,7 +314,6 @@ def main(args):
 
     logger.info('Called runner ... ')
     runner = Runner(args, config)
-    exit()
 
     if args.task == 'bound_transition_prob':
         runner.bound_transition_prob()
