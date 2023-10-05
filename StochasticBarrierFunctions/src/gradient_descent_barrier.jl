@@ -9,7 +9,7 @@ function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:Reg
     ws, p, q = setup_gd(regions, initial_region, obstacle_region)
 
     decay = Exp(λ = alg.initial_lr, γ = alg.decay)
-    optim = Optimisers.Nesterov(alg.initial_lr, alg.momentum)
+        optim = Optimisers.Nesterov(alg.initial_lr, alg.momentum)
 
     state = Optimisers.setup(optim, ws.B)
 
@@ -144,6 +144,11 @@ function project!(ws::GradientDescentWorkspace)
     ws.B_unsafe .= 1
 end
 
+function project_gradient!(ws::GradientDescentWorkspace)
+    # Projection onto [0, 1]^n
+    clamp!(ws.dB, 0, 1)
+end
+
 function beta!(ws::GradientDescentWorkspace, p)
     Threads.@threads for j in eachindex(ws.β)
         ws.β[j] = dot(ws.B, p[j])
@@ -156,7 +161,7 @@ function beta!(ws::GradientDescentWorkspace, p)
     return ws.β
 end
 
-function gradient!(ws::GradientDescentWorkspace, p::VVT; time_horizon, t=5000.0) where {VVT<:AbstractVector{<:AbstractVector}}
+function gradient!(ws::GradientDescentWorkspace, p::VVT; time_horizon, t=200.0) where {VVT<:AbstractVector{<:AbstractVector}}
     # Gradient for the following loss: ||βⱼ||ₜ
     # This is an Lp-norm, which approaches a suprenum norm as t -> Inf
 
@@ -199,6 +204,12 @@ end
 function gradient_descent_barrier_iteration!(ws, state, regions, p, q, lr; time_horizon)
     ivi_value_assignment!(ws, regions, p, q)
     gradient!(ws, p; time_horizon=time_horizon)
+
+    rmul!(ws.dB, -lr)
+    ws.dB .+= ws.B
+    project_gradient!(ws)
+    ws.dB .-= ws.B
+    rmul!(ws.dB, -1/lr)
 
     # Grad norm clipping
     # This allows us to take bigger step sizes without worrying about overstepping
