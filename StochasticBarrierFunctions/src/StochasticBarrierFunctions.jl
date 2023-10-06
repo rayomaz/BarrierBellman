@@ -2,7 +2,7 @@ module StochasticBarrierFunctions
 
 using LinearAlgebra, SparseArrays, StaticArrays
 using LoopVectorization, ProgressMeter
-using Distributions, Combinatorics
+using Distributions, Combinatorics, StatsBase
 
 using SpecialFunctions: logerf
 using IrrationalConstants: invsqrt2
@@ -44,7 +44,7 @@ export TransitionProbabilityAlgorithm, BoxApproximation, GradientDescent
 include("barrier.jl")
 export StochasticBarrier, SOSBarrier, ConstantBarrier
 export StochasticBarrierAlgorithm, DualAlgorithm, UpperBoundAlgorithm, IterativeUpperBoundAlgorithm
-export GradientDescentAlgorithm, SumOfSquaresAlgorithm
+export GradientDescentAlgorithm, StochasticGradientDescentAlgorithm, SumOfSquaresAlgorithm
 
 function synthesize_barrier end
 export synthesize_barrier
