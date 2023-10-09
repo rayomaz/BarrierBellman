@@ -9,14 +9,20 @@ abstract type AbstractLowerBoundAlgorithm end
 struct VertexEnumeration <: AbstractLowerBoundAlgorithm end
 
 abstract type AbstractUpperBoundAlgorithm end
-Base.@kwdef struct GradientDescent <: AbstractUpperBoundAlgorithm
+Base.@kwdef struct GlobalSolver <: AbstractUpperBoundAlgorithm
     non_linear_solver = default_non_linear_solver()
 end
 struct BoxApproximation <: AbstractUpperBoundAlgorithm end
+Base.@kwdef struct FrankWolfe <: AbstractUpperBoundAlgorithm
+    linear_solver = default_lp_solver()
+    sdp_solver = default_sdp_solver()
+    num_iterations = 100
+    termination_ϵ = 1e-12
+end
 
 Base.@kwdef struct TransitionProbabilityAlgorithm
     lower_bound_method::AbstractLowerBoundAlgorithm = VertexEnumeration()
-    upper_bound_method::AbstractUpperBoundAlgorithm = GradientDescent()
+    upper_bound_method::AbstractUpperBoundAlgorithm = GlobalSolver()
     sparisty_ϵ = 1e-12
 end
 
@@ -115,7 +121,7 @@ function transition_prob_from_region(system, Xⱼ, Xs, safe_set, alg; nσ_search
     P̲ⱼ = zeros(Float64, length(indices))
     P̅ⱼ = zeros(Float64, length(indices))
 
-    for (i, Xᵢ) in enumerate(@view(Xs[indices]))    
+    for (i, Xᵢ) in enumerate(@view(Xs[indices]))
         # Obtain min and max of T(qᵢ | x) over Y
         P̲ᵢⱼ, P̅ᵢⱼ = transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
         
@@ -187,6 +193,62 @@ function (T::GaussianLogTransitionKernel)(y)
     return acc
 end
 
+function grad!(res, T::GaussianLogTransitionKernel, v)
+    vₗ, vₕ = low(T.X), high(T.X)
+    σ = T.σ
+
+    for i in eachindex(v)
+        x = invsqrt2 * (v[i] - vₕ[i]) / σ[i]
+        y = invsqrt2 * (v[i] - vₗ[i]) / σ[i]
+        # g = gradient((x, y) -> logerf(x, y), x, y)
+        # res[i] = g[1] + g[2]
+
+        if abs(x) ≤ invsqrt2 && abs(y) ≤ invsqrt2
+            in = erf(x, y)   # erf(y) - erf(x)
+            res[i] = inv(in) * (exp(-y^2) - exp(-x^2)) * (2 / sqrtπ)
+        elseif y > x > 0
+            a = logerfc(x)
+            b = logerfc(y)
+            c = b - a
+            d = LogExpFunctions.log1mexp(c)
+            # e = a + d
+
+            ∂a∂x = -2 * exp(-x^2 - a) / sqrtπ
+            ∂b∂y = -2 * exp(-y^2 - b) / sqrtπ
+
+            ∂d∂c = -exp(c - d)
+
+            dedx = ∂a∂x - ∂d∂c * ∂a∂x
+            dedy = ∂d∂c * ∂b∂y
+
+            res[i] = dedx + dedy
+        elseif x < y < 0
+            a = logerfc(-y)
+            b = logerfc(-x)
+            c = b - a
+            d = LogExpFunctions.log1mexp(c)
+            # e = a + d
+
+            ∂a∂my = -2 * exp(-y^2 - a) / sqrtπ
+            ∂b∂mx = -2 * exp(-x^2 - b) / sqrtπ
+
+            ∂d∂c = -exp(c - d)
+
+            dedmy = ∂a∂my - ∂d∂c * ∂a∂my
+            dedmx = ∂d∂c * ∂b∂mx
+
+            res[i] = -dedmy - dedmx
+        else
+            in = erf(x, y)   # erf(y) - erf(x)
+            res[i] = inv(in) * (exp(-y^2) - exp(-x^2)) * (2 / sqrtπ)
+        end
+
+        res[i] *= invsqrt2 / σ[i]
+    end
+
+    return res
+end
+
 struct GaussianTransitionKernel{S, VS<:AbstractVector{S}, H<:AbstractHyperrectangle{S}}
     log_kernel::GaussianLogTransitionKernel{S, VS, H}
 end
@@ -233,7 +295,7 @@ function project_onto_hyperrect(X, p)
     return @. min(h, max(p, l))
 end
 
-function max_quasi_concave_over_polytope(alg::GradientDescent, f, global_max, X, box_X)
+function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, X, box_X)
     if global_max in X
         return f(global_max)
     end
@@ -255,7 +317,71 @@ function max_quasi_concave_over_polytope(alg::GradientDescent, f, global_max, X,
     # Optimize for maximum
     JuMP.optimize!(model)
 
-    return JuMP.objective_value(model)
+    return JuMP.objective_value(model) + 1e-8  # Account for covergence tolerance
+end
+
+function max_quasi_concave_over_polytope(alg::FrankWolfe, f, global_max, X, box_X)
+    if global_max in X
+        return f(global_max)
+    end
+
+    # Frequently, the closest point to the global maximum is maximum within the polytope.
+    x_cur = l2_closest_point(X, global_max, alg.sdp_solver)
+
+    x_min = similar(x_cur)
+    d = similar(x_cur)
+    ∇ₓf = similar(x_cur)
+
+    model = get!(() -> Model(alg.linear_solver), task_local_storage(), "transition_prob_lp_model")
+    set_silent(model)
+    empty!(model)
+
+    @variable(model, x[eachindex(x_cur)])
+
+    H, h = tosimplehrep(X)
+    @constraint(model, H * x <= h)
+
+    for k in 0:alg.num_iterations
+        # Compute gradient
+        grad!(∇ₓf, f, x_cur)
+        rmul!(∇ₓf, -1)
+
+        x_min .= compute_extreme_point(model, ∇ₓf, x)
+
+        d .= x_min .- x_cur
+        dual_gap = -dot(∇ₓf, d)
+
+        if dual_gap < alg.termination_ϵ
+            break
+        end
+
+        gamma = 8 / (k + 8)  # Agnostic step size with l = 8
+        x_cur .+= gamma .* d
+    end
+    
+    return f(x_cur) / (1 + 4 * 10^(log10(alg.termination_ϵ) / 3)) # Account for covergence tolerance
+end
+
+function compute_extreme_point(model, ∇ₓf, x)
+    @objective(model, Min, dot(∇ₓf, x))
+    JuMP.optimize!(model)
+
+    return JuMP.value.(x)
+end
+
+function l2_closest_point(X, p, sdp_solver)
+    H, h = tosimplehrep(X)
+
+    model = get!(() -> Model(sdp_solver), task_local_storage(), "l2_closest_point_model")
+    set_silent(model)
+    empty!(model)
+
+    @variable(model, x[1:LazySets.dim(X)])
+    @constraint(model, H * x <= h)
+    @objective(model, Min, sum((x - p).^2))
+    optimize!(model)
+
+    return JuMP.value.(x)
 end
 
 function enforce_consistency(P̲, P̅)
