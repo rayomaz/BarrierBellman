@@ -3,25 +3,9 @@ import json
 import torch
 from bounds.partitioning import Partition
 
-
 def load_config(config_path):
-
-    if type(config_path) is list:
-
-        config_dict = {}  # Create an empty dictionary to store the data
-
-        for idx, path in enumerate(config_path):
-            try:
-                with open(path, 'r') as f:
-                    config_dict[idx] = json.load(f)
-            except FileNotFoundError:
-                print(f"File not found: {config_path}")
-
-        return config_dict      # Return dict of multiple .json dicts
-
-    elif type(config_path) is str:
-        with open(config_path, 'r') as f:
-            return json.load(f)
+    with open(config_path, 'r') as f:
+        return json.load(f)
 
 
 def grid_partition(args, config):
