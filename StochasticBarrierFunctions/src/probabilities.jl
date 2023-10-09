@@ -15,7 +15,7 @@ end
 struct BoxApproximation <: AbstractUpperBoundAlgorithm end
 Base.@kwdef struct FrankWolfe <: AbstractUpperBoundAlgorithm
     linear_solver = default_lp_solver()
-    sdp_solver = default_sdp_solver()
+    qp_solver = default_qp_solver()
     num_iterations = 100
     termination_ϵ = 1e-12
 end
@@ -326,7 +326,7 @@ function max_quasi_concave_over_polytope(alg::FrankWolfe, f, global_max, X, box_
     end
 
     # Frequently, the closest point to the global maximum is maximum within the polytope.
-    x_cur = l2_closest_point(X, global_max, alg.sdp_solver)
+    x_cur = l2_closest_point(X, global_max, alg.qp_solver)
 
     x_min = similar(x_cur)
     d = similar(x_cur)
@@ -369,10 +369,10 @@ function compute_extreme_point(model, ∇ₓf, x)
     return JuMP.value.(x)
 end
 
-function l2_closest_point(X, p, sdp_solver)
+function l2_closest_point(X, p, qp_solver)
     H, h = tosimplehrep(X)
 
-    model = get!(() -> Model(sdp_solver), task_local_storage(), "l2_closest_point_model")
+    model = get!(() -> Model(qp_solver), task_local_storage(), "l2_closest_point_model")
     set_silent(model)
     empty!(model)
 
