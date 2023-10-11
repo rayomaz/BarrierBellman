@@ -139,6 +139,7 @@ class Runner:
         return self.experiment.dynamics[0].v
 
     @torch.no_grad()
+    #TODO: design multi-control framework for transition probability
     def bound_transition_prob(self):
 
         # Cons is a name from Lisp for order pairs, which allows shortened form unpacking. Nothing major.
