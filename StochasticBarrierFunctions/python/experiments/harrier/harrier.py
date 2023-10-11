@@ -14,7 +14,7 @@ class HarrierExperiment:
         logger.info('Constructing model')
 
         self.factory = BarrierBoundModelFactory()
-        self.dynamics = Harrier(config['dynamics']).to(args.device)
+        self.dynamics = [Harrier(config['dynamics']).to(args.device)]
 
         self.config = config
         self.args = args
