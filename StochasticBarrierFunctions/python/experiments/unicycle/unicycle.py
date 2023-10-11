@@ -2,7 +2,7 @@ import logging
 
 from bounds.bounds import BarrierBoundModelFactory
 
-from .dynamics import Unicycle
+from .dynamics import NominalUnicycle, ZeroVelocityUnicycle
 from experiments.utils import grid_partition
 
 logger = logging.getLogger(__name__)
@@ -14,8 +14,8 @@ class UnicycleExperiment:
         logger.info('Constructing model')
 
         self.factory = BarrierBoundModelFactory()
-        self.dynamics = Unicycle(config['dynamics']).to(args.device)
-
+        self.dynamics = [NominalUnicycle(config['dynamics']).to(args.device),  ZeroVelocityUnicycle(config['dynamics']).to(args.device)]
+        
         self.config = config
         self.args = args
 

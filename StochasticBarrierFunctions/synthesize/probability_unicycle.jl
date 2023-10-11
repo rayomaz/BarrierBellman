@@ -5,8 +5,8 @@ using YAXArrays, NetCDF
 
 # System
 system_flag = "unicycle"
-number_hypercubes = 12000
-σ = [0.1, 0.1, 0.05, 0.1]
+number_hypercubes = 27000
+σ = [0.1, 0.05, 0.01, 0.05]
 
 filename = "../data/$system_flag/dynamics_$number_hypercubes.nc"
 dataset = open_dataset(joinpath(@__DIR__, filename))
