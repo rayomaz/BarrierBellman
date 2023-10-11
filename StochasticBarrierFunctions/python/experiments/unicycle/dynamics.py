@@ -91,7 +91,7 @@ class NominalUnicycle(nn.Sequential, AdditiveGaussianDynamics):
         )
 
         self.sigma = dynamics_config['sigma']
-        self.safe = torch.as_tensor(dynamics_config['safe_set'][0]), torch.as_tensor(dynamics_config['safe_set'][1])
+        self.safe = torch.as_tensor(dynamics_config['safe_set'][0][0]), torch.as_tensor(dynamics_config['safe_set'][0][1])
         self._dim = dynamics_config['dim']
 
     @property
@@ -161,7 +161,7 @@ class ZeroVelocityUnicycle(nn.Sequential, AdditiveGaussianDynamics):
         )
 
         self.sigma = dynamics_config['sigma']
-        self.safe = torch.as_tensor(dynamics_config['safe_set_2'][0]), torch.as_tensor(dynamics_config['safe_set_2'][1])
+        self.safe = torch.as_tensor(dynamics_config['safe_set'][1][0]), torch.as_tensor(dynamics_config['safe_set'][1][1])
         self._dim = dynamics_config['dim']
 
     @property
@@ -172,7 +172,7 @@ class ZeroVelocityUnicycle(nn.Sequential, AdditiveGaussianDynamics):
 
     @property
     def safe_set(self):
-        return self.safe    
+        return self.safe
 
     @property
     def dim(self):
