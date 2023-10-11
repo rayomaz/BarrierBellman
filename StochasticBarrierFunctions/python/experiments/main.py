@@ -139,69 +139,110 @@ class Runner:
         return self.experiment.dynamics[0].v
 
     @torch.no_grad()
-    #TODO: design multi-control framework for transition probability
     def bound_transition_prob(self):
 
-        # Cons is a name from Lisp for order pairs, which allows shortened form unpacking. Nothing major.
-        cons = self.experiment.dynamics, self.experiment.factory
+        # Load in partition grid
+        partitions = self.experiment.grid_partition()
 
-        partition = self.experiment.grid_partition()
-        number_hypercubes = len(partition)
-        logger.debug(f'Number of hypercubes = {number_hypercubes}')
+        # Number of dynamics laws [default = 1]
+        num_controllers = self.config['dynamics']['num_controllers']
 
-        # Create certifiers
-        certifier = GaussianCertifier(*cons, partition, device=self.device, alpha=True)
-        logger.info('Certifier created ... ')
-
-        # Compute the probability bounds of transition from each hypercube to each other
-        probability_bounds = certifier.regular_probability_bounds()
-        logger.info('Regular probability bounds obtained ...')
-
-        # Compute the probability bounds of transition from each hypercube to the safe set
-        unsafe_probability_bounds = certifier.unsafe_probability_bounds()
-        logger.info('Unsafe probability bounds obtained ...')
-
-        region = ('region', list(range(1, len(partition) + 1)))
-        to = ('to', list(range(1, len(partition) + 1)))
-        _from = ('from', list(range(1, len(partition) + 1)))
+        # Setup variables for xarray
         lu = ('dir', ['lower', 'upper'])
         x = ('x', list(range(1, self.dim + 1)))
         p = ('p', [1])
 
+        # Initialize arrays
+        region_array = []
+        PA_array = []
+        Pb_array = []
+        PuA_array = []
+        Pub_array = []
+        number_hypercubes_array = [0]
+        
+        for i in range(0, num_controllers):
+
+             # Cons is a name from Lisp for order pairs, which allows shortened form unpacking. Nothing major.
+            cons = self.experiment.dynamics[i], self.experiment.factory
+
+            partition = partitions[i]
+
+            number_hypercubes = len(partition)
+            number_hypercubes_array.append(number_hypercubes)
+            logger.debug(f'Number of hypercubes = {number_hypercubes}')
+
+            # Create certifiers
+            certifier = GaussianCertifier(*cons, partition, device=self.device, alpha=True)
+            logger.info('Certifier created ... ')
+
+            # Compute the probability bounds of transition from each hypercube to each other
+            probability_bounds = certifier.regular_probability_bounds()
+            logger.info('Regular probability bounds obtained ...')
+
+            # Compute the probability bounds of transition from each hypercube to the safe set
+            unsafe_probability_bounds = certifier.unsafe_probability_bounds()
+            logger.info('Unsafe probability bounds obtained ...')
+
+            region = ('region', list(range(1 + number_hypercubes_array[i], number_hypercubes_array[i] + len(partition) + 1)))
+
+            regions = xr.DataArray(
+                    name='regions',
+                    data=torch.stack((partition.lower, partition.upper), dim=1).numpy(),
+                    coords=[region, lu, x]
+            )
+            region_array.append(regions)
+
+            to = ('to', list(range(1 + number_hypercubes_array[i], number_hypercubes_array[i] + len(partition) + 1)))
+            _from = ('from', list(range(1 + number_hypercubes_array[i], + number_hypercubes_array[i] + len(partition) + 1)))
+
+            PA = xr.DataArray(
+                name='transition_prob_A',
+                data=torch.stack((probability_bounds.lower[0], probability_bounds.upper[0]), dim=2).numpy(),
+                coords=[to, _from, lu, p, x]
+            )
+            PA_array.append(PA)
+
+            Pb = xr.DataArray(
+                name='transition_prob_b',
+                data=torch.stack((probability_bounds.lower[1], probability_bounds.upper[1]), dim=2).numpy(),
+                coords=[to, _from, lu, p]
+            )
+            Pb_array.append(Pb)
+
+            PuA = xr.DataArray(
+                name='transition_prob_unsafe_A',
+                data=torch.stack((unsafe_probability_bounds.lower[0], unsafe_probability_bounds.upper[0]), dim=1).numpy(),
+                coords=[_from, lu, p, x]
+            )
+            PuA_array.append(PuA)
+
+            Pub = xr.DataArray(
+                name='transition_prob_unsafe_b',
+                data=torch.stack((unsafe_probability_bounds.lower[1], unsafe_probability_bounds.upper[1]), dim=1).numpy(),
+                coords=[_from, lu, p]
+            )
+            Pub_array.append(Pub)
+
+        # Concatenate arrays
+        regions = xr.concat([region_array[j] for j in range(0, num_controllers)], dim='region')
+        PA = xr.concat([PA_array[j] for j in range(0, num_controllers)], dim='region')
+        Pb = xr.concat([Pb_array[j] for j in range(0, num_controllers)], dim='region')
+        PuA = xr.concat([PuA_array[j] for j in range(0, num_controllers)], dim='region')
+        Pub = xr.concat([Pub_array[j] for j in range(0, num_controllers)], dim='region')
+
+        # Specify safe set
+        if num_controllers == 1:
+            data_safe = torch.stack((self.safe_set[0], self.safe_set[1]), dim=0).numpy()
+        elif num_controllers > 1:
+            assert 'dynamics' in self.config and 'safe_set_union' in self.config['dynamics'], "safe_set_union is not defined in config file"
+            x_lower = self.config['dynamics']['safe_set_union'][0]
+            x_upper = self.config['dynamics']['safe_set_union'][1]
+            data_safe = torch.stack((torch.tensor(x_lower), torch.tensor(x_upper)), dim=0).numpy()
+
         safe_set = xr.DataArray(
             name='safe_set',
-            data=torch.stack((self.safe_set[0], self.safe_set[1]), dim=0).numpy(),
+            data=data_safe,
             coords=[lu, x]
-        )
-
-        regions = xr.DataArray(
-            name='regions',
-            data=torch.stack((partition.lower, partition.upper), dim=1).numpy(),
-            coords=[region, lu, x]
-        )
-
-        PA = xr.DataArray(
-            name='transition_prob_A',
-            data=torch.stack((probability_bounds.lower[0], probability_bounds.upper[0]), dim=2).numpy(),
-            coords=[to, _from, lu, p, x]
-        )
-
-        Pb = xr.DataArray(
-            name='transition_prob_b',
-            data=torch.stack((probability_bounds.lower[1], probability_bounds.upper[1]), dim=2).numpy(),
-            coords=[to, _from, lu, p]
-        )
-
-        PuA = xr.DataArray(
-            name='transition_prob_unsafe_A',
-            data=torch.stack((unsafe_probability_bounds.lower[0], unsafe_probability_bounds.upper[0]), dim=1).numpy(),
-            coords=[_from, lu, p, x]
-        )
-
-        Pub = xr.DataArray(
-            name='transition_prob_unsafe_b',
-            data=torch.stack((unsafe_probability_bounds.lower[1], unsafe_probability_bounds.upper[1]), dim=1).numpy(),
-            coords=[_from, lu, p]
         )
 
         ds = xr.Dataset(
@@ -214,12 +255,12 @@ class Runner:
                 transition_prob_unsafe_b=Pub
             ),
             attrs=dict(
-                num_regions=number_hypercubes,
+                num_regions=sum(number_hypercubes_array),
                 noise=self.noise[1].numpy()
             )
         )
 
-        path = self.config['save_path']['transition_prob'].format(regions=number_hypercubes, noise=self.noise[1].tolist())
+        path = self.config['save_path']['transition_prob'].format(regions=sum(number_hypercubes_array), noise=self.noise[1].tolist())
         os.makedirs(os.path.dirname(path), exist_ok=True)
         ds.to_netcdf(path)
 
@@ -316,7 +357,7 @@ class Runner:
                 nominal_dynamics_b=nominal_dynamics_b
             ),
             attrs=dict(
-                num_regions=number_hypercubes
+                num_regions=sum(number_hypercubes_array)
             )
         )
 
