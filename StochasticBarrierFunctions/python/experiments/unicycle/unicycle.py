@@ -14,9 +14,8 @@ class UnicycleExperiment:
         logger.info('Constructing model')
 
         self.factory = BarrierBoundModelFactory()
-        self.dynamics = NominalUnicycle(config['dynamics']).to(args.device)
-        self.dynamics_zeroV = ZeroVelocityUnicycle(config['dynamics']).to(args.device)
-
+        self.dynamics = [NominalUnicycle(config['dynamics']).to(args.device),  ZeroVelocityUnicycle(config['dynamics']).to(args.device)]
+        
         self.config = config
         self.args = args
 
