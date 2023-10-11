@@ -37,6 +37,7 @@ Base.iterate(B::ConstantBarrier, state) = iterate(B.b, state)
 ### Algorithm types
 abstract type StochasticBarrierAlgorithm end
 abstract type ConstantBarrierAlgorithm <: StochasticBarrierAlgorithm end
+abstract type ConstantGDBarrierAlgorithm <: ConstantBarrierAlgorithm end
 abstract type SOSBarrierAlgorithm <: StochasticBarrierAlgorithm end
 
 Base.@kwdef struct DualAlgorithm <: ConstantBarrierAlgorithm
@@ -56,11 +57,19 @@ Base.@kwdef struct IterativeUpperBoundAlgorithm <: ConstantBarrierAlgorithm
     distributed = false
 end
 
-Base.@kwdef struct GradientDescentAlgorithm <: ConstantBarrierAlgorithm
-    num_iterations = 1000
-    initial_lr = 1e-1
-    decay = 0.995
-    momentum = 0.99
+Base.@kwdef struct GradientDescentAlgorithm <: ConstantGDBarrierAlgorithm
+    num_iterations = 10000
+    initial_lr = 1e-2
+    decay = 0.9999
+    momentum = 0.9
+end
+
+Base.@kwdef struct StochasticGradientDescentAlgorithm <: ConstantGDBarrierAlgorithm
+    num_iterations = 10000
+    subsampling_fraction = 0.1
+    initial_lr = 1e-2
+    decay = 0.9999
+    momentum = 0.9
 end
 
 Base.@kwdef struct SumOfSquaresAlgorithm <: SOSBarrierAlgorithm
