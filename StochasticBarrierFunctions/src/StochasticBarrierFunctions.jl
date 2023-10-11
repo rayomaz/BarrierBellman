@@ -15,7 +15,7 @@ function default_sdp_solver end
 function default_non_linear_solver end
 
 default_lp_solver() = HiGHS.Optimizer
-default_qp_solver() = SCS.Optimizer
+default_socp_solver() = SCS.Optimizer
 default_sdp_solver() = Mosek.Optimizer
 default_non_linear_solver() = Ipopt.Optimizer
 
