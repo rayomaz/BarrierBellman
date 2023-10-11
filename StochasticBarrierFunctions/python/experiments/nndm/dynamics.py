@@ -16,7 +16,7 @@ class NNDM(nn.Sequential, AdditiveGaussianDynamics):
         super().__init__(*modules)
 
         self.sigma = dynamics_config['sigma']
-        self.safe = torch.as_tensor(dynamics_config['safe_set'][0]), torch.as_tensor(dynamics_config['safe_set'][1])
+        self.safe = torch.as_tensor(dynamics_config['safe_set'][0][0]), torch.as_tensor(dynamics_config['safe_set'][0][1])
         self._dim = dynamics_config['dim']
 
     @property
