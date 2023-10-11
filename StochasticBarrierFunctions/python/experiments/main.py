@@ -128,15 +128,15 @@ class Runner:
 
     @property
     def safe_set(self):
-        return self.experiment.dynamics.safe_set
+        return self.experiment.dynamics[0].safe_set
 
     @property
     def dim(self):
-        return self.experiment.dynamics.dim
+        return self.experiment.dynamics[0].dim
 
     @property
     def noise(self):
-        return self.experiment.dynamics.v
+        return self.experiment.dynamics[0].v
 
     @torch.no_grad()
     def bound_transition_prob(self):
@@ -226,50 +226,85 @@ class Runner:
 
     @torch.no_grad()
     def bound_nominal_dynamics(self):
-        partition = self.experiment.grid_partition()
-        number_hypercubes = len(partition)
-        logger.debug(f'Number of hypercubes = {number_hypercubes}')
 
-        model = self.experiment.factory.build(MinimizePosteriorRect(self.experiment.dynamics)).to(self.device)
-        logger.info('Bound propagation model created ... ')
+        # Load in partition grid
+        partitions = self.experiment.grid_partition()
 
-        input_set = HyperRectangle(partition.lower, partition.upper)
-        dynamics_bounds = model.crown(input_set, alpha=True)
-        check_gap(dynamics_bounds)
-        logger.info('Dynamics bounds obtained ...')
+        # Number of dynamics laws [default = 1]
+        num_controllers = self.config['dynamics']['num_controllers']
 
+        # Setup variables for xarray
+        lu = ('dir', ['lower', 'upper'])
+        x = ('x', list(range(1, self.dim + 1)))
+        y = ('y', list(range(1, self.dim + 1)))
+
+        # Initialize arrays
+        region_array = []
+        nominal_dynamics_A_array = []
+        nominal_dynamics_b_array = []
+        number_hypercubes_array = [0]
+        
+        for i in range(0, num_controllers):
+            partition = partitions[i]
+
+            number_hypercubes = len(partition)
+            number_hypercubes_array.append(number_hypercubes)
+            logger.debug(f'Number of hypercubes = {number_hypercubes}')
+
+            model = self.experiment.factory.build(MinimizePosteriorRect(self.experiment.dynamics[i])).to(self.device)
+            logger.info('Bound propagation model created ... ')
+
+            input_set = HyperRectangle(partition.lower, partition.upper)
+            dynamics_bounds = model.crown(input_set, alpha=True)
+            check_gap(dynamics_bounds)
+            logger.info('Dynamics bounds obtained ...')
+
+            region = ('region', list(range(1 +  number_hypercubes_array[i],  number_hypercubes_array[i] + len(partition) + 1)))
+            
+            regions = xr.DataArray(
+                    name='regions',
+                    data=torch.stack((partition.lower, partition.upper), dim=1).numpy(),
+                    coords=[region, lu, x]
+            )
+            region_array.append(regions)
+
+            nominal_dynamics_A = xr.DataArray(
+                    name='nominal_dynamics_A',
+                    data=torch.stack((dynamics_bounds.lower[0], dynamics_bounds.upper[0]), dim=1).numpy(),
+                    coords=[region, lu, y, x]
+            )
+            nominal_dynamics_A_array.append(nominal_dynamics_A)
+
+            nominal_dynamics_b = xr.DataArray(
+                    name='nominal_dynamics_b',
+                    data=torch.stack((dynamics_bounds.lower[1], dynamics_bounds.upper[1]), dim=1).numpy(),
+                    coords=[region, lu, y]
+            )
+            nominal_dynamics_b_array.append(nominal_dynamics_b)
+
+        # Concatenate arrays
+        regions = xr.concat([region_array[j] for j in range(0, num_controllers)], dim='region')
+        nominal_dynamics_A = xr.concat([nominal_dynamics_A_array[j] for j in range(0, num_controllers)], dim='region')
+        nominal_dynamics_b = xr.concat([nominal_dynamics_b_array[j] for j in range(0, num_controllers)], dim='region')
+   
         # mat_dynamics_bounds = load_mat_linear_bounds("../../../PiecewiseConstant/synthesize/models/pendulum/partition_data_120.mat")
         #
         # for i in range(number_hypercubes):
         #     plot_partition(model, self.args, dynamics_bounds[i], mat_dynamics_bounds[i])
 
-        region = ('region', list(range(1, len(partition) + 1)))
-        lu = ('dir', ['lower', 'upper'])
-        x = ('x', list(range(1, self.dim + 1)))
-        y = ('y', list(range(1, self.dim + 1)))
+        # Specify safe set
+        if num_controllers == 1:
+            data_safe = torch.stack((self.safe_set[0], self.safe_set[1]), dim=0).numpy()
+        elif num_controllers > 1:
+            assert 'dynamics' in self.config and 'safe_set_union' in self.config['dynamics'], "safe_set_union is not defined in config file"
+            x_lower = self.config['dynamics']['safe_set_union'][0]
+            x_upper = self.config['dynamics']['safe_set_union'][1]
+            data_safe = torch.stack((torch.tensor(x_lower), torch.tensor(x_upper)), dim=0).numpy()
 
         safe_set = xr.DataArray(
             name='safe_set',
-            data=torch.stack((self.safe_set[0], self.safe_set[1]), dim=0).numpy(),
+            data=data_safe,
             coords=[lu, x]
-        )
-
-        regions = xr.DataArray(
-            name='regions',
-            data=torch.stack((partition.lower, partition.upper), dim=1).numpy(),
-            coords=[region, lu, x]
-        )
-
-        nominal_dynamics_A = xr.DataArray(
-            name='nominal_dynamics_A',
-            data=torch.stack((dynamics_bounds.lower[0], dynamics_bounds.upper[0]), dim=1).numpy(),
-            coords=[region, lu, y, x]
-        )
-
-        nominal_dynamics_b = xr.DataArray(
-            name='nominal_dynamics_b',
-            data=torch.stack((dynamics_bounds.lower[1], dynamics_bounds.upper[1]), dim=1).numpy(),
-            coords=[region, lu, y]
         )
 
         ds = xr.Dataset(
@@ -284,7 +319,7 @@ class Runner:
             )
         )
 
-        path = self.config['save_path']['nominal_dynamics'].format(regions=number_hypercubes)
+        path = self.config['save_path']['nominal_dynamics'].format(regions=sum(number_hypercubes_array))
         os.makedirs(os.path.dirname(path), exist_ok=True)
         ds.to_netcdf(path)
 
