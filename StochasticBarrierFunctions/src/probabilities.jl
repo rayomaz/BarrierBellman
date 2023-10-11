@@ -15,7 +15,7 @@ end
 struct BoxApproximation <: AbstractUpperBoundAlgorithm end
 Base.@kwdef struct FrankWolfe <: AbstractUpperBoundAlgorithm
     linear_solver = default_lp_solver()
-    qp_solver = default_qp_solver()
+    socp_solver = default_socp_solver()
     num_iterations = 100
     termination_ϵ = 1e-12
 end
@@ -170,7 +170,7 @@ function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
     prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, kernel, v, VY)
 
     # Obtain max of T(qᵢ | x) over Y
-    prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, HY, box_Y))
+    prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, VY, HY, box_Y))
 
     return prob_transition_lower, prob_transition_upper
 end
@@ -281,8 +281,8 @@ function min_log_concave_over_polytope(::VertexEnumeration, f, global_max, X)
     # return lb
 end
 
-function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
-    if global_max in X
+function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, VX, HX, box_X)
+    if global_max in HX
         return f(global_max)
     end
 
@@ -295,12 +295,12 @@ function project_onto_hyperrect(X, p)
     return @. min(h, max(p, l))
 end
 
-function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, X, box_X)
-    if global_max in X
+function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, VX, HX, box_X)
+    if global_max in HX
         return f(global_max)
     end
 
-    m = LazySets.dim(X)
+    m = LazySets.dim(HX)
     fsplat(y...) = f(y)
 
     model = Model(alg.non_linear_solver)
@@ -320,13 +320,16 @@ function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, X, bo
     return JuMP.objective_value(model) + 1e-8  # Account for covergence tolerance
 end
 
-function max_quasi_concave_over_polytope(alg::FrankWolfe, f, global_max, X, box_X)
-    if global_max in X
+function max_quasi_concave_over_polytope(alg::FrankWolfe, f, global_max, VX, HX, box_X)
+    if global_max in HX
         return f(global_max)
     end
 
     # Frequently, the closest point to the global maximum is maximum within the polytope.
-    x_cur = l2_closest_point(X, global_max, alg.qp_solver)
+    x_cur = l2_closest_point(HX, global_max, alg.socp_solver)
+    if isnothing(x_cur)
+        x_cur = sum(vertices_list(VX)) ./ length(vertices_list(VX))
+    end
 
     x_min = similar(x_cur)
     d = similar(x_cur)
@@ -338,7 +341,7 @@ function max_quasi_concave_over_polytope(alg::FrankWolfe, f, global_max, X, box_
 
     @variable(model, x[eachindex(x_cur)])
 
-    H, h = tosimplehrep(X)
+    H, h = tosimplehrep(HX)
     @constraint(model, H * x <= h)
 
     for k in 0:alg.num_iterations
@@ -369,10 +372,10 @@ function compute_extreme_point(model, ∇ₓf, x)
     return JuMP.value.(x)
 end
 
-function l2_closest_point(X, p, qp_solver)
+function l2_closest_point(X, p, socp_solver)
     H, h = tosimplehrep(X)
 
-    model = get!(() -> Model(qp_solver), task_local_storage(), "l2_closest_point_model")
+    model = get!(() -> Model(socp_solver), task_local_storage(), "l2_closest_point_model")
     set_silent(model)
     empty!(model)
 
@@ -380,6 +383,12 @@ function l2_closest_point(X, p, qp_solver)
     @constraint(model, H * x <= h)
     @objective(model, Min, sum((x - p).^2))
     optimize!(model)
+
+    if termination_status(model) != MOI.OPTIMAL
+        @error "Optimization for closest point to global max failed" solution_summary(model)
+
+        return nothing
+    end
 
     return JuMP.value.(x)
 end

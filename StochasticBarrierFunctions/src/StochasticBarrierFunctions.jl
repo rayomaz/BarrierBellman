@@ -8,14 +8,14 @@ using SpecialFunctions: erf, logerf, logerfc
 using IrrationalConstants: invsqrt2, sqrtπ
 import LogExpFunctions
 # TODO: Make Mosek and Ipopt optional through extensions
-using JuMP, MosekTools, Mosek, Ipopt, HiGHS
+using JuMP, MosekTools, Mosek, Ipopt, HiGHS, SCS
 
 function default_lp_solver end
 function default_sdp_solver end
 function default_non_linear_solver end
 
 default_lp_solver() = HiGHS.Optimizer
-default_qp_solver() = HiGHS.Optimizer
+default_qp_solver() = SCS.Optimizer
 default_sdp_solver() = Mosek.Optimizer
 default_non_linear_solver() = Ipopt.Optimizer
 
