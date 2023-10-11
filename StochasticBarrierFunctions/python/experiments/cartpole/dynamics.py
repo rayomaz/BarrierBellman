@@ -30,6 +30,8 @@ class Cartpole(nn.Sequential, AdditiveGaussianDynamics):
         # Choose ODE formulation z = (x, ẋ, θ, θ̇)
         # Discretize with Euler x(k + 1) = x(k) + Ts * f(x(k))
 
+        delta = 1.0
+
         super().__init__(
             # (x, dx, theta, dtheta)
             Cat(
@@ -61,7 +63,7 @@ class Cartpole(nn.Sequential, AdditiveGaussianDynamics):
                         )
                     ),
                     FixedLinear(
-                        torch.as_tensor([[1 / total_mass, 0, 0, polemass_length / total_mass]])
+                        torch.as_tensor([[0, 1 / total_mass, 0, polemass_length / total_mass]])
                     )
                 )
             ),  # (x, dx, theta, dtheta, sin theta, cos theta, temp)
@@ -107,10 +109,10 @@ class Cartpole(nn.Sequential, AdditiveGaussianDynamics):
             ),  # (x, dx, theta, dtheta, sin theta, cos theta, temp, thetaacc, xacc)
             FixedLinear(
                 torch.as_tensor([
-                    [1, Ts, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 1, 0, 0, 0, 0, 0, 0, Ts],
-                    [0, 0, 1, Ts, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 1, 0, 0, 0, Ts, 0]
+                    [delta, Ts, 0, 0, 0, 0, 0, 0, 0],
+                    [0, delta, 0, 0, 0, 0, 0, 0, Ts],
+                    [0, 0, delta, Ts, 0, 0, 0, 0, 0],
+                    [0, 0, 0, delta, 0, 0, 0, Ts, 0]
                 ])
             )
         )
