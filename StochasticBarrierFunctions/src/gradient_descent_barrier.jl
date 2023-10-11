@@ -5,14 +5,14 @@
 """
 
 # Optimization function
-function synthesize_barrier(alg::GradientDescentAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
-    ws, p, q = setup_gd(regions, initial_region, obstacle_region)
+function synthesize_barrier(alg::ConstantGDBarrierAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
+    ws, p, q = setup_gd(alg, regions, initial_region, obstacle_region)
 
     decay = Exp(λ = alg.initial_lr, γ = alg.decay)
     optim = Optimisers.Nesterov(alg.initial_lr, alg.momentum)
 
     state = Optimisers.setup(optim, ws.B)
-    
+
     @showprogress for k in 0:alg.num_iterations
         state = gradient_descent_barrier_iteration!(ws, state, regions, p, q, decay(k); time_horizon=time_horizon)
     end
