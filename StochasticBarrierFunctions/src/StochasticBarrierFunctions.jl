@@ -8,13 +8,14 @@ using SpecialFunctions: erf, logerf, logerfc
 using IrrationalConstants: invsqrt2, sqrtπ
 import LogExpFunctions
 # TODO: Make Mosek and Ipopt optional through extensions
-using JuMP, MosekTools, Mosek, Ipopt, HiGHS
+using JuMP, MosekTools, Mosek, Ipopt, HiGHS, SCS, FrankWolfe
 
 function default_lp_solver end
 function default_sdp_solver end
 function default_non_linear_solver end
 
 default_lp_solver() = HiGHS.Optimizer
+default_socp_solver() = SCS.Optimizer
 default_sdp_solver() = Mosek.Optimizer
 default_non_linear_solver() = Ipopt.Optimizer
 
@@ -40,7 +41,7 @@ export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper, upd
 
 include("probabilities.jl")
 export transition_probabilities, plot_posterior
-export TransitionProbabilityAlgorithm, BoxApproximation, GlobalSolver, FrankWolfe
+export TransitionProbabilityAlgorithm, BoxApproximation, GlobalSolver, FrankWolfeSolver
 
 include("barrier.jl")
 export StochasticBarrier, SOSBarrier, ConstantBarrier

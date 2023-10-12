@@ -16,6 +16,7 @@ from linear.linear import LinearExperiment
 from nndm.nndm import NNDMExperiment
 from unicycle.unicycle import UnicycleExperiment
 from harrier.harrier import HarrierExperiment
+from cartpole.cartpole import CartpoleExperiment
 
 from log import configure_logging
 from utils import load_config
@@ -107,6 +108,8 @@ def experiment_builder(args, config):
         return UnicycleExperiment(args, config)
     elif config['system'] == 'harrier':
         return HarrierExperiment(args, config)
+    elif config['system'] == 'cartpole':
+        return CartpoleExperiment(args, config)
     else:
         raise ValueError(f'System "{config["system"]}" not defined')
 

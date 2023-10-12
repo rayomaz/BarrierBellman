@@ -174,6 +174,8 @@ function beta!(ws, p)
     @turbo ws.β .-= ws.B_regions
     @turbo clamp!(ws.β, 0, Inf)
 
+    @info "β" β=maximum(ws.β)
+
     return ws.β
 end
 

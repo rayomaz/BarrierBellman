@@ -11,12 +11,13 @@ struct VertexEnumeration <: AbstractLowerBoundAlgorithm end
 abstract type AbstractUpperBoundAlgorithm end
 Base.@kwdef struct GlobalSolver <: AbstractUpperBoundAlgorithm
     non_linear_solver = default_non_linear_solver()
+    socp_solver = default_socp_solver()
 end
 struct BoxApproximation <: AbstractUpperBoundAlgorithm end
-Base.@kwdef struct FrankWolfe <: AbstractUpperBoundAlgorithm
+Base.@kwdef struct FrankWolfeSolver <: AbstractUpperBoundAlgorithm
     linear_solver = default_lp_solver()
-    sdp_solver = default_sdp_solver()
-    num_iterations = 100
+    socp_solver = default_socp_solver()
+    num_iterations = 10000
     termination_ϵ = 1e-12
 end
 
@@ -170,7 +171,7 @@ function transition_prob_to_region(system, VY, HY, box_Y, Xᵢ, alg)
     prob_transition_lower = min_log_concave_over_polytope(alg.lower_bound_method, kernel, v, VY)
 
     # Obtain max of T(qᵢ | x) over Y
-    prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, HY, box_Y))
+    prob_transition_upper = exp(max_quasi_concave_over_polytope(alg.upper_bound_method, log_kernel, v, VY, HY, box_Y))
 
     return prob_transition_lower, prob_transition_upper
 end
@@ -200,8 +201,6 @@ function grad!(res, T::GaussianLogTransitionKernel, v)
     for i in eachindex(v)
         x = invsqrt2 * (v[i] - vₕ[i]) / σ[i]
         y = invsqrt2 * (v[i] - vₗ[i]) / σ[i]
-        # g = gradient((x, y) -> logerf(x, y), x, y)
-        # res[i] = g[1] + g[2]
 
         if abs(x) ≤ invsqrt2 && abs(y) ≤ invsqrt2
             in = erf(x, y)   # erf(y) - erf(x)
@@ -281,8 +280,8 @@ function min_log_concave_over_polytope(::VertexEnumeration, f, global_max, X)
     # return lb
 end
 
-function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, X, box_X)
-    if global_max in X
+function max_quasi_concave_over_polytope(::BoxApproximation, f, global_max, VX, HX, box_X)
+    if global_max in HX
         return f(global_max)
     end
 
@@ -295,21 +294,25 @@ function project_onto_hyperrect(X, p)
     return @. min(h, max(p, l))
 end
 
-function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, X, box_X)
-    if global_max in X
+function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, VX, HX, box_X)
+    if global_max in HX
         return f(global_max)
     end
 
-    m = LazySets.dim(X)
+    m = LazySets.dim(HX)
     fsplat(y...) = f(y)
 
     model = Model(alg.non_linear_solver)
     set_silent(model)
     register(model, :fsplat, m, fsplat; autodiff = true)
 
-    @variable(model, x[1:m])
+    x_cur = l2_closest_point(HX, global_max, alg.socp_solver)
+    if isnothing(x_cur)
+        x_cur = sum(vertices_list(VX)) ./ length(vertices_list(VX))
+    end
+    @variable(model, x[i = 1:m], start=x_cur[i])
 
-    H, h = tosimplehrep(X)
+    H, h = tosimplehrep(VX)
     @constraint(model, H * x <= h)
 
     @NLobjective(model, Max, fsplat(x...))
@@ -317,49 +320,55 @@ function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, X, bo
     # Optimize for maximum
     JuMP.optimize!(model)
 
+    if termination_status(model) ∉ [MOI.OPTIMAL, MOI.LOCALLY_SOLVED, MOI.ALMOST_LOCALLY_SOLVED]
+        @error "Ipopt failed" solution_summary(model)
+
+        return nothing
+    end
+
     return JuMP.objective_value(model) + 1e-8  # Account for covergence tolerance
 end
 
-function max_quasi_concave_over_polytope(alg::FrankWolfe, f, global_max, X, box_X)
-    if global_max in X
+function max_quasi_concave_over_polytope(alg::FrankWolfeSolver, f, global_max, VX, HX, box_X)
+    if global_max in HX
         return f(global_max)
     end
 
-    # Frequently, the closest point to the global maximum is maximum within the polytope.
-    x_cur = l2_closest_point(X, global_max, alg.sdp_solver)
+    vs = vertices_list(VX)
+    x0 = sum(vs) ./ length(vs)
+    ∇ₓf = similar(x0)
 
-    x_min = similar(x_cur)
-    d = similar(x_cur)
-    ∇ₓf = similar(x_cur)
+    λ0 = ones(length(vs)) ./ length(vs)
 
-    model = get!(() -> Model(alg.linear_solver), task_local_storage(), "transition_prob_lp_model")
-    set_silent(model)
-    empty!(model)
+    lmo = FrankWolfe.ProbabilitySimplexOracle{Float64}()
 
-    @variable(model, x[eachindex(x_cur)])
+    fw_fun(λ) = -f(sum(vs .* λ))
+    function fw_grad!(storage, λ)
+        x = sum(vs .* λ)
+        grad!(∇ₓf, f, x)
 
-    H, h = tosimplehrep(X)
-    @constraint(model, H * x <= h)
-
-    for k in 0:alg.num_iterations
-        # Compute gradient
-        grad!(∇ₓf, f, x_cur)
-        rmul!(∇ₓf, -1)
-
-        x_min .= compute_extreme_point(model, ∇ₓf, x)
-
-        d .= x_min .- x_cur
-        dual_gap = -dot(∇ₓf, d)
-
-        if dual_gap < alg.termination_ϵ
-            break
+        for i in eachindex(vs)
+            storage[i] = -dot(∇ₓf, vs[i])
         end
 
-        gamma = 8 / (k + 8)  # Agnostic step size with l = 8
-        x_cur .+= gamma .* d
+        return storage
     end
-    
-    return f(x_cur) / (1 + 4 * 10^(log10(alg.termination_ϵ) / 3)) # Account for covergence tolerance
+
+    _, _, primal, _, _ = FrankWolfe.frank_wolfe(
+        fw_fun,
+        fw_grad!,
+        lmo,
+        λ0,
+        max_iteration=alg.num_iterations,
+        line_search=FrankWolfe.Shortstep(2.0),
+        print_iter=alg.num_iterations / 10,
+        memory_mode=FrankWolfe.InplaceEmphasis(),
+        epsilon=1e-8,
+        verbose=false,
+        trajectory=false,
+    )
+
+    return -primal + 1e-8
 end
 
 function compute_extreme_point(model, ∇ₓf, x)
@@ -369,10 +378,10 @@ function compute_extreme_point(model, ∇ₓf, x)
     return JuMP.value.(x)
 end
 
-function l2_closest_point(X, p, sdp_solver)
+function l2_closest_point(X, p, socp_solver)
     H, h = tosimplehrep(X)
 
-    model = get!(() -> Model(sdp_solver), task_local_storage(), "l2_closest_point_model")
+    model = get!(() -> Model(socp_solver), task_local_storage(), "l2_closest_point_model")
     set_silent(model)
     empty!(model)
 
@@ -380,6 +389,12 @@ function l2_closest_point(X, p, sdp_solver)
     @constraint(model, H * x <= h)
     @objective(model, Min, sum((x - p).^2))
     optimize!(model)
+
+    if termination_status(model) != MOI.OPTIMAL
+        @error "Optimization for closest point to global max failed" solution_summary(model)
+
+        return nothing
+    end
 
     return JuMP.value.(x)
 end
