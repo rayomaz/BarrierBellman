@@ -8,7 +8,7 @@ using SpecialFunctions: erf, logerf, logerfc
 using IrrationalConstants: invsqrt2, sqrtπ
 import LogExpFunctions
 # TODO: Make Mosek and Ipopt optional through extensions
-using JuMP, MosekTools, Mosek, Ipopt, HiGHS, SCS
+using JuMP, MosekTools, Mosek, Ipopt, HiGHS, SCS, FrankWolfe
 
 function default_lp_solver end
 function default_sdp_solver end
@@ -41,7 +41,7 @@ export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper, upd
 
 include("probabilities.jl")
 export transition_probabilities, plot_posterior
-export TransitionProbabilityAlgorithm, BoxApproximation, GlobalSolver, FrankWolfe
+export TransitionProbabilityAlgorithm, BoxApproximation, GlobalSolver, FrankWolfeSolver
 
 include("barrier.jl")
 export StochasticBarrier, SOSBarrier, ConstantBarrier
