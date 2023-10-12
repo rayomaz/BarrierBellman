@@ -3,7 +3,8 @@
   "dynamics": {
     "dim": 2,
     "sigma": [0.1, 0.1],
-    "safe_set": [[-0.20943952, -1.0], [0.20943952, 1.0]],
+    "safe_set": [[[-0.20943952, -1.0], [0.20943952, 1.0]]],
+    "num_controllers": 1,
     "nn_model": "nndm/pendulum/1_layer/pendulum_1layer.onnx"
   },
   "partitioning": {

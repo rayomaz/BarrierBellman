@@ -14,7 +14,7 @@ class NNDMExperiment:
         logger.info('Constructing model')
 
         self.factory = BarrierBoundModelFactory()
-        self.dynamics = NNDM(config['dynamics']).to(args.device)
+        self.dynamics = [NNDM(config['dynamics']).to(args.device)]
 
         self.config = config
         self.args = args

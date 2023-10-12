@@ -14,7 +14,7 @@ class LinearExperiment:
         logger.info('Constructing model')
 
         self.factory = BarrierBoundModelFactory()
-        self.dynamics = Linear(config['dynamics']).to(args.device)
+        self.dynamics = [Linear(config['dynamics']).to(args.device)]
 
         self.config = config
         self.args = args
