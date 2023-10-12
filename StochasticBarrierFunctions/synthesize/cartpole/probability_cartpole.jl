@@ -15,7 +15,7 @@ Xs = load_dynamics(dataset)
 system = AdditiveGaussianUncertainPWASystem(Xs, σ)
 
 # Extract probability data
-@time probability_bounds = transition_probabilities(system; alg=TransitionProbabilityAlgorithm(upper_bound_method=FrankWolfe()))
+@time probability_bounds = transition_probabilities(system; alg=TransitionProbabilityAlgorithm(upper_bound_method=FrankWolfeSolver()))
 
 # Save to a .nc file
 filename = "models/probability_data_$(number_hypercubes)_sigma_$σ.nc"
