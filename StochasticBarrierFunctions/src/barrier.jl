@@ -65,10 +65,10 @@ Base.@kwdef struct GradientDescentAlgorithm <: ConstantGDBarrierAlgorithm
 end
 
 Base.@kwdef struct StochasticGradientDescentAlgorithm <: ConstantGDBarrierAlgorithm
-    num_iterations = 10000
+    num_iterations = 30000
     subsampling_fraction = 0.1
     initial_lr = 1e-2
-    decay = 0.9999
+    decay = 0.999875
     momentum = 0.9
 end
 
