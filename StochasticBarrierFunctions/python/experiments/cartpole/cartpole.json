@@ -9,7 +9,7 @@
     "masspole": 0.1,
     "length": 1.0,
     "g": 9.81,
-    "Ts": 0.02
+    "Ts": 0.1
   },
   "partitioning": {
     "method": "grid",
