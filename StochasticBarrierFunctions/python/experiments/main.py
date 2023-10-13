@@ -258,7 +258,7 @@ class Runner:
             model = self.experiment.factory.build(MinimizePosteriorRect(self.experiment.dynamics[i])).to(self.device)
             logger.info('Bound propagation model created ... ')
 
-            input_set = HyperRectangle(partition.lower, partition.upper)
+            input_set = HyperRectangle(partition.lower, partition.upper).to(self.device)
             dynamics_bounds = model.crown(input_set, alpha=True)
             check_gap(dynamics_bounds)
             logger.info('Dynamics bounds obtained ...')
@@ -267,21 +267,21 @@ class Runner:
             
             regions = xr.DataArray(
                     name='regions',
-                    data=torch.stack((partition.lower, partition.upper), dim=1).numpy(),
+                    data=torch.stack((partition.lower, partition.upper), dim=1).cpu().numpy(),
                     coords=[region, lu, x]
             )
             region_array.append(regions)
 
             nominal_dynamics_A = xr.DataArray(
                     name='nominal_dynamics_A',
-                    data=torch.stack((dynamics_bounds.lower[0], dynamics_bounds.upper[0]), dim=1).numpy(),
+                    data=torch.stack((dynamics_bounds.lower[0], dynamics_bounds.upper[0]), dim=1).cpu().numpy(),
                     coords=[region, lu, y, x]
             )
             nominal_dynamics_A_array.append(nominal_dynamics_A)
 
             nominal_dynamics_b = xr.DataArray(
                     name='nominal_dynamics_b',
-                    data=torch.stack((dynamics_bounds.lower[1], dynamics_bounds.upper[1]), dim=1).numpy(),
+                    data=torch.stack((dynamics_bounds.lower[1], dynamics_bounds.upper[1]), dim=1).cpu().numpy(),
                     coords=[region, lu, y]
             )
             nominal_dynamics_b_array.append(nominal_dynamics_b)
