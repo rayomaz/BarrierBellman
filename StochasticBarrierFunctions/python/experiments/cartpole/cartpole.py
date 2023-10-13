@@ -14,7 +14,7 @@ class CartpoleExperiment:
         logger.info('Constructing model')
 
         self.factory = BarrierBoundModelFactory()
-        self.dynamics = Cartpole(config['dynamics']).to(args.device)
+        self.dynamics = [Cartpole(config['dynamics']).to(args.device)]
 
         self.config = config
         self.args = args
