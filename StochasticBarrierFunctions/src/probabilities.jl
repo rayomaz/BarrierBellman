@@ -300,11 +300,13 @@ function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, VX, H
     end
 
     m = LazySets.dim(HX)
-    fsplat(y...) = f(y)
 
     model = Model(alg.non_linear_solver)
     set_silent(model)
-    register(model, :fsplat, m, fsplat; autodiff = true)
+
+    fsplat(y...) = f(y)
+    fgrad!(storage, x...) = grad!(storage, f, x)
+    @operator(model, op_f, m, fsplat, fgrad!)
 
     x_cur = l2_closest_point(HX, global_max, alg.socp_solver)
     if isnothing(x_cur)
@@ -315,7 +317,7 @@ function max_quasi_concave_over_polytope(alg::GlobalSolver, f, global_max, VX, H
     H, h = tosimplehrep(VX)
     @constraint(model, H * x <= h)
 
-    @NLobjective(model, Max, fsplat(x...))
+    @objective(model, Max, op_f(x...))
 
     # Optimize for maximum
     JuMP.optimize!(model)
