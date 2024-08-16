@@ -1,18 +1,13 @@
 module StochasticBarrierFunctions
 
-using LinearAlgebra, SparseArrays, StaticArrays
-using LoopVectorization, ProgressMeter
-using Distributions, Combinatorics, StatsBase
+using LinearAlgebra, SparseArrays
+using Combinatorics: doublefactorial
 
 using SpecialFunctions: erf, logerf, logerfc
 using IrrationalConstants: invsqrt2, sqrtπ
 import LogExpFunctions
 # TODO: Make Mosek and Ipopt optional through extensions
 using JuMP, MosekTools, Mosek, Ipopt, HiGHS, SCS, FrankWolfe
-
-function default_lp_solver end
-function default_sdp_solver end
-function default_non_linear_solver end
 
 default_lp_solver() = HiGHS.Optimizer
 default_socp_solver() = SCS.Optimizer
@@ -27,38 +22,36 @@ using Optimisers, ParameterSchedulers
 using ReachabilityBase.Commutative
 
 const MP = MultivariatePolynomials
-
 const APL{T} = MP.AbstractPolynomialLike{T}
 
 # Basic system types
 include("system.jl")
-export AbstractDiscreteTimeStochasticSystem, AbstractAdditiveGaussianSystem
 export AdditiveGaussianLinearSystem, AdditiveGaussianUncertainPWASystem, UncertainPWARegion
 export dynamics, noise_distribution, dimensionality
 
 include("region.jl")
-export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper, update_regions
+export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper
 
 include("probabilities.jl")
 export transition_probabilities, plot_posterior
 export TransitionProbabilityAlgorithm, BoxApproximation, GlobalSolver, FrankWolfeSolver
 
 include("barrier.jl")
-export StochasticBarrier, SOSBarrier, ConstantBarrier
-export StochasticBarrierAlgorithm, DualAlgorithm, UpperBoundAlgorithm, IterativeUpperBoundAlgorithm
-export GradientDescentAlgorithm, StochasticGradientDescentAlgorithm, SumOfSquaresAlgorithm
+export SumOfSquaresBarrier, PiecewiseConstantBarrier
+export barrier, eta, beta, psafe
 
 function synthesize_barrier end
 export synthesize_barrier
 
-include("beta.jl")
+include("barrier_algorithms/base.jl")
+include("barrier_algorithms/beta.jl")
 
 # Various barrier synthesis algorithms
-include("constant_barrier.jl")
-include("iterative_barrier.jl")
-include("dual_barrier.jl")
-include("gradient_descent_barrier.jl")
-include("sum_of_squares_barrier.jl")
+include("barrier_algorithms/upper_bound_barrier.jl")
+include("barrier_algorithms/iterative_upper_bound_barrier.jl")
+include("barrier_algorithms/dual_barrier.jl")
+include("barrier_algorithms/gradient_descent_barrier.jl")
+include("barrier_algorithms/sum_of_squares_barrier.jl")
 
 
 # Plotting

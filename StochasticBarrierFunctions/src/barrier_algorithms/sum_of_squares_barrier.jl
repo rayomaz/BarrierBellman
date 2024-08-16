@@ -4,13 +4,31 @@
 
 """
 
+export SumOfSquaresAlgorithm, SumOfSquaresAlgResult
+
+Base.@kwdef struct SumOfSquaresAlgorithm <: SumOfSquaresBarrierAlgorithm
+    barrier_degree = 4
+    lagrange_degree = 2
+    sdp_solver = default_sdp_solver()
+end
+
+struct SumOfSquaresAlgResult <: BarrierResult
+    B::SumOfSquaresBarrier
+    η::Float64
+    β::Float64
+end
+
+barrier(res::SumOfSquaresAlgResult) = res.B
+eta(res::SumOfSquaresAlgResult) = res.η
+beta(res::SumOfSquaresAlgResult) = res.β
+
 # Sum of squares optimization function
 function synthesize_barrier(alg::SumOfSquaresAlgorithm, system, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
     model = SOSModel(alg.sdp_solver)
 
     # Create decision variables eta and beta
-    @variable(model, η >= alg.ϵ)
-    @variable(model, β ≥ alg.ϵ)
+    @variable(model, η, lower_bound=0.0)
+    @variable(model, β, lower_bound=0.0)
 
     # Create barrier candidate
     @polyvar x[1:dimensionality(system)]
@@ -31,11 +49,11 @@ function synthesize_barrier(alg::SumOfSquaresAlgorithm, system, initial_region::
 
     # Barrier certificate
     B = MP.polynomial(value(B))
-    β = value(β)
+    res = SumOfSquaresAlgResult(B, value(η), value(β))
 
-    @info "Solution Sum of Squares" η=value(η) β Pₛ=1 - (value(η) + β * time_horizon)
+    @info "Solution Sum of Squares" η=eta(res) β=beta(res) Pₛ=psafe(res, time_horizon)
 
-    return SOSBarrier(B), β
+    return res
 end
 
 function check_hypercube_state_space(system)
@@ -48,6 +66,9 @@ function check_hypercube_state_space(system)
     return state_space
 end
 
+sos_initial_constraint!(alg, model, B, x, η, region::AbstractHyperrectangle) = sos_initial_constraint!(alg, model, B, x, η, [region])
+sos_initial_constraint!(alg, model, B, x, η, region::UnionSet{T, <:AbstractHyperrectangle, <:AbstractHyperrectangle}) where {T} = sos_initial_constraint!(alg, model, B, x, η, [region.X, region.Y])
+sos_initial_constraint!(alg, model, B, x, η, region::UnionSetArray{T, <:AbstractHyperrectangle}) where {T} = sos_initial_constraint!(alg, model, B, x, η, region.array)
 function sos_initial_constraint!(alg, model, B, x, η, regions::Vector{<:AbstractHyperrectangle})
     """ Barrier condition: initial
         * B(x) <= η
@@ -57,10 +78,11 @@ function sos_initial_constraint!(alg, model, B, x, η, regions::Vector{<:Abstrac
         @constraint(model, -B + η - initial_domain >= 0)
     end
 end
-sos_initial_constraint!(alg, model, B, x, η, region::AbstractHyperrectangle) = sos_initial_constraint!(alg, model, B, x, η, [region])
-sos_initial_constraint!(alg, model, B, x, η, region::UnionSet{T, <:AbstractHyperrectangle, <:AbstractHyperrectangle}) where {T} = sos_initial_constraint!(alg, model, B, x, η, [region.X, region.Y])
-sos_initial_constraint!(alg, model, B, x, η, region::UnionSetArray{T, <:AbstractHyperrectangle}) where {T} = sos_initial_constraint!(alg, model, B, x, η, region.array)
 
+sos_obstacle_constraint!(alg, model, B, x, region::AbstractHyperrectangle) = sos_obstacle_constraint!(alg, model, B, x, [region])
+sos_obstacle_constraint!(alg, model, B, x, region::EmptySet) = nothing
+sos_obstacle_constraint!(alg, model, B, x, region::UnionSet{T, <:AbstractHyperrectangle, <:AbstractHyperrectangle}) where {T} = sos_obstacle_constraint!(alg, model, B, x, [region.X, region.Y])
+sos_obstacle_constraint!(alg, model, B, x, region::UnionSetArray{T, <:AbstractHyperrectangle}) where {T} = sos_obstacle_constraint!(alg, model, B, x, region.array)
 function sos_obstacle_constraint!(alg, model, B, x, regions::Vector{<:AbstractHyperrectangle})
     """ Barrier obstacle region conditions
         * B(x) >= 1
@@ -70,11 +92,6 @@ function sos_obstacle_constraint!(alg, model, B, x, regions::Vector{<:AbstractHy
         @constraint(model, B - 1 - obstacle_domain >= 0)
     end
 end
-sos_obstacle_constraint!(alg, model, B, x, region::AbstractHyperrectangle) = sos_obstacle_constraint!(alg, model, B, x, [region])
-sos_obstacle_constraint!(alg, model, B, x, region::EmptySet) = nothing
-sos_obstacle_constraint!(alg, model, B, x, region::UnionSet{T, <:AbstractHyperrectangle, <:AbstractHyperrectangle}) where {T} = sos_obstacle_constraint!(alg, model, B, x, [region.X, region.Y])
-sos_obstacle_constraint!(alg, model, B, x, region::UnionSetArray{T, <:AbstractHyperrectangle}) where {T} = sos_obstacle_constraint!(alg, model, B, x, region.array)
-
 
 function sos_system_specific_constraints!(alg, model, B, x, β, system::AdditiveGaussianUncertainPWASystem)
     # Unsafe set
@@ -179,7 +196,6 @@ end
 
 # Function to compute the expecation and noise element
 function expectation_noise(exp_evaluated, standard_deviations, zs)
-
     exp = 0
 
     for term in terms(exp_evaluated)
@@ -191,8 +207,7 @@ function expectation_noise(exp_evaluated, standard_deviations, zs)
                 coeff = subs(term, zs => ones(length(zs)))
                 exp_z = prod(splat(expected_univariate_noise), zip(z_degs, standard_deviations))
 
-                noise_exp = coeff * exp_z
-                exp += noise_exp
+                exp += coeff * exp_z
             end
         else
             exp += term
@@ -204,7 +219,7 @@ end
 
 function expected_univariate_noise(z_deg, standard_deviation)
     if z_deg == 0
-        return 1
+        return 1.0
     else
         return Int64(doublefactorial(z_deg - 1)) * standard_deviation^z_deg
     end

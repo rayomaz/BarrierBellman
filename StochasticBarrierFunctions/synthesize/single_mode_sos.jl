@@ -34,6 +34,6 @@ obstacle_region = UnionSet(obstacle1, obstacle2)
 N = 10
 
 # Optimize: baseline 1 (sos)
-@time B_sos, beta_sos = synthesize_barrier(SumOfSquaresAlgorithm(barrier_degree = 12), system, initial_region, obstacle_region, time_horizon = N)
+@time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(barrier_degree = 12), system, initial_region, obstacle_region, time_horizon = N)
 
 println("Single mode model verified.")
