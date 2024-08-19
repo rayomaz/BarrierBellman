@@ -1,3 +1,12 @@
+module Data
+
+# Helper functions for loading data
+using YAXArrays, YAXArrayBase, DimensionalData
+using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5
+
+const MatlabFile = Union{MAT_v4.Matlabv4File, MAT_v5.Matlabv5File, MAT_HDF5.MatlabHDF5File}
+
+export load_regions, load_dynamics, load_probabilities
 
 function create_probability_dataset(regions::Vector{<:Hyperrectangle}, P̲::AbstractDimArray, P̅::AbstractDimArray, P̲ᵤ::AbstractDimArray, P̅ᵤ::AbstractDimArray)
     n = length(regions)
@@ -188,3 +197,5 @@ function load_dynamics(dataset::YAXArrays.Dataset)
 
     return Xs
 end
+
+end # module
