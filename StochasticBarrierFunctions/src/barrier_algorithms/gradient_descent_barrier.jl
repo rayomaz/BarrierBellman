@@ -4,6 +4,36 @@
 
 """
 
+export GradientDescentAlgorithm, StochasticGradientDescentAlgorithm, GradientDescentAlgResult
+
+abstract type ConstantGDBarrierAlgorithm <: ConstantBarrierAlgorithm end
+
+Base.@kwdef struct GradientDescentAlgorithm <: ConstantGDBarrierAlgorithm
+    num_iterations = 10000
+    initial_lr = 1e-2
+    decay = 0.9999
+    momentum = 0.9
+end
+
+Base.@kwdef struct StochasticGradientDescentAlgorithm <: ConstantGDBarrierAlgorithm
+    num_iterations = 30000
+    subsampling_fraction = 0.1
+    initial_lr = 1e-2
+    decay = 0.999875
+    momentum = 0.9
+end
+
+struct GradientDescentAlgResult <: BarrierResult
+    B::PiecewiseConstantBarrier
+    η::Float64
+    βs::Vector{Float64}
+end
+
+barrier(res::GradientDescentAlgResult) = res.B
+eta(res::GradientDescentAlgResult) = res.η
+beta(res::GradientDescentAlgResult) = maximum(res.βs)
+betas(res::GradientDescentAlgResult) = res.βs
+
 # Optimization function
 function synthesize_barrier(alg::ConstantGDBarrierAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
     ws, p, q = setup_gd(alg, regions, initial_region, obstacle_region)
@@ -13,7 +43,8 @@ function synthesize_barrier(alg::ConstantGDBarrierAlgorithm, regions::Vector{<:R
 
     state = Optimisers.setup(optim, ws.B)
 
-    @showprogress for k in 0:alg.num_iterations
+    for k in 0:alg.num_iterations
+        @debug "Iteration $k/$(alg.num_iterations)"
         state = gradient_descent_barrier_iteration!(ws, state, regions, p, q, decay(k); time_horizon=time_horizon)
     end
 
@@ -22,10 +53,13 @@ function synthesize_barrier(alg::ConstantGDBarrierAlgorithm, regions::Vector{<:R
     ivi_value_assignment!(ws, regions, p, q)
     βⱼ = beta!(ws, p)
 
-    @info "Solution Gradient Descent" η β=maximum(βⱼ) Pₛ=1 - (η + maximum(βⱼ) * time_horizon) iterations=alg.num_iterations
-
     Xs = map(region, regions)
-    return ConstantBarrier(Xs, ws.B_regions), βⱼ
+    B = PiecewiseConstantBarrier(Xs, ws.B_regions)
+    res = GradientDescentAlgResult(B, η, βⱼ)
+
+    @info "Solution Gradient Descent" η=eta(res) β=beta(res) Pₛ=psafe(res, time_horizon) iterations=alg.num_iterations
+
+    return res
 end
 
 function setup_gd(alg, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet)
@@ -171,10 +205,8 @@ function beta!(ws, p)
     end
 
     # ws.β .= dot.(tuple(ws.B), p)
-    @turbo ws.β .-= ws.B_regions
-    @turbo clamp!(ws.β, 0, Inf)
-
-    @info "β" β=maximum(ws.β)
+    ws.β .-= ws.B_regions
+    clamp!(ws.β, 0, Inf)
 
     return ws.β
 end
@@ -190,15 +222,13 @@ function gradient!(ws::GradientDescentWorkspace, p::VVT; time_horizon, t=20.0) w
     # Also, don't look - it's ugly
 
     βⱼ = beta!(ws, p)
-    @turbo βⱼ .*= time_horizon
+    βⱼ .*= time_horizon
 
     logz = log(norm(βⱼ, t))
-    @turbo βⱼ .= log.(βⱼ)
-    @turbo βⱼ .-= logz
-    @turbo βⱼ .*= t - 1
+    βⱼ .= (log.(βⱼ) .- logz) .* (t - 1)
 
     ws.dB[end] = 0
-    @turbo ws.dB_regions .= (-).(exp.(βⱼ))
+    ws.dB_regions .= (-).(exp.(βⱼ))
     for j in eachindex(βⱼ)
         logspace_add_prod!(ws.dB, βⱼ[j], p[j])
     end
@@ -214,7 +244,7 @@ function logspace_add_prod!(dB, β, p::VT) where {VT<:AbstractSparseVector}
     ids = SparseArrays.nonzeroinds(p)
     values = nonzeros(p)
 
-    @turbo for k in eachindex(ids)
+    for k in eachindex(ids)
         dB[ids[k]] += exp(β + log(max(values[k], 1e-16)))
     end
 end
@@ -332,7 +362,7 @@ function gradient_beta!(ws::StochasticGradientDescentWorkspace, p)
 
     # ws.β .= dot.(tuple(ws.B), p)
     ws.grad_β .-= @view(ws.B_regions[ws.index_β])
-    @turbo clamp!(ws.grad_β, 0, Inf)
+    clamp!(ws.grad_β, 0, Inf)
 
     return ws.grad_β
 end
@@ -348,12 +378,10 @@ function gradient!(ws::StochasticGradientDescentWorkspace, p::VVT; time_horizon,
     # Also, don't look - it's ugly
 
     βⱼ = gradient_beta!(ws, p)
-    @turbo βⱼ .*= time_horizon
+    βⱼ .*= time_horizon
 
     logz = log(norm(βⱼ, t))
-    @turbo βⱼ .= log.(βⱼ)
-    @turbo βⱼ .-= logz
-    @turbo βⱼ .*= t - 1
+    βⱼ .= (log.(βⱼ) .- logz) .* (t - 1)
 
     ws.dB .= 0  # We need to do this explicitly because of view in the next line
     @view(ws.dB_regions[ws.index_β]) .= (-).(exp.(βⱼ))

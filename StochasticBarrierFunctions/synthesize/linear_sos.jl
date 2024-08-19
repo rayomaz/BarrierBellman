@@ -24,6 +24,6 @@ initial_region = Hyperrectangle(low=[-0.25], high=[0.25])
 obstacle_region = EmptySet(2)
 
 # Optimize: baseline 1 (sos)
-@time B_sos, beta_sos = synthesize_barrier(SumOfSquaresAlgorithm(), system, initial_region, obstacle_region)
+@time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(), system, initial_region, obstacle_region)
 
 println("Linear model verified.")

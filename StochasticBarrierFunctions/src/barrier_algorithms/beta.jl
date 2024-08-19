@@ -4,32 +4,28 @@
 
 """
 
-function verify_beta(B, regions::Vector{<:RegionWithProbabilities{T}}) where {T}
+function compute_beta(B, regions::Vector{<:RegionWithProbabilities{T}}) where {T}
     # Don't ask. It's not pretty... But it's fast!
 
     β_parts = Vector{T}(undef, length(B))
-    p_distribution = [zero(region.gap) for region in regions]
+    p_distribution = [similar(region.gap) for region in regions]
 
     Threads.@threads for jj in eachindex(regions)
         Xⱼ, Bⱼ = regions[jj], B[jj]
 
-        model = get!(task_local_storage(), "verify_beta_model") do
-            # Using Mosek as the LP solver
-            model = Model(Mosek.Optimizer)
-            set_silent(model)
+        # Using Mosek as the LP solver
+        model = Model(Mosek.Optimizer)
+        set_silent(model)
 
-            # Create optimization variables
-            @variable(model, P[ii=eachindex(regions)], lower_bound=0, upper_bound=1) 
-            @variable(model, Pᵤ, lower_bound=0, upper_bound=1)
+        # Create optimization variables
+        @variable(model, P[ii=eachindex(regions)], lower_bound=0, upper_bound=1) 
+        @variable(model, Pᵤ, lower_bound=0, upper_bound=1)
 
-            # Constraint ∑i=1 →k pᵢ + Pᵤ == 1
-            @constraint(model, sum(P) + Pᵤ == 1)
+        # Constraint ∑i=1 →k pᵢ + Pᵤ == 1
+        @constraint(model, sum(P) + Pᵤ == 1)
 
-            # Define optimization objective
-            @objective(model, Max, dot(B, P) + Pᵤ)
-
-            return model
-        end
+        # Define optimization objective
+        @objective(model, Max, dot(B, P) + Pᵤ)
 
         P̲, P̅ = prob_lower(Xⱼ), prob_upper(Xⱼ)
         val_low, val_up = min.(P̲, P̅), max.(P̲, P̅)

@@ -4,19 +4,34 @@
 
 """
 
+export DualAlgorithm, DualAlgResult
+
+Base.@kwdef struct DualAlgorithm <: ConstantBarrierAlgorithm
+    linear_solver = default_lp_solver()
+end
+
+struct DualAlgResult <: BarrierResult
+    B::PiecewiseConstantBarrier
+    η::Float64
+    βs::Vector{Float64}
+end
+
+barrier(res::DualAlgResult) = res.B
+eta(res::DualAlgResult) = res.η
+beta(res::DualAlgResult) = maximum(res.βs)
+betas(res::DualAlgResult) = res.βs
+
 # Optimization function
 function synthesize_barrier(alg::DualAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
     model = Model(alg.linear_solver)
     set_silent(model)
 
-    ϵ = alg.ϵ
-
     # Create optimization variables
-    @variable(model, B[eachindex(regions)], lower_bound=ϵ, upper_bound=1)   
+    @variable(model, B[eachindex(regions)], lower_bound=0.0, upper_bound=1.0)   
 
     # Create probability decision variables η and β
-    @variable(model, η, lower_bound = ϵ)
-    @variable(model, β_parts[eachindex(regions)], lower_bound=ϵ)
+    @variable(model, η, lower_bound=0.0)
+    @variable(model, β_parts[eachindex(regions)], lower_bound=0.0)
     @variable(model, β)
     @constraint(model, β_parts .<= β)
 
@@ -45,10 +60,12 @@ function synthesize_barrier(alg::DualAlgorithm, regions::Vector{<:RegionWithProb
     B = value.(B)
     β_values = value.(β_parts)
 
-    @info "Dual Solution" η=value(η) β=maximum(β_values) Pₛ=1 - (value(η) + maximum(β_values) * time_horizon)
-
     Xs = map(region, regions)
-    return ConstantBarrier(Xs, B), β_values
+    res = DualAlgResult(PiecewiseConstantBarrier(Xs, B), value(η), β_values)
+
+    @info "Dual Solution" η=eta(res) β=beta(res) Pₛ=psafe(res, time_horizon)
+
+    return res
 end
 
 function dual_expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ) 
