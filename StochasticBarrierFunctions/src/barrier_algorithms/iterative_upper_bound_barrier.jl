@@ -22,7 +22,7 @@ function synthesize_barrier(alg::IterativeUpperBoundAlgorithm, regions::Vector{<
     iteration_prob = regions
 
     B, η, β = upper_bound_barrier(alg, iteration_prob, initial_region, obstacle_region; time_horizon=time_horizon)
-    β_updated, p_distribution = compute_beta(B, regions)
+    β_updated, p_distribution = compute_beta(alg.linear_solver, B, regions)
 
     P_distributions = []
 
@@ -39,7 +39,7 @@ function synthesize_barrier(alg::IterativeUpperBoundAlgorithm, regions::Vector{<
             B, η, β = upper_bound_barrier(alg, iteration_prob, initial_region, obstacle_region; time_horizon=time_horizon)
         end
 
-        β_updated, p_distribution = compute_beta(B, regions)
+        β_updated, p_distribution = compute_beta(alg.linear_solver, B, regions)
         push!(P_distributions, p_distribution)
     end
 
