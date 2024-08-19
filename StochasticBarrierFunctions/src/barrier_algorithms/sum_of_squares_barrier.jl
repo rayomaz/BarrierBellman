@@ -16,42 +16,48 @@ struct SumOfSquaresAlgResult <: BarrierResult
     B::SumOfSquaresBarrier
     η::Float64
     β::Float64
+    synthesis_time::Float64  # Total time to solve the optimization problem in seconds
 end
 
 barrier(res::SumOfSquaresAlgResult) = res.B
 eta(res::SumOfSquaresAlgResult) = res.η
 beta(res::SumOfSquaresAlgResult) = res.β
+total_time(res::SumOfSquaresAlgResult) = res.synthesis_time
 
 # Sum of squares optimization function
 function synthesize_barrier(alg::SumOfSquaresAlgorithm, system, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
-    model = SOSModel(alg.sdp_solver)
+    synthesis_time = @elapsed begin
+        model = SOSModel(alg.sdp_solver)
+        set_silent(model)
 
-    # Create decision variables eta and beta
-    @variable(model, η, lower_bound=0.0)
-    @variable(model, β, lower_bound=0.0)
+        # Create decision variables eta and beta
+        @variable(model, η, lower_bound=0.0)
+        @variable(model, β, lower_bound=0.0)
 
-    # Create barrier candidate
-    @polyvar x[1:dimensionality(system)]
-    barrier_monomials = monomials(x, 0:floor(Int64, alg.barrier_degree / 2))
+        # Create barrier candidate
+        @polyvar x[1:dimensionality(system)]
+        barrier_monomials = monomials(x, 0:floor(Int64, alg.barrier_degree / 2))
 
-    # Non-negative in ℝⁿ
-    @variable(model, B, SOSPoly(barrier_monomials))
+        # Non-negative in ℝⁿ
+        @variable(model, B, SOSPoly(barrier_monomials))
 
-    sos_initial_constraint!(alg, model, B, x, η, initial_region)
-    sos_obstacle_constraint!(alg, model, B, x, obstacle_region)
-    sos_system_specific_constraints!(alg, model, B, x, β, system)
+        sos_initial_constraint!(alg, model, B, x, η, initial_region)
+        sos_obstacle_constraint!(alg, model, B, x, obstacle_region)
+        sos_system_specific_constraints!(alg, model, B, x, β, system)
 
-    # Define optimization objective
-    @objective(model, Min, η + β * time_horizon)
+        # Define optimization objective
+        @objective(model, Min, η + β * time_horizon)
 
-    # Optimize model
-    optimize!(model)
+        # Optimize model
+        optimize!(model)
 
-    # Barrier certificate
-    B = MP.polynomial(value(B))
-    res = SumOfSquaresAlgResult(B, value(η), value(β))
+        # Barrier certificate
+        B, η, β = MP.polynomial(value(B)), value(η), value(β)
+    end
 
-    @info "Solution Sum of Squares" η=eta(res) β=beta(res) Pₛ=psafe(res, time_horizon)
+    res = SumOfSquaresAlgResult(SumOfSquaresBarrier(B), η, β, synthesis_time)
+
+    @info "Solution Sum of Squares" η=eta(res) β=beta(res) Pₛ=psafe(res, time_horizon) time=total_time(res)
 
     return res
 end
