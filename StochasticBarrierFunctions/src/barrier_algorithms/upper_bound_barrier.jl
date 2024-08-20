@@ -26,7 +26,7 @@ total_time(res::UpperBoundAlgResult) = res.synthesis_time
 function synthesize_barrier(alg::UpperBoundAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
     synthesis_time = @elapsed begin 
         B, η, _ = upper_bound_barrier(alg, regions, initial_region, obstacle_region; time_horizon=time_horizon)
-        β_updated, _ = compute_beta(B, regions)
+        β_updated, _ = compute_beta(alg.linear_solver, B, regions)
     end
 
     res = UpperBoundAlgResult(B, η, β_updated, synthesis_time)
