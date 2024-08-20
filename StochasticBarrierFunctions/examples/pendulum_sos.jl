@@ -7,6 +7,7 @@
 # Import packages
 using Revise, BenchmarkTools
 using StochasticBarrierFunctions, LazySets
+using Mosek, MosekTools
 using YAXArrays, NetCDF, MAT
 
 # System
@@ -30,6 +31,6 @@ initial_region = Hyperrectangle([0.0, 0.0], [0.01, 0.01])
 obstacle_region = EmptySet(2)
 
 # Optimize: baseline 1 (sos)
-@time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(), system, initial_region, obstacle_region)
+@time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(sdp_solver=Mosek.Optimizer), system, initial_region, obstacle_region)
 
 println("Pendulum model verified.")

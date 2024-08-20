@@ -23,7 +23,7 @@ betas(res::UpperBoundAlgResult) = res.βs
 
 function synthesize_barrier(alg::UpperBoundAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
     B, η, _ = upper_bound_barrier(alg, regions, initial_region, obstacle_region; time_horizon=time_horizon)
-    β_updated, _ = compute_beta(B, regions)
+    β_updated, _ = compute_beta(alg.linear_solver, B, regions)
 
     res = UpperBoundAlgResult(B, η, β_updated)
 

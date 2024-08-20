@@ -6,12 +6,11 @@ using Combinatorics: doublefactorial
 using SpecialFunctions: erf, logerf, logerfc
 using IrrationalConstants: invsqrt2, sqrtπ
 import LogExpFunctions
-# TODO: Make Mosek and Ipopt optional through extensions
-using JuMP, MosekTools, Mosek, Ipopt, HiGHS, SCS, FrankWolfe
+using JuMP, Ipopt, HiGHS, SCS, FrankWolfe
 
 default_lp_solver() = HiGHS.Optimizer
 default_socp_solver() = SCS.Optimizer
-default_sdp_solver() = Mosek.Optimizer
+default_sdp_solver() = SCS.Optimizer
 default_non_linear_solver() = Ipopt.Optimizer
 
 using MultivariatePolynomials, DynamicPolynomials
@@ -63,7 +62,7 @@ export plot_environment, plot_3d_barrier
 
 # Helper functions for loading data
 using YAXArrays, YAXArrayBase, DimensionalData
-using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5, DelimitedFiles
+using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5
 
 const MatlabFile = Union{MAT_v4.Matlabv4File, MAT_v5.Matlabv5File, MAT_HDF5.MatlabHDF5File}
 
