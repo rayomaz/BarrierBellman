@@ -29,6 +29,7 @@ export AdditiveGaussianLinearSystem, AdditiveGaussianUncertainPWASystem, Uncerta
 export dynamics, noise_distribution, dimensionality
 
 include("region.jl")
+export RegionWithProbabilities
 export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper
 
 include("probabilities.jl")

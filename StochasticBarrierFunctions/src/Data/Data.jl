@@ -1,6 +1,7 @@
 module Data
 
-using StochasticBarrierFunctions, LazySets
+using StochasticBarrierFunctions
+using LazySets, SparseArrays
 
 # Helper functions for loading data
 using YAXArrays, YAXArrayBase, DimensionalData
