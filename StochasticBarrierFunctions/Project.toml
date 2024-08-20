@@ -1,6 +1,6 @@
 name = "StochasticBarrierFunctions"
 uuid = "a06fe262-dd7d-4c83-aa2f-7afdb1a09a89"
-authors = ["rmazouz <rayan.mazouz@colorado.edu>", "zinoex <frederik@baymler.com"]
+authors = ["Rayan Mazouz <rayan.mazouz@colorado.edu>", "Frederik Baymler Mathiesen <frederik@baymler.com"]
 version = "0.1.0"
 
 [deps]

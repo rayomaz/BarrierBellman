@@ -7,7 +7,7 @@ DocMeta.setdocmeta!(StochasticBarrierFunctions, :DocTestSetup, :(using Stochasti
 
 makedocs(;
     modules = [StochasticBarrierFunctions],
-    authors = "Rayan Mazouz <rama7481@colorado.edu>, Frederik Baymler Mathiesen <frederik@baymler.com>, and contributors",
+    authors = "Rayan Mazouz <rayan.mazouz@colorado.edu>, Frederik Baymler Mathiesen <frederik@baymler.com>, and contributors",
     sitename = "StochasticBarrierFunctions.jl",
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
