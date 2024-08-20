@@ -4,7 +4,7 @@
 
 """
 
-function compute_beta(B, regions::Vector{<:RegionWithProbabilities{T}}) where {T}
+function compute_beta(linear_solver, B, regions::Vector{<:RegionWithProbabilities{T}}) where {T}
     # Don't ask. It's not pretty... But it's fast!
 
     β_parts = Vector{T}(undef, length(B))
@@ -14,7 +14,7 @@ function compute_beta(B, regions::Vector{<:RegionWithProbabilities{T}}) where {T
         Xⱼ, Bⱼ = regions[jj], B[jj]
 
         # Using Mosek as the LP solver
-        model = Model(Mosek.Optimizer)
+        model = Model(linear_solver)
         set_silent(model)
 
         # Create optimization variables

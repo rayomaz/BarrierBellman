@@ -6,12 +6,11 @@ using Combinatorics: doublefactorial
 using SpecialFunctions: erf, logerf, logerfc
 using IrrationalConstants: invsqrt2, sqrtπ
 import LogExpFunctions
-# TODO: Make Mosek and Ipopt optional through extensions
-using JuMP, MosekTools, Mosek, Ipopt, HiGHS, SCS, FrankWolfe
+using JuMP, Ipopt, HiGHS, SCS, FrankWolfe
 
 default_lp_solver() = HiGHS.Optimizer
 default_socp_solver() = SCS.Optimizer
-default_sdp_solver() = Mosek.Optimizer
+default_sdp_solver() = SCS.Optimizer
 default_non_linear_solver() = Ipopt.Optimizer
 
 using MultivariatePolynomials, DynamicPolynomials
@@ -52,7 +51,6 @@ include("barrier_algorithms/iterative_upper_bound_barrier.jl")
 include("barrier_algorithms/dual_barrier.jl")
 include("barrier_algorithms/gradient_descent_barrier.jl")
 include("barrier_algorithms/sum_of_squares_barrier.jl")
-
 
 # Submodules
 include("Plots/Plots.jl")
