@@ -52,21 +52,8 @@ include("barrier_algorithms/dual_barrier.jl")
 include("barrier_algorithms/gradient_descent_barrier.jl")
 include("barrier_algorithms/sum_of_squares_barrier.jl")
 
-
-# Plotting
-using Plots
-
-include("plots.jl")
-export plot_environment, plot_3d_barrier
-
-
-# Helper functions for loading data
-using YAXArrays, YAXArrayBase, DimensionalData
-using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5
-
-const MatlabFile = Union{MAT_v4.Matlabv4File, MAT_v5.Matlabv5File, MAT_HDF5.MatlabHDF5File}
-
-include("data.jl")
-export load_regions, load_dynamics, load_probabilities
+# Submodules
+include("Plots/Plots.jl")
+include("Data/Data.jl")
 
 end # module StochasticBarrierFunctions

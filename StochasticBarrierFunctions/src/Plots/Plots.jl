@@ -1,5 +1,8 @@
-# Plotting functions
+module Plots 
 
+using Plots
+
+export plot_environment, plot_3d_barrier
 
 # Optimization function
 function plot_environment(regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet, B::Vector{Float64})
@@ -97,3 +100,5 @@ function plot_3d_barrier(regions::Vector{<:RegionWithProbabilities}, B::Vector{F
     display(p)     
 
 end
+
+end # module
