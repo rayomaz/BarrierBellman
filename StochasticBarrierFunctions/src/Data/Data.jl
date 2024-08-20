@@ -1,5 +1,7 @@
 module Data
 
+using StochasticBarrierFunctions, LazySets
+
 # Helper functions for loading data
 using YAXArrays, YAXArrayBase, DimensionalData
 using MAT.MAT_v4, MAT.MAT_v5, MAT.MAT_HDF5
