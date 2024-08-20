@@ -14,56 +14,62 @@ struct DualAlgResult <: BarrierResult
     B::PiecewiseConstantBarrier
     η::Float64
     βs::Vector{Float64}
+    synthesis_time::Float64  # Total time to solve the optimization problem in seconds
 end
 
 barrier(res::DualAlgResult) = res.B
 eta(res::DualAlgResult) = res.η
 beta(res::DualAlgResult) = maximum(res.βs)
 betas(res::DualAlgResult) = res.βs
+total_time(res::DualAlgResult) = res.synthesis_time
 
 # Optimization function
 function synthesize_barrier(alg::DualAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
-    model = Model(alg.linear_solver)
-    set_silent(model)
+    synthesis_time = @elapsed begin 
+        model = Model(alg.linear_solver)
+        set_silent(model)
 
-    # Create optimization variables
-    @variable(model, B[eachindex(regions)], lower_bound=0.0, upper_bound=1.0)   
+        # Create optimization variables
+        @variable(model, B[eachindex(regions)], lower_bound=0.0, upper_bound=1.0)   
 
-    # Create probability decision variables η and β
-    @variable(model, η, lower_bound=0.0)
-    @variable(model, β_parts[eachindex(regions)], lower_bound=0.0)
-    @variable(model, β)
-    @constraint(model, β_parts .<= β)
+        # Create probability decision variables η and β
+        @variable(model, η, lower_bound=0.0)
+        @variable(model, β_parts[eachindex(regions)], lower_bound=0.0)
+        @variable(model, β)
+        @constraint(model, β_parts .<= β)
 
-    # Construct barriers
-    for (Xⱼ, Bⱼ, βⱼ) in zip(regions, B, β_parts)
-        # Initial set
-        if !isdisjoint(initial_region, region(Xⱼ))
-            @constraint(model, Bⱼ .≤ η)
+        # Construct barriers
+        for (Xⱼ, Bⱼ, βⱼ) in zip(regions, B, β_parts)
+            # Initial set
+            if !isdisjoint(initial_region, region(Xⱼ))
+                @constraint(model, Bⱼ .≤ η)
+            end
+
+            # Obstacle
+            if !isdisjoint(obstacle_region, region(Xⱼ))
+                @constraint(model, Bⱼ == 1)
+            end
+
+            dual_expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
         end
 
-        # Obstacle
-        if !isdisjoint(obstacle_region, region(Xⱼ))
-            @constraint(model, Bⱼ == 1)
-        end
+        # Define optimization objective
+        @objective(model, Min, η + β * time_horizon)
 
-        dual_expectation_constraint!(model, B, Xⱼ, Bⱼ, βⱼ)
+        # Optimize model
+        JuMP.optimize!(model)
+
+        # Barrier certificate
+        B = value.(B)
+        β_values = value.(β_parts)
+        η = value(η)
+
+        Xs = map(region, regions)
     end
 
-    # Define optimization objective
-    @objective(model, Min, η + β * time_horizon)
+    res = DualAlgResult(PiecewiseConstantBarrier(Xs, B), η, β_values, synthesis_time)
 
-    # Optimize model
-    JuMP.optimize!(model)
-
-    # Barrier certificate
-    B = value.(B)
-    β_values = value.(β_parts)
-
-    Xs = map(region, regions)
-    res = DualAlgResult(PiecewiseConstantBarrier(Xs, B), value(η), β_values)
-
-    @info "Dual Solution" η=eta(res) β=beta(res) Pₛ=psafe(res, time_horizon)
+    @info "Dual Solution" η=eta(res) β=beta(res) Pₛ=psafe(res, time_horizon) time=total_time(res)
 
     return res
 end

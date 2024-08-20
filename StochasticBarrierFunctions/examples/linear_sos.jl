@@ -12,16 +12,16 @@ using YAXArrays, NetCDF
 
 # System
 system_flag = "linear"
-f = 1.00
+f = 1.05
 A = [f][:, :]
 b = [0.0]
-σ = [0.1]
+σ = [0.01]
 
-state_space = Hyperrectangle(low=[-1.0], high=[1.0])
+state_space = Hyperrectangle(low=[-0.25], high=[0.25])
 
 system = AdditiveGaussianLinearSystem(A, b, σ, state_space)
 
-initial_region = Hyperrectangle(low=[-0.25], high=[0.25])
+initial_region = Hyperrectangle(low=[-0.05], high=[0.05])
 obstacle_region = EmptySet(2)
 
 # Optimize: baseline 1 (sos)

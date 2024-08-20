@@ -37,7 +37,7 @@ export TransitionProbabilityAlgorithm, BoxApproximation, GlobalSolver, FrankWolf
 
 include("barrier.jl")
 export SumOfSquaresBarrier, PiecewiseConstantBarrier
-export barrier, eta, beta, psafe
+export barrier, eta, beta, psafe, total_time
 
 function synthesize_barrier end
 export synthesize_barrier

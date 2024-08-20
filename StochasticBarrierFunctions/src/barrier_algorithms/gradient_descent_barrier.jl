@@ -27,37 +27,41 @@ struct GradientDescentAlgResult <: BarrierResult
     B::PiecewiseConstantBarrier
     η::Float64
     βs::Vector{Float64}
+    synthesis_time::Float64  # Total time to solve the optimization problem in seconds
 end
 
 barrier(res::GradientDescentAlgResult) = res.B
 eta(res::GradientDescentAlgResult) = res.η
 beta(res::GradientDescentAlgResult) = maximum(res.βs)
 betas(res::GradientDescentAlgResult) = res.βs
+total_time(res::GradientDescentAlgResult) = res.synthesis_time
 
 # Optimization function
 function synthesize_barrier(alg::ConstantGDBarrierAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
-    ws, p, q = setup_gd(alg, regions, initial_region, obstacle_region)
+    synthesis_time = @elapsed begin
+        ws, p, q = setup_gd(alg, regions, initial_region, obstacle_region)
 
-    decay = Exp(λ = alg.initial_lr, γ = alg.decay)
-    optim = Optimisers.Nesterov(alg.initial_lr, alg.momentum)
+        decay = Exp(λ = alg.initial_lr, γ = alg.decay)
+        optim = Optimisers.Nesterov(alg.initial_lr, alg.momentum)
 
-    state = Optimisers.setup(optim, ws.B)
+        state = Optimisers.setup(optim, ws.B)
 
-    for k in 0:alg.num_iterations
-        @debug "Iteration $k/$(alg.num_iterations)"
-        state = gradient_descent_barrier_iteration!(ws, state, regions, p, q, decay(k); time_horizon=time_horizon)
+        for k in 0:alg.num_iterations
+            @debug "Iteration $k/$(alg.num_iterations)"
+            state = gradient_descent_barrier_iteration!(ws, state, regions, p, q, decay(k); time_horizon=time_horizon)
+        end
+
+        η = maximum(ws.B_init)
+
+        ivi_value_assignment!(ws, regions, p, q)
+        βⱼ = beta!(ws, p)
+
+        Xs = map(region, regions)
     end
 
-    η = maximum(ws.B_init)
+    res = GradientDescentAlgResult(PiecewiseConstantBarrier(Xs, ws.B_regions), η, βⱼ, synthesis_time)
 
-    ivi_value_assignment!(ws, regions, p, q)
-    βⱼ = beta!(ws, p)
-
-    Xs = map(region, regions)
-    B = PiecewiseConstantBarrier(Xs, ws.B_regions)
-    res = GradientDescentAlgResult(B, η, βⱼ)
-
-    @info "Solution Gradient Descent" η=eta(res) β=beta(res) Pₛ=psafe(res, time_horizon) iterations=alg.num_iterations
+    @info "Solution Gradient Descent" η=eta(res) β=beta(res) Pₛ=psafe(res, time_horizon) time=total_time(res) iterations=alg.num_iterations
 
     return res
 end

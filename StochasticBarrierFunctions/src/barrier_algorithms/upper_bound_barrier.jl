@@ -14,20 +14,24 @@ struct UpperBoundAlgResult <: BarrierResult
     B::PiecewiseConstantBarrier
     η::Float64
     βs::Vector{Float64}
+    synthesis_time::Float64  # Total time to solve the optimization problem in seconds
 end
 
 barrier(res::UpperBoundAlgResult) = res.B
 eta(res::UpperBoundAlgResult) = res.η
 beta(res::UpperBoundAlgResult) = maximum(res.βs)
 betas(res::UpperBoundAlgResult) = res.βs
+total_time(res::UpperBoundAlgResult) = res.synthesis_time
 
 function synthesize_barrier(alg::UpperBoundAlgorithm, regions::Vector{<:RegionWithProbabilities}, initial_region::LazySet, obstacle_region::LazySet; time_horizon=1)
-    B, η, _ = upper_bound_barrier(alg, regions, initial_region, obstacle_region; time_horizon=time_horizon)
-    β_updated, _ = compute_beta(alg.linear_solver, B, regions)
+    synthesis_time = @elapsed begin 
+        B, η, _ = upper_bound_barrier(alg, regions, initial_region, obstacle_region; time_horizon=time_horizon)
+        β_updated, _ = compute_beta(alg.linear_solver, B, regions)
+    end
 
-    res = UpperBoundAlgResult(B, η, β_updated)
+    res = UpperBoundAlgResult(B, η, β_updated, synthesis_time)
 
-    @info "Upper Bound Barrier Solution" η=eta(res) β=beta(res) Pₛ=psafe(res, time_horizon)
+    @info "Upper Bound Barrier Solution" η=eta(res) β=beta(res) Pₛ=psafe(res, time_horizon) time=total_time(res)
 
     return res
 end
