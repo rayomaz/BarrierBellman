@@ -1,13 +1,6 @@
-""" Piecewise Barrier Functions: compute transition probabilities [Pendulum]
-
-    © Rayan Mazouz
-
-"""
-
 # Start julia with multiple threads
 # julia --threads 16
 
-# Import packages
 using Revise, BenchmarkTools
 using StochasticBarrierFunctions
 using YAXArrays, NetCDF, MAT

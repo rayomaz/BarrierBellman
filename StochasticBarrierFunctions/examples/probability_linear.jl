@@ -1,10 +1,3 @@
-""" Piecewise Barrier Functions based on Bellman's Equation
-
-    © Rayan Mazouz
-
-"""
-
-# Import packages
 using Revise, BenchmarkTools
 using StochasticBarrierFunctions
 using LazySets

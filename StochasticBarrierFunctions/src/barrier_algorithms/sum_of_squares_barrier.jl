@@ -1,9 +1,3 @@
-""" Stochastic barrier function construction (Sum of Squares)
-
-    © Rayan Mazouz
-
-"""
-
 export SumOfSquaresAlgorithm, SumOfSquaresAlgResult
 
 Base.@kwdef struct SumOfSquaresAlgorithm <: SumOfSquaresBarrierAlgorithm

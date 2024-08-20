@@ -1,9 +1,3 @@
-""" Piecewise barrier function construction
-
-    © Rayan Mazouz
-
-"""
-
 export UpperBoundAlgorithm, UpperBoundAlgResult
 
 Base.@kwdef struct UpperBoundAlgorithm <: ConstantBarrierAlgorithm

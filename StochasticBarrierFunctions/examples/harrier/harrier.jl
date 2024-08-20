@@ -1,10 +1,3 @@
-""" Piecewise Barrier Function: Harrier Model
-
-    © Rayan Mazouz
-
-"""
-
-# Import packages
 using Revise, BenchmarkTools
 using StochasticBarrierFunctions, LazySets
 using YAXArrays, NetCDF
