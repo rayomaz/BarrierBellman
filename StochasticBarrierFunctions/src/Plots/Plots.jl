@@ -1,5 +1,7 @@
 module Plots 
 
+using StochasticBarrierFunctions, LazySets
+
 using Plots
 
 export plot_environment, plot_3d_barrier
