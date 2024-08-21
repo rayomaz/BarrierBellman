@@ -1,9 +1,3 @@
-""" Piecewise barrier function construction
-
-    © Rayan Mazouz
-
-"""
-
 function compute_beta(linear_solver, B, regions::Vector{<:RegionWithProbabilities{T}}) where {T}
     # Don't ask. It's not pretty... But it's fast!
 

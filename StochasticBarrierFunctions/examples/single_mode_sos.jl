@@ -1,10 +1,3 @@
-""" Piecewise Barrier Function: Linear Dynamic Model [Single Mode]
-
-    © Rayan Mazouz
-
-"""
-
-# Import packages
 using Revise, BenchmarkTools
 using StochasticBarrierFunctions, LazySets, LinearAlgebra
 using Mosek, MosekTools

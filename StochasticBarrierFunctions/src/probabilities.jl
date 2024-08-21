@@ -1,10 +1,3 @@
-""" Functions to compute :
-
-    Transition probability bounds P̲ᵢⱼ ≤ P(f(x) ∈ qᵢ | x ∈ qⱼ) ≤ P̅ᵢⱼ for Linear Systems and Neural Network Dynamic Models
-
-    © Rayan Mazouz, Frederik Baymler Mathiesen
-
-"""
 abstract type AbstractLowerBoundAlgorithm end
 struct VertexEnumeration <: AbstractLowerBoundAlgorithm end
 

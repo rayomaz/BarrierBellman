@@ -1,10 +1,3 @@
-""" Piecewise Barrier Function: Neural Network Dynamic Model [Pendulum]
-
-    © Rayan Mazouz
-
-"""
-
-# Import packages
 using Revise, BenchmarkTools
 using StochasticBarrierFunctions, LazySets
 using Mosek, MosekTools

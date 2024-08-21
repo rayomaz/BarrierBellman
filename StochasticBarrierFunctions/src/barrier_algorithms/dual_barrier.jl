@@ -1,9 +1,3 @@
-""" Piecewise barrier function construction
-
-    © Rayan Mazouz
-
-"""
-
 export DualAlgorithm, DualAlgResult
 
 Base.@kwdef struct DualAlgorithm <: ConstantBarrierAlgorithm

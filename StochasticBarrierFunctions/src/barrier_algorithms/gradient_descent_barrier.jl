@@ -1,9 +1,3 @@
-""" Piecewise barrier function construction
-
-    © Rayan Mazouz
-
-"""
-
 export GradientDescentAlgorithm, StochasticGradientDescentAlgorithm, GradientDescentAlgResult
 
 abstract type ConstantGDBarrierAlgorithm <: ConstantBarrierAlgorithm end

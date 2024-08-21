@@ -1,4 +1,3 @@
-# Import packages
 using Revise, BenchmarkTools
 using StochasticBarrierFunctions
 using YAXArrays, NetCDF

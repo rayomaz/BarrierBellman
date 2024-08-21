@@ -1,10 +1,3 @@
-"""
-    - System structure
-
-    © Frederik Baymler Mathiesen, Rayan Mazouz
-
-"""
-
 abstract type AbstractDiscreteTimeStochasticSystem{N} end
 abstract type AbstractAdditiveGaussianSystem{N} <: AbstractDiscreteTimeStochasticSystem{N} end
 
