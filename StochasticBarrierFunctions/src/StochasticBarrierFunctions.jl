@@ -16,6 +16,10 @@ default_non_linear_solver() = Ipopt.Optimizer
 using MultivariatePolynomials, DynamicPolynomials
 using PolyJuMP, SumOfSquares
 
+using Distributions: quantile, Normal
+using ProgressMeter: Progress, next!
+using DimensionalData: DimArray, Dim
+
 using LazySets, Polyhedra, CDDLib
 using Optimisers, ParameterSchedulers
 using ReachabilityBase.Commutative
@@ -31,10 +35,6 @@ export dynamics, noise_distribution, dimensionality
 include("region.jl")
 export RegionWithProbabilities
 export region, prob_lower, prob_upper, prob_unsafe_lower, prob_unsafe_upper
-
-include("probabilities.jl")
-export transition_probabilities, plot_posterior
-export TransitionProbabilityAlgorithm, BoxApproximation, GlobalSolver, FrankWolfeSolver
 
 include("barrier.jl")
 export SumOfSquaresBarrier, PiecewiseConstantBarrier
@@ -56,5 +56,11 @@ include("barrier_algorithms/sum_of_squares_barrier.jl")
 # Submodules
 include("Plots/Plots.jl")
 include("Data/Data.jl")
+
+using StochasticBarrierFunctions.Data
+
+include("probabilities.jl")
+export transition_probabilities, plot_posterior
+export TransitionProbabilityAlgorithm, BoxApproximation, GlobalSolver, FrankWolfeSolver
 
 end # module StochasticBarrierFunctions

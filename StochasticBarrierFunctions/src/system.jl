@@ -16,7 +16,7 @@ struct AdditiveGaussianLinearSystem{T, N} <: AbstractAdditiveGaussianSystem{N}
 
     state_space::Union{AbstractHyperrectangle{T}, Nothing}
 
-    function AdditiveGaussianLinearSystem(A::AbstractMatrix{T}, b::AbstractVector{T}, σ::AbstractVector{T}, state_space::AbstractHyperrectangle{T}=nothing) where {T}
+    function AdditiveGaussianLinearSystem(A::AbstractMatrix{T}, b::AbstractVector{T}, σ::AbstractVector{T}, state_space::Union{AbstractHyperrectangle{T}, Nothing}=nothing) where {T}
         n = LinearAlgebra.checksquare(A)
         
         if size(b, 1) != n
@@ -30,7 +30,6 @@ struct AdditiveGaussianLinearSystem{T, N} <: AbstractAdditiveGaussianSystem{N}
         new{T, length(σ)}(A, b, σ, state_space)
     end
 end
-AdditiveGaussianLinearSystem(A, b, σ, state_space=nothing) = AdditiveGaussianLinearSystem{eltype(A), length(σ)}(A, b, σ, state_space)
 dynamics(system::AdditiveGaussianLinearSystem) = (system.A, system.b)
 
 
