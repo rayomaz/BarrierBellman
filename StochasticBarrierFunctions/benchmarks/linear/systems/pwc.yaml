@@ -1,0 +1,18 @@
+system_flag: "linear"
+dim: 3
+A: [[0.95, 0.0, 0.0], [0.0, 0.95, 0.0], [0.0, 0.0, 0.95]]
+b: [0.0, 0.01, 0.0]
+σ: [0.01, 0.02, 0.01]
+state_space:
+  low: [-1.0, -1.0, -1.0]
+  high: [1.0, 1.0, 1.0]
+δ: [1.0, 1.0, 1.0]
+transition_probalities: "None"
+initial_region:
+  low: [-0.10, -0.05, -0.05]
+  high: [-0.05, 0.05, 0.05]
+obstacle_region: "empty"
+barrier_settings:
+  barrier_type: "PWC"
+  time_horizon: 2
+  optimization_type: "DUAL"
