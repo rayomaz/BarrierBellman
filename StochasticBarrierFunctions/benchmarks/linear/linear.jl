@@ -100,28 +100,29 @@ function call_barrier_method(config, ::PWC)
 
     # Check if probability bounds exist, else compute and save
     filename = "data/linear/$(dim)D_probability_data_$(length(state_partitions))_$(δ)_sigma_$σ.nc"
-    if isfile(filename)
+    if isfile(filename) 
         dataset = open_dataset(joinpath(@__DIR__, filename))
         probabilities = load_probabilities(dataset)
     else
         probability_bounds = transition_probabilities(system, state_partitions)
         savedataset(probability_bounds; path=joinpath(@__DIR__, filename), driver=:netcdf, overwrite=true) 
-        dataset = open_dataset(joinpath(@__DIR__, filename))
-        probabilities = load_probabilities(dataset)
+        probabilities = load_probabilities(open_dataset(joinpath(@__DIR__, filename)))
     end
     
     optimization_type = config["barrier_settings"]["optimization_type"]
     if optimization_type == "DUAL"
         # Optimize: method 2 (dual approach)
-        @time res = synthesize_barrier(DualAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
+        @time res_pwc = synthesize_barrier(DualAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
     elseif optimization_type == "CEGS"
         # Optimize: method 3 (iterative approach)
-        @time res = synthesize_barrier(IterativeUpperBoundAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
+        @time res_pwc = synthesize_barrier(IterativeUpperBoundAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
     elseif optimization_type == "GD"
         # Optimize: method 4 (project gradient descent approach)
-        @time res = synthesize_barrier(GradientDescentAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
+        @time res_pwc = synthesize_barrier(GradientDescentAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
     end
     
+    # Print to txt
+    print_to_txt(res_pwc)
 end
 
 function print_to_txt(res)
