@@ -16,25 +16,19 @@ abstract type PWCType end
     struct GD_ALG   <: PWCType end
 
 function get_system_type(system_type_str) :: SystemType
-    
-    # Map the string to the correct type
-    return system_type_str == "LINEAR"     ? LINEAR() :
-           system_type_str == "POLYNOMIAL" ? POLYNOMIAL() :
-           system_type_str == "NONLINEAR"  ? NONLINEAR() :
+    return system_type_str == "linear"     ? LINEAR() :
+           system_type_str == "polynomial" ? POLYNOMIAL() :
+           system_type_str == "nonlinear"  ? NONLINEAR() :
            error("Unknown system type: $system_type_str")
 end
 
 function get_barrier_type(barrier_type_str) :: BarrierType
-    
-    # Map the string to the correct type
     return barrier_type_str == "SOS" ? SOS() :
            barrier_type_str == "PWC" ? PWC() :
            error("Unknown barrier type: $barrier_type_str")
 end
 
 function get_pwc_optimization_type(optimization_type_str) :: PWCType
-    
-    # Map the string to the correct type
     return optimization_type_str == "DUAL_ALG" ? DUAL_ALG() :
            optimization_type_str == "CEGS_ALG" ? CEGS_ALG() :
            optimization_type_str == "GD_ALG"   ? GD_ALG() :
@@ -42,32 +36,33 @@ function get_pwc_optimization_type(optimization_type_str) :: PWCType
 end
 
 function barrier_synthesis(yaml_file::String)
-
     # Load config file
     config = YAML.load_file(yaml_file)
 
-    # Define optimization type
+    # Define optimization type and make call
+    system_type_instance  = get_system_type(config["system_flag"])
     barrier_type_instance = get_barrier_type(config["barrier_settings"]["barrier_type"])
-    call_barrier_method(config, barrier_type_instance)
-
+    call_barrier_method(config, system_type_instance, barrier_type_instance)
 end
 
-function extract_system_parms(config)
-
-    dim, A, b, σ =  dim = config["dim"], hcat(config["A"]...), config["b"], config["σ"]
+function extract_system_parms(config, system_type_str::LINEAR)
+    dim, A, b, σ = config["dim"], hcat(config["A"]...), config["b"], config["σ"]
     state_space = Hyperrectangle(low=config["state_space"]["low"], high=config["state_space"]["high"])
+    return dim, A, b, σ, state_space
+end
 
-    # Initial Region
-    initial_region = create_initial_region(config, dim)
+function extract_system_parms(config, system_type_str::POLYNOMIAL)
+    dim, f, σ = config["dim"], config["f"], config["σ"]
+    state_space = Hyperrectangle(low=config["state_space"]["low"], high=config["state_space"]["high"])
+    return dim, f, σ, state_space
+end
 
-    # Obstacle region
-    obstacle_region = create_obstacle_region(config, dim)
-
-    # Verification discrete-time horizon
-    time_horizon = config["barrier_settings"]["time_horizon"]
-
-    return dim, A, b, σ, state_space, initial_region, obstacle_region, time_horizon
-
+function extract_system_parms(config, system_type_str::NONLINEAR)
+    dim, σ =  config["dim"], config["σ"]
+    filename = "nonlinear/$(config["filename"])"
+    dataset = open_dataset(filename)
+    Xs = load_dynamics(dataset)
+    return dim, σ, Xs
 end
 
 function create_initial_region(config, dim)
@@ -94,7 +89,6 @@ function create_obstacle_region(config, dim)
     
     num_obstacles = config["obstacle_region"]["num_obstacles"]
     obstacles = []
-
     for i in 1:num_obstacles
         obstacle_key = "obstacle_$i"
         obstacle_data = config["obstacle_region"][obstacle_key]
@@ -116,7 +110,6 @@ function create_obstacle_region(config, dim)
 
     return length(obstacles) > 1 ? UnionSet(obstacles...) : obstacles[1]
 end
-
 
 function generate_partitions(state_space, ϵ)
     # Define ranges
@@ -141,13 +134,31 @@ function generate_partitions(state_space, ϵ)
     return state_partitions
 end
 
-function call_barrier_method(config, barrier_type::SOS)
+function call_barrier_method(config, system_type_instance, barrier_type::SOS)
     # Establish System
-    dim, A, b, σ, state_space, initial_region, obstacle_region, time_horizon = extract_system_parms(config)
-    system = AdditiveGaussianLinearSystem(A, b, σ, state_space)
+    if system_type_instance == LINEAR()
+        dim, A, b, σ, state_space = extract_system_parms(config, system_type_instance::LINEAR)
+        system = AdditiveGaussianLinearSystem(A, b, σ, state_space)
+
+    elseif system_type_instance == POLYNOMIAL()
+        dim, σ, f = extract_system_parms(config, system_type_instance::POLYNOMIAL)
+        system = AdditiveGaussianUncertainPWASystem(f, σ, state_space)  
+
+    elseif system_type_instance == NONLINEAR()
+        dim, σ, Xs = extract_system_parms(config, system_type_instance::NONLINEAR)
+        system = AdditiveGaussianUncertainPWASystem(Xs, σ)  
+    else
+        error("Unsupported system type instance: $system_type_instance")
+    end
+
+    # Initial Region
+    initial_region = create_initial_region(config, dim)
+
+    # Obstacle region
+    obstacle_region = create_obstacle_region(config, dim)
 
     # Optimize: baseline 1 (sos)
-    barrier_degree, lagrange_degree = get_kwargs(config, barrier_type)
+    barrier_degree, lagrange_degree, time_horizon = get_kwargs(config, barrier_type)
     @time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(barrier_degree=barrier_degree, lagrange_degree = lagrange_degree), 
                                                              system, initial_region, obstacle_region; 
                                                              time_horizon=time_horizon)
@@ -157,43 +168,67 @@ function call_barrier_method(config, barrier_type::SOS)
     print_to_txt(system_flag, "SOS", res_sos)
 end
 
-function call_barrier_method(config, ::PWC)
+function call_barrier_method(config, system_type_instance, ::PWC)
     # Establish System
-    dim, A, b, σ, state_space, initial_region, obstacle_region, time_horizon = extract_system_parms(config)
-    ϵ = config["transition_probalities"]["ϵ"]
-    system = AdditiveGaussianLinearSystem(A, b, σ)
-    state_partitions = generate_partitions(state_space, ϵ)
+    if system_type_instance == LINEAR()
+        dim, A, b, σ, state_space = extract_system_parms(config, system_type_instance::LINEAR)
+        ϵ = config["transition_probalities"]["ϵ"]
+        system = AdditiveGaussianLinearSystem(A, b, σ)
+        state_partitions = generate_partitions(state_space, ϵ)
 
-    # Check if probability bounds exist, else compute and save
-    system_flag = config["system_flag"]
-    filename = "data/$(dim)D_probability_data_$(length(state_partitions))_δ_$(ϵ)_sigma_$σ.nc"
-    transition_probalities_path = config["transition_probalities"]["transition_probalities_path"]
-    if isfile(filename) || isfile(transition_probalities_path )
-        dataset = open_dataset(joinpath(@__DIR__, filename))
-        probabilities = load_probabilities(dataset)
+        filename = "$(config["system_flag"])/data/$(dim)D_probability_data_$(length(state_partitions))_δ_$(ϵ)_sigma_$σ.nc"
+        transition_probalities_path = config["transition_probalities"]["transition_probalities_path"]
+        if isfile(filename) || isfile(transition_probalities_path )
+            dataset = open_dataset(joinpath(@__DIR__, filename))
+            probabilities = load_probabilities(dataset)
+        else
+            probability_bounds = transition_probabilities(system, state_partitions)
+            savedataset(probability_bounds; path=joinpath(@__DIR__, filename), driver=:netcdf, overwrite=true) 
+            probabilities = load_probabilities(open_dataset(joinpath(@__DIR__, filename)))
+        end
+
+    elseif system_type_instance == NONLINEAR()
+        filename = "$(config["system_flag"])/data/$(config["probabilities"])"
+        if isfile(filename)
+            dim = config["dim"]
+            dataset = open_dataset(joinpath(@__DIR__, filename))
+            probabilities = load_probabilities(dataset)
+        else
+            dim, σ, Xs = extract_system_parms(config, system_type_instance::NONLINEAR)
+            system = AdditiveGaussianUncertainPWASystem(Xs, σ)
+            probability_bounds = transition_probabilities(system)\
+            savedataset(probability_bounds; path=joinpath(@__DIR__, filename), driver=:netcdf, overwrite=true) 
+            probabilities = load_probabilities(open_dataset(joinpath(@__DIR__, filename)))
+        end
     else
-        probability_bounds = transition_probabilities(system, state_partitions)
-        savedataset(probability_bounds; path=joinpath(@__DIR__, filename), driver=:netcdf, overwrite=true) 
-        probabilities = load_probabilities(open_dataset(joinpath(@__DIR__, filename)))
+        error("Unsupported system type instance: $system_type_instance")
     end
-    
-    optimization_type_instance = get_pwc_optimization_type(config["barrier_settings"]["optimization_type"])
 
-    res_pwc = pwc_optimization_call(config, time_horizon, optimization_type_instance)
+    # Initial Region
+    initial_region = create_initial_region(config, dim)
+
+    # Obstacle region
+    obstacle_region = create_obstacle_region(config, dim)
+
+    # Call on DUAL, CEGS or GD
+    optimization_type_instance = get_pwc_optimization_type(config["barrier_settings"]["optimization_type"])
+    res_pwc = pwc_optimization_call(config, probabilities, initial_region, obstacle_region, optimization_type_instance)
     
     # Print results to txt
-    print_to_txt(system_flag, "PWC", res_pwc)
+    print_to_txt(config["system_flag"], "PWC", res_pwc)
 end
 
-function pwc_optimization_call(config, time_horizon, ::DUAL_ALG)
+function pwc_optimization_call(config, probabilities, initial_region, obstacle_region, barrier_type::DUAL_ALG)
     # Optimize: method 2 (dual approach)
-    @time res_pwc = synthesize_barrier(DualAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
+    time_horizon = get_kwargs(config, barrier_type::DUAL_ALG)
+    @time res_pwc = synthesize_barrier(DualAlgorithm(), 
+                                       probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
     return res_pwc
 end
 
-function pwc_optimization_call(config, time_horizon, barrier_type::CEGS_ALG)
+function pwc_optimization_call(config, probabilities, initial_region, obstacle_region, barrier_type::CEGS_ALG)
     # Optimize: method 3 (iterative approach)
-    δ, num_iterations, barrier_guided, distribution_guided = get_kwargs(config, barrier_type::CEGS_ALG)
+    δ, num_iterations, barrier_guided, distribution_guided, time_horizon = get_kwargs(config, barrier_type::CEGS_ALG)
     @time res_pwc = synthesize_barrier(IterativeUpperBoundAlgorithm(δ = δ, num_iterations = num_iterations, 
                                                                     barrier_guided = barrier_guided, 
                                                                     distribution_guided = distribution_guided), 
@@ -201,9 +236,9 @@ function pwc_optimization_call(config, time_horizon, barrier_type::CEGS_ALG)
     return res_pwc
 end
 
-function pwc_optimization_call(config, time_horizon, barrier_type::GD_ALG)
+function pwc_optimization_call(config, probabilities, initial_region, obstacle_region, barrier_type::GD_ALG)
     # Optimize: method 4 (project gradient descent approach)
-    num_iterations, initial_lr, decay, momentum = get_kwargs(config, barrier_type::GD_ALG)
+    num_iterations, initial_lr, decay, momentum, time_horizon = get_kwargs(config, barrier_type::GD_ALG)
     @time res_pwc = synthesize_barrier(GradientDescentAlgorithm(num_iterations = num_iterations, initial_lr = initial_lr,
                                                                 decay = decay, momentum = momentum), 
                                        probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
@@ -213,7 +248,12 @@ end
 function get_kwargs(config, barrier_type::SOS)
     barrier_degree = get(config["barrier_settings"], "barrier_degree", SumOfSquaresAlgorithm().barrier_degree)
     lagrange_degree = get(config["barrier_settings"], "lagrange_degree", SumOfSquaresAlgorithm().lagrange_degree) 
-    return barrier_degree, lagrange_degree
+    time_horizon = get(config["barrier_settings"], "time_horizon", 1) 
+    return barrier_degree, lagrange_degree, time_horizon
+end
+
+function get_kwargs(config, barrier_type::DUAL_ALG)
+    return get(config["barrier_settings"], "time_horizon", 1) 
 end
 
 function get_kwargs(config, barrier_type::CEGS_ALG)
@@ -221,7 +261,8 @@ function get_kwargs(config, barrier_type::CEGS_ALG)
     num_iterations = get(config["barrier_settings"], "num_iterations", IterativeUpperBoundAlgorithm().num_iterations)
     barrier_guided = get(config["barrier_settings"], "barrier_guided", IterativeUpperBoundAlgorithm().barrier_guided)
     distribution_guided = get(config["barrier_settings"], "distribution_guided", IterativeUpperBoundAlgorithm().distribution_guided)
-    return δ, num_iterations, barrier_guided, distribution_guided
+    time_horizon = get(config["barrier_settings"], "time_horizon", 1) 
+    return δ, num_iterations, barrier_guided, distribution_guided, time_horizon
 end
 
 function get_kwargs(config, barrier_type::GD_ALG)
@@ -229,7 +270,8 @@ function get_kwargs(config, barrier_type::GD_ALG)
     initial_lr = get(config["barrier_settings"], "initial_lr", GradientDescentAlgorithm().initial_lr)
     decay = get(config["barrier_settings"], "decay", GradientDescentAlgorithm().decay)
     momentum = get(config["barrier_settings"], "momentum", GradientDescentAlgorithm().momentum)
-    return num_iterations, initial_lr, decay, momentum
+    time_horizon = get(config["barrier_settings"], "time_horizon", 1) 
+    return num_iterations, initial_lr, decay, momentum, time_horizon
 end
 
 function print_to_txt(system_flag, barrier_type, res)
