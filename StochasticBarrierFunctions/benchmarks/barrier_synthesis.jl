@@ -166,7 +166,7 @@ function call_barrier_method(config, ::PWC)
 
     # Check if probability bounds exist, else compute and save
     system_flag = config["system_flag"]
-    filename = "data/$(system_flag)/$(dim)D_probability_data_$(length(state_partitions))_δ_$(ϵ)_sigma_$σ.nc"
+    filename = "data/$(dim)D_probability_data_$(length(state_partitions))_δ_$(ϵ)_sigma_$σ.nc"
     transition_probalities_path = config["transition_probalities"]["transition_probalities_path"]
     if isfile(filename) || isfile(transition_probalities_path )
         dataset = open_dataset(joinpath(@__DIR__, filename))
