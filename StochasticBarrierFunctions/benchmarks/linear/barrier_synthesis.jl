@@ -18,9 +18,9 @@ abstract type PWCType end
 function get_system_type(system_type_str) :: SystemType
     
     # Map the string to the correct type
-    return system_type_str == "LINEAR" ? LINEAR() :
+    return system_type_str == "LINEAR"     ? LINEAR() :
            system_type_str == "POLYNOMIAL" ? POLYNOMIAL() :
-           system_type_str == "NONLINEAR" ? NONLINEAR() :
+           system_type_str == "NONLINEAR"  ? NONLINEAR() :
            error("Unknown system type: $system_type_str")
 end
 
@@ -37,7 +37,7 @@ function get_pwc_optimization_type(optimization_type_str) :: PWCType
     # Map the string to the correct type
     return optimization_type_str == "DUAL_ALG" ? DUAL_ALG() :
            optimization_type_str == "CEGS_ALG" ? CEGS_ALG() :
-           optimization_type_str == "GD_ALG" ? GD_ALG() :
+           optimization_type_str == "GD_ALG"   ? GD_ALG() :
            error("Unknown optimization type: $optimization_type_str")
 end
 
@@ -72,15 +72,15 @@ function extract_system_parms(config)
 
 end
 
-function generate_partitions(dim, state_space, δ)
+function generate_partitions(state_space, ϵ)
     # Define ranges
     ranges = [
     range(
         state_space.center[i] - state_space.radius[i],
-        step=δ[i],
-        length=Int(ceil((2 * state_space.radius[i]) / δ[i])) + 1
+        step=ϵ[i],
+        length=Int(ceil((2 * state_space.radius[i]) / ϵ[i])) + 1
     )
-    for i in 1:dim
+    for i in 1:length(ϵ)
     ]
 
     # Generate a flat vector of Hyperrectangle objects for n-dimensions
@@ -114,13 +114,13 @@ end
 function call_barrier_method(config, ::PWC)
     # Establish System
     dim, A, b, σ, state_space, initial_region, obstacle_region, time_horizon = extract_system_parms(config)
-    δ = config["transition_probalities"]["δ"]
+    ϵ = config["transition_probalities"]["ϵ"]
     system = AdditiveGaussianLinearSystem(A, b, σ)
-    state_partitions = generate_partitions(dim, state_space, δ)
+    state_partitions = generate_partitions(dim, state_space, ϵ)
 
     # Check if probability bounds exist, else compute and save
     system_flag = config["system_flag"]
-    filename = "data/$(system_flag)/$(dim)D_probability_data_$(length(state_partitions))_δ_$(δ)_sigma_$σ.nc"
+    filename = "data/$(system_flag)/$(dim)D_probability_data_$(length(state_partitions))_δ_$(ϵ)_sigma_$σ.nc"
     transition_probalities_path = config["transition_probalities"]["transition_probalities_path"]
     if isfile(filename) || isfile(transition_probalities_path )
         dataset = open_dataset(joinpath(@__DIR__, filename))
@@ -133,12 +133,11 @@ function call_barrier_method(config, ::PWC)
     
     optimization_type_instance = get_pwc_optimization_type(config["barrier_settings"]["optimization_type"])
 
-    res_pwc = pwc_optimization_call(time_horizon, optimization_type_instance)
+    res_pwc = pwc_optimization_call(config, time_horizon, optimization_type_instance)
     
     # Print results to txt
     print_to_txt(system_flag, "PWC", res_pwc)
 end
-
 
 function pwc_optimization_call(time_horizon, ::DUAL_ALG)
     # Optimize: method 2 (dual approach)
@@ -146,15 +145,22 @@ function pwc_optimization_call(time_horizon, ::DUAL_ALG)
     return res_pwc
 end
 
-function pwc_optimization_call(time_horizon, ::CEGS_ALG)
+function pwc_optimization_call(config, time_horizon, barrier_type::CEGS_ALG)
     # Optimize: method 3 (iterative approach)
-    @time res_pwc = synthesize_barrier(IterativeUpperBoundAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
+    δ, num_iterations, barrier_guided, distribution_guided = get_kwargs(config, barrier_type::CEGS_ALG)
+    @time res_pwc = synthesize_barrier(IterativeUpperBoundAlgorithm(δ = δ, num_iterations = num_iterations, 
+                                                                    barrier_guided = barrier_guided, 
+                                                                    distribution_guided = distribution_guided), 
+                                       probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
     return res_pwc
 end
 
-function pwc_optimization_call(time_horizon, ::GD_ALG)
+function pwc_optimization_call(config, time_horizon, barrier_type::GD_ALG)
     # Optimize: method 4 (project gradient descent approach)
-    @time res_pwc = synthesize_barrier(GradientDescentAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
+    num_iterations, initial_lr, decay, momentum = get_kwargs(config, barrier_type::GD_ALG)
+    @time res_pwc = synthesize_barrier(GradientDescentAlgorithm(num_iterations = num_iterations, initial_lr = initial_lr,
+                                                                decay = decay, momentum = momentum), 
+                                       probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
     return res_pwc
 end
 
@@ -162,6 +168,22 @@ function get_kwargs(config, barrier_type::SOS)
     barrier_degree = get(config["barrier_settings"], "barrier_degree", SumOfSquaresAlgorithm().barrier_degree)
     lagrange_degree = get(config["barrier_settings"], "lagrange_degree", SumOfSquaresAlgorithm().lagrange_degree) 
     return barrier_degree, lagrange_degree
+end
+
+function get_kwargs(config, barrier_type::CEGS_ALG)
+    δ = get(config["barrier_settings"], "iteration_δ", IterativeUpperBoundAlgorithm().δ)
+    num_iterations = get(config["barrier_settings"], "num_iterations", IterativeUpperBoundAlgorithm().num_iterations)
+    barrier_guided = get(config["barrier_settings"], "barrier_guided", IterativeUpperBoundAlgorithm().barrier_guided)
+    distribution_guided = get(config["barrier_settings"], "distribution_guided", IterativeUpperBoundAlgorithm().distribution_guided)
+    return δ, num_iterations, barrier_guided, distribution_guided
+end
+
+function get_kwargs(config, barrier_type::GD_ALG)
+    num_iterations = get(config["barrier_settings"], "num_iterations", GradientDescentAlgorithm().num_iterations)
+    initial_lr = get(config["barrier_settings"], "initial_lr", GradientDescentAlgorithm().initial_lr)
+    decay = get(config["barrier_settings"], "decay", GradientDescentAlgorithm().decay)
+    momentum = get(config["barrier_settings"], "momentum", GradientDescentAlgorithm().momentum)
+    return num_iterations, initial_lr, decay, momentum
 end
 
 function print_to_txt(system_flag, barrier_type, res)
