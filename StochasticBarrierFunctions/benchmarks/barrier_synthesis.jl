@@ -162,7 +162,7 @@ function call_barrier_method(config, ::PWC)
     dim, A, b, σ, state_space, initial_region, obstacle_region, time_horizon = extract_system_parms(config)
     ϵ = config["transition_probalities"]["ϵ"]
     system = AdditiveGaussianLinearSystem(A, b, σ)
-    state_partitions = generate_partitions(dim, state_space, ϵ)
+    state_partitions = generate_partitions(state_space, ϵ)
 
     # Check if probability bounds exist, else compute and save
     system_flag = config["system_flag"]
