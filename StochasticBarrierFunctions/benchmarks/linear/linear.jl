@@ -6,6 +6,12 @@ abstract type BarrierType end
 struct SOS <: BarrierType end
 struct PWC <: BarrierType end
 
+abstract type PWCType end
+
+struct DUAL_ALG <: PWCType end
+struct CEGS_ALG <: PWCType end
+struct GD_ALG   <: PWCType end
+
 function get_barrier_type(barrier_type_str) :: BarrierType
     
     # Map the string to the correct type
@@ -14,12 +20,21 @@ function get_barrier_type(barrier_type_str) :: BarrierType
            error("Unknown barrier type: $barrier_type_str")
 end
 
+function get_pwc_optimization_type(optimization_type_str) :: PWCType
+    
+    # Map the string to the correct type
+    return optimization_type_str == "DUAL_ALG" ? DUAL_ALG() :
+           optimization_type_str == "CEGS_ALG" ? CEGS_ALG() :
+           optimization_type_str == "GD_ALG" ? GD_ALG() :
+           error("Unknown optimization type: $optimization_type_str")
+end
+
 function barrier_synthesis(yaml_file::String)
 
     # Load config file
     config = YAML.load_file(yaml_file)
 
-    # FDefine optimization type
+    # Define optimization type
     barrier_type_instance = get_barrier_type(config["barrier_settings"]["barrier_type"])
     call_barrier_method(config, barrier_type_instance)
 
@@ -87,8 +102,9 @@ function call_barrier_method(config, ::SOS)
                                                              system, initial_region, obstacle_region; 
                                                              time_horizon=time_horizon)
 
-    # Print to txt
-    print_to_txt(res_sos)
+    # Print results to txt
+    system_flag = config["system_flag"]
+    print_to_txt(system_flag, "SOS", res_sos)
 end
 
 function call_barrier_method(config, ::PWC)
@@ -99,7 +115,8 @@ function call_barrier_method(config, ::PWC)
     state_partitions = generate_partitions(dim, state_space, δ)
 
     # Check if probability bounds exist, else compute and save
-    filename = "data/linear/$(dim)D_probability_data_$(length(state_partitions))_δ_$(δ)_sigma_$σ.nc"
+    system_flag = config["system_flag"]
+    filename = "data/$(system_flag)/$(dim)D_probability_data_$(length(state_partitions))_δ_$(δ)_sigma_$σ.nc"
     transition_probalities_path = config["transition_probalities"]["transition_probalities_path"]
     if isfile(filename) || isfile(transition_probalities_path )
         dataset = open_dataset(joinpath(@__DIR__, filename))
@@ -110,29 +127,41 @@ function call_barrier_method(config, ::PWC)
         probabilities = load_probabilities(open_dataset(joinpath(@__DIR__, filename)))
     end
     
-    optimization_type = config["barrier_settings"]["optimization_type"]
-    if optimization_type == "DUAL"
-        # Optimize: method 2 (dual approach)
-        @time res_pwc = synthesize_barrier(DualAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
-    elseif optimization_type == "CEGS"
-        # Optimize: method 3 (iterative approach)
-        @time res_pwc = synthesize_barrier(IterativeUpperBoundAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
-    elseif optimization_type == "GD"
-        # Optimize: method 4 (project gradient descent approach)
-        @time res_pwc = synthesize_barrier(GradientDescentAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
-    end
+    optimization_type_instance = get_pwc_optimization_type(config["barrier_settings"]["optimization_type"])
+
+    res_pwc = pwc_optimization_call(time_horizon, optimization_type_instance)
     
-    # Print to txt
-    print_to_txt(res_pwc)
+    # Print results to txt
+    print_to_txt(system_flag, "PWC", res_pwc)
 end
 
-function print_to_txt(res)
+
+function pwc_optimization_call(time_horizon, ::DUAL_ALG)
+    # Optimize: method 2 (dual approach)
+    @time res_pwc = synthesize_barrier(DualAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
+    return res_pwc
+end
+
+function pwc_optimization_call(time_horizon, ::CEGS_ALG)
+    # Optimize: method 3 (iterative approach)
+    @time res_pwc = synthesize_barrier(IterativeUpperBoundAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
+    return res_pwc
+end
+
+function pwc_optimization_call(time_horizon, ::GD_ALG)
+    # Optimize: method 4 (project gradient descent approach)
+    @time res_pwc = synthesize_barrier(GradientDescentAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
+    return res_pwc
+end
+
+function print_to_txt(system_flag, barrier_type, res)
     # Print to txt                                   
-    file_path = "results/result.txt"
+    file_path = "results/$(system_flag)/$(barrier_type)/result.txt"
     open(file_path, "w") do file
         println(file, res)
     end
 end
+
 
 # Load the system setup from YAML
 barrier_synthesis(yaml_file)
