@@ -1,16 +1,28 @@
 using StochasticBarrierFunctions, LazySets
 using YAXArrays, NetCDF, YAML
 
-abstract type BarrierType end
+abstract type SystemType end
+    struct LINEAR <: SystemType end
+    struct POLYNOMIAL <: SystemType end
+    struct NONLINEAR <: SystemType end
 
-struct SOS <: BarrierType end
-struct PWC <: BarrierType end
+abstract type BarrierType end
+    struct SOS <: BarrierType end
+    struct PWC <: BarrierType end
 
 abstract type PWCType end
+    struct DUAL_ALG <: PWCType end
+    struct CEGS_ALG <: PWCType end
+    struct GD_ALG   <: PWCType end
 
-struct DUAL_ALG <: PWCType end
-struct CEGS_ALG <: PWCType end
-struct GD_ALG   <: PWCType end
+function get_system_type(system_type_str) :: SystemType
+    
+    # Map the string to the correct type
+    return system_type_str == "LINEAR" ? LINEAR() :
+           system_type_str == "POLYNOMIAL" ? POLYNOMIAL() :
+           system_type_str == "NONLINEAR" ? NONLINEAR() :
+           error("Unknown system type: $system_type_str")
+end
 
 function get_barrier_type(barrier_type_str) :: BarrierType
     
@@ -42,23 +54,16 @@ end
 
 function extract_system_parms(config)
 
-    dim = config["dim"]
-
-    A = hcat(config["A"]...)
-    b = config["b"]
-    σ = config["σ"]
-
+    dim, A, b, σ =  dim = config["dim"], hcat(config["A"]...), config["b"], config["σ"]
     state_space = Hyperrectangle(low=config["state_space"]["low"], high=config["state_space"]["high"])
 
     # Initial Region
     initial_region = Hyperrectangle(low=config["initial_region"]["low"], high=config["initial_region"]["high"])
 
     # Obstacle region
-    if config["obstacle_region"] == "empty"
-        obstacle_region = EmptySet(dim)
-    else
-        obstacle_region = Hyperrectangle(low=config["obstacle_region"]["low"], high=config["obstacle_region"]["high"])
-    end
+    obstacle_region = haskey(config, "obstacle_region") ? 
+                      Hyperrectangle(low=config["obstacle_region"]["low"], high=config["obstacle_region"]["high"]) :
+                      EmptySet(dim)
 
     # Verification discrete-time horizon
     time_horizon = config["barrier_settings"]["time_horizon"]
@@ -90,14 +95,13 @@ function generate_partitions(dim, state_space, δ)
     return state_partitions
 end
 
-function call_barrier_method(config, ::SOS)
+function call_barrier_method(config, barrier_type::SOS)
     # Establish System
     dim, A, b, σ, state_space, initial_region, obstacle_region, time_horizon = extract_system_parms(config)
     system = AdditiveGaussianLinearSystem(A, b, σ, state_space)
 
     # Optimize: baseline 1 (sos)
-    barrier_degree = config["barrier_settings"]["barrier_degree"]
-    lagrange_degree = config["barrier_settings"]["lagrange_degree"]
+    barrier_degree, lagrange_degree = get_kwargs(config, barrier_type)
     @time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(barrier_degree=barrier_degree, lagrange_degree = lagrange_degree), 
                                                              system, initial_region, obstacle_region; 
                                                              time_horizon=time_horizon)
@@ -154,6 +158,12 @@ function pwc_optimization_call(time_horizon, ::GD_ALG)
     return res_pwc
 end
 
+function get_kwargs(config, barrier_type::SOS)
+    barrier_degree = get(config["barrier_settings"], "barrier_degree", SumOfSquaresAlgorithm().barrier_degree)
+    lagrange_degree = get(config["barrier_settings"], "lagrange_degree", SumOfSquaresAlgorithm().lagrange_degree) 
+    return barrier_degree, lagrange_degree
+end
+
 function print_to_txt(system_flag, barrier_type, res)
     # Print to txt                                   
     file_path = "results/$(system_flag)/$(barrier_type)/result.txt"
@@ -161,7 +171,6 @@ function print_to_txt(system_flag, barrier_type, res)
         println(file, res)
     end
 end
-
 
 # Load the system setup from YAML
 barrier_synthesis(yaml_file)
