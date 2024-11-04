@@ -6,8 +6,9 @@ b: [0.0, 0.01, 0.0]
 state_space:
   low: [-1.0, -1.0, -1.0]
   high: [1.0, 1.0, 1.0]
-δ: [1.0, 1.0, 1.0]
-transition_probalities: "None"
+transition_probalities: 
+  δ: [1.0, 1.0, 1.0]
+  transition_probalities_path: "3D_probability_data_10_[1.0, 1.0, 1.0]_sigma_[0.01, 0.02, 0.01]"
 initial_region:
   low: [-0.10, -0.05, -0.05]
   high: [-0.05, 0.05, 0.05]
@@ -15,4 +16,4 @@ obstacle_region: "empty"
 barrier_settings:
   barrier_type: "PWC"
   time_horizon: 2
-  optimization_type: "DUAL"
+  optimization_type: "GD"

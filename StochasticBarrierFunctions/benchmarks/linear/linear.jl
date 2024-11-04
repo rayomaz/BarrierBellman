@@ -94,13 +94,14 @@ end
 function call_barrier_method(config, ::PWC)
     # Establish System
     dim, A, b, σ, state_space, initial_region, obstacle_region, time_horizon = extract_system_parms(config)
-    δ = config["δ"]
+    δ = config["transition_probalities"]["δ"]
     system = AdditiveGaussianLinearSystem(A, b, σ)
     state_partitions = generate_partitions(dim, state_space, δ)
 
     # Check if probability bounds exist, else compute and save
-    filename = "data/linear/$(dim)D_probability_data_$(length(state_partitions))_$(δ)_sigma_$σ.nc"
-    if isfile(filename) 
+    filename = "data/linear/$(dim)D_probability_data_$(length(state_partitions))_δ_$(δ)_sigma_$σ.nc"
+    transition_probalities_path = config["transition_probalities"]["transition_probalities_path"]
+    if isfile(filename) || isfile(transition_probalities_path )
         dataset = open_dataset(joinpath(@__DIR__, filename))
         probabilities = load_probabilities(dataset)
     else
