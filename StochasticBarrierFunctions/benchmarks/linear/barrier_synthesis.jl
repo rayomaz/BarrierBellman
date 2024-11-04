@@ -58,12 +58,10 @@ function extract_system_parms(config)
     state_space = Hyperrectangle(low=config["state_space"]["low"], high=config["state_space"]["high"])
 
     # Initial Region
-    initial_region = Hyperrectangle(low=config["initial_region"]["low"], high=config["initial_region"]["high"])
+    initial_region = create_initial_region(config, dim)
 
     # Obstacle region
-    obstacle_region = haskey(config, "obstacle_region") ? 
-                      Hyperrectangle(low=config["obstacle_region"]["low"], high=config["obstacle_region"]["high"]) :
-                      EmptySet(dim)
+    obstacle_region = create_obstacle_region(config, dim)
 
     # Verification discrete-time horizon
     time_horizon = config["barrier_settings"]["time_horizon"]
@@ -71,6 +69,54 @@ function extract_system_parms(config)
     return dim, A, b, σ, state_space, initial_region, obstacle_region, time_horizon
 
 end
+
+function create_initial_region(config, dim)
+    # Initial region should never be empty
+    if haskey(config, "initial_region")
+        if haskey(config["initial_region"], "low") && haskey(config["initial_region"], "high")
+            return Hyperrectangle(low=config["initial_region"]["low"], high=config["initial_region"]["high"])
+        elseif haskey(config["initial_region"], "c") && haskey(config["initial_region"], "r")
+            center = config["initial_region"]["c"]
+            radius = config["initial_region"]["r"][1]
+            return Hyperrectangle(low=center .- radius, high=center .+ radius)
+        else
+            error("Invalid initial region configuration: expected 'low' and 'high' or 'c' and 'r'")
+        end
+    else
+        error("Initial region configuration is required and cannot be empty.")
+    end
+end
+
+function create_obstacle_region(config, dim)
+    if !haskey(config, "obstacle_region")
+        return EmptySet(dim)
+    end
+    
+    num_obstacles = config["obstacle_region"]["num_obstacles"]
+    obstacles = []
+
+    for i in 1:num_obstacles
+        obstacle_key = "obstacle_$i"
+        obstacle_data = config["obstacle_region"][obstacle_key]
+        
+        if haskey(obstacle_data, "c") && haskey(obstacle_data, "r")
+            # Construct a Hyperrectangle to represent Ball2
+            center = obstacle_data["c"]
+            radius = obstacle_data["r"][1]
+            push!(obstacles, Hyperrectangle(low = center .- radius, high = center .+ radius))
+        
+        elseif haskey(obstacle_data, "low") && haskey(obstacle_data, "high")
+            # Construct Hyperrectangle directly from low and high bounds
+            push!(obstacles, Hyperrectangle(low = obstacle_data["low"], high = obstacle_data["high"]))
+        
+        else
+            error("Invalid configuration for $obstacle_key: expected 'c' and 'r' or 'low' and 'high'")
+        end
+    end
+
+    return length(obstacles) > 1 ? UnionSet(obstacles...) : obstacles[1]
+end
+
 
 function generate_partitions(state_space, ϵ)
     # Define ranges
@@ -139,7 +185,7 @@ function call_barrier_method(config, ::PWC)
     print_to_txt(system_flag, "PWC", res_pwc)
 end
 
-function pwc_optimization_call(time_horizon, ::DUAL_ALG)
+function pwc_optimization_call(config, time_horizon, ::DUAL_ALG)
     # Optimize: method 2 (dual approach)
     @time res_pwc = synthesize_barrier(DualAlgorithm(), probabilities, initial_region, obstacle_region; time_horizon = time_horizon)
     return res_pwc
