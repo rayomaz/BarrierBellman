@@ -1,4 +1,4 @@
-using StochasticBarrierFunctions, LazySets
+using StochasticBarrierFunctions, StochasticBarrierFunctions.Data, LazySets
 using YAXArrays, NetCDF, YAML
 
 abstract type SystemType end
