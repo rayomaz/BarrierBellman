@@ -56,7 +56,6 @@ include("barrier_algorithms/sum_of_squares_barrier.jl")
 # Submodules
 include("Plots/Plots.jl")
 include("Data/Data.jl")
-export load_probabilities, load_dynamics
 
 using StochasticBarrierFunctions.Data
 
