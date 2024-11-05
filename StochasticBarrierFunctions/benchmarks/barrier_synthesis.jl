@@ -196,7 +196,7 @@ function call_barrier_method(config, system_type_instance, ::PWC)
         else
             dim, σ, Xs = extract_system_parms(config, system_type_instance::NONLINEAR)
             system = AdditiveGaussianUncertainPWASystem(Xs, σ)
-            probability_bounds = transition_probabilities(system)\
+            probability_bounds = transition_probabilities(system)
             savedataset(probability_bounds; path=joinpath(@__DIR__, filename), driver=:netcdf, overwrite=true) 
             probabilities = load_probabilities(open_dataset(joinpath(@__DIR__, filename)))
         end
