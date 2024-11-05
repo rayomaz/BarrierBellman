@@ -278,7 +278,7 @@ function print_to_txt(system_flag, barrier_type, res)
     # Print to txt                                   
     file_path = "$(system_flag)/results/$(barrier_type)/result.txt"
     open(file_path, "w") do file
-        println(file, res)
+        show(file, res)
     end
 end
 
