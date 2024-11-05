@@ -4,8 +4,8 @@ Base.@kwdef struct IterativeUpperBoundAlgorithm <: ConstantBarrierAlgorithm
     linear_solver = default_lp_solver()
     δ = 0.025
     num_iterations = 10
-    barrier_guided = false
-    distribution_guided = true
+    barrier_guided = true
+    distribution_guided = false
 end
 
 struct IterativeUpperBoundAlgResult <: BarrierResult
