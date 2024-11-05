@@ -1,0 +1,12 @@
+system_flag: "nonlinear"
+dynamics: "bounds/pendulum/dynamics_120.nc"
+probabilities: "pendulum/probability_data_480_sigma_[0.01, 0.01].nc"
+dim: 2
+σ: [0.01, 0.01]
+initial_region:
+  c: [0.0, 0.0]
+  r: [0.01]
+barrier_settings:
+  barrier_type: "PWC"
+  optimization_type: "DUAL_ALG"
+  time_horizon: 10

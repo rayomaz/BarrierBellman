@@ -1,0 +1,11 @@
+system_flag: "nonlinear"
+dynamics: "/bounds/pendulum/dynamics_120.nc"
+dim: 2
+σ: [0.1, 0.1]
+initial_region:
+  c: [0.0, 0.0]
+  r: [0.01]
+barrier_settings:
+  barrier_type: "SOS"
+  time_horizon: 1
+  barrier_degree: 4
