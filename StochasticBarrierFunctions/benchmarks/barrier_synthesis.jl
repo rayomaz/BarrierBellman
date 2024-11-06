@@ -46,7 +46,7 @@ function barrier_synthesis(yaml_file::String)
 end
 
 function extract_system_parms(config, system_type_str::LINEAR)
-    dim, A, b, σ = config["dim"], hcat(config["A"]...), config["b"], config["σ"]
+    dim, A, b, σ = config["dim"], hcat(config["A"]...), vcat(config["b"]...), config["σ"]
     state_space = Hyperrectangle(low=config["state_space"]["low"], high=config["state_space"]["high"])
     return dim, A, b, σ, state_space
 end
