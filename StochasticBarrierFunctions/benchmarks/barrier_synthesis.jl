@@ -111,28 +111,6 @@ function create_obstacle_region(config, dim)
     return length(obstacles) > 1 ? UnionSet(obstacles...) : obstacles[1]
 end
 
-function generate_partitions(state_space, ϵ)
-    # Define ranges
-    ranges = [
-    range(
-        state_space.center[i] - state_space.radius[i],
-        step=ϵ[i],
-        length=Int(ceil((2 * state_space.radius[i]) / ϵ[i])) + 1
-    )
-    for i in 1:length(ϵ)
-    ]
-
-    # Generate a flat vector of Hyperrectangle objects for n-dimensions
-    state_partitions = [
-    Hyperrectangle(
-        low=[low for (low, high) in point_pairs],
-        high=[high for (low, high) in point_pairs]
-    )
-    for point_pairs in Iterators.product([zip(r[1:end-1], r[2:end]) for r in ranges]...)
-    ] |> vec
-
-    return state_partitions
-end
 
 function call_barrier_method(config, system_type_instance, barrier_type::SOS)
     # Establish System
