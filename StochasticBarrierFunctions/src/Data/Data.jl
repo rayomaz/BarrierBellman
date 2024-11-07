@@ -203,7 +203,7 @@ function load_dynamics(dataset::YAXArrays.Dataset)
     return Xs
 end
 
-function generate_partitions(state_space::Vector{<:Hyperrectangle}, ϵ::Vector{Float64})
+function generate_partitions(state_space::Hyperrectangle{Float64, Vector{Float64}, Vector{Float64}}, ϵ::Vector{Float64})
     # Define ranges
     ranges = [
     range(
