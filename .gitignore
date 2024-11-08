@@ -74,6 +74,3 @@ codegen/
 
 # Octave session info
 octave-workspace
-
-# Text files
-*.txt
