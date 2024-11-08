@@ -1,0 +1,23 @@
+system_flag: "polynomial"
+dim: 1
+f: ["-3.78 + 0.20559886250000003*x[1] + 0.0017422474999999999*x[1]^2"]
+σ: [0.1]
+state_space:
+  low: [1.0]
+  high: [50.0]
+initial_region:
+  low: [19.5]
+  high: [20.0]
+obstacle_region:
+  num_obstacles: 2
+  obstacle_1:
+    low: [1.0]
+    high: [17.0]
+  obstacle_2:
+    low: [23.0]
+    high: [50.0]
+barrier_settings:
+  barrier_type: "SOS"
+  time_horizon: 3
+  barrier_degree: 4
+
