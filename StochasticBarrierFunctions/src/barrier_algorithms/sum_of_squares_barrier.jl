@@ -123,6 +123,25 @@ function sos_system_specific_constraints!(alg, model, B, x, β, system::Additive
     @constraint(model, -exp + B + β - exp_domain >= 0)
 end
 
+function sos_system_specific_constraints!(alg, model, B, x, β, system::AdditiveGaussianPolySystem)
+    # Unsafe set
+    sos_unsafe_constraint!(alg, model, B, x, system.state_space)
+
+    # Expectation constraint
+    @polyvar z[eachindex(x)]
+
+    f = dynamics(system)
+    fx = subs(B, x => f + z)
+
+    σ_noise = noise_distribution(system)
+    exp = expectation_noise(fx, σ_noise, z)
+
+    exp_domain = sos_hpoly_lag(model, x, system.state_space)
+
+    # Add constraint
+    @constraint(model, -exp + B + β - exp_domain >= 0)
+end
+
 function sos_unsafe_constraint!(alg, model, B, x, state_space::AbstractHyperrectangle)
     """ Barrier unsafe region conditions
         * B(x) >= 1

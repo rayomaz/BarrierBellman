@@ -1,4 +1,5 @@
 using StochasticBarrierFunctions, StochasticBarrierFunctions.Data, LazySets
+using DynamicPolynomials
 using YAXArrays, NetCDF, YAML
 
 abstract type SystemType end
@@ -46,7 +47,7 @@ function barrier_synthesis(yaml_file::String)
 end
 
 function extract_system_parms(config, system_type_str::LINEAR)
-    dim, A, b, σ = config["dim"], hcat(config["A"]...), config["b"], config["σ"]
+    dim, A, b, σ = config["dim"], hcat(config["A"]...), vcat(config["b"]...), config["σ"]
     state_space = Hyperrectangle(low=config["state_space"]["low"], high=config["state_space"]["high"])
     return dim, A, b, σ, state_space
 end
@@ -111,28 +112,6 @@ function create_obstacle_region(config, dim)
     return length(obstacles) > 1 ? UnionSet(obstacles...) : obstacles[1]
 end
 
-function generate_partitions(state_space, ϵ)
-    # Define ranges
-    ranges = [
-    range(
-        state_space.center[i] - state_space.radius[i],
-        step=ϵ[i],
-        length=Int(ceil((2 * state_space.radius[i]) / ϵ[i])) + 1
-    )
-    for i in 1:length(ϵ)
-    ]
-
-    # Generate a flat vector of Hyperrectangle objects for n-dimensions
-    state_partitions = [
-    Hyperrectangle(
-        low=[low for (low, high) in point_pairs],
-        high=[high for (low, high) in point_pairs]
-    )
-    for point_pairs in Iterators.product([zip(r[1:end-1], r[2:end]) for r in ranges]...)
-    ] |> vec
-
-    return state_partitions
-end
 
 function call_barrier_method(config, system_type_instance, barrier_type::SOS)
     # Establish System
@@ -141,12 +120,14 @@ function call_barrier_method(config, system_type_instance, barrier_type::SOS)
         system = AdditiveGaussianLinearSystem(A, b, σ, state_space)
 
     elseif system_type_instance == POLYNOMIAL()
-        dim, σ, f = extract_system_parms(config, system_type_instance::POLYNOMIAL)
-        system = AdditiveGaussianUncertainPWASystem(f, σ, state_space)  
+        dim, f, σ, state_space = extract_system_parms(config, system_type_instance::POLYNOMIAL)
+        f = parse_polynomial_string(f, dim)
+        system = AdditiveGaussianPolySystem(f, σ, state_space)  
 
     elseif system_type_instance == NONLINEAR()
         dim, σ, Xs = extract_system_parms(config, system_type_instance::NONLINEAR)
         system = AdditiveGaussianUncertainPWASystem(Xs, σ)  
+
     else
         error("Unsupported system type instance: $system_type_instance")
     end
@@ -245,6 +226,13 @@ function pwc_optimization_call(config, probabilities, initial_region, obstacle_r
     return res_pwc
 end
 
+function parse_polynomial_string(f, dim)
+    # Create the polynomials in each dimension
+    global x            # Hack to make meta parsing work
+    @polyvar x[1:dim]
+    poly = [sum(eval(Meta.parse(f[i]))) for i in 1:length(f)]
+end
+
 function get_kwargs(config, barrier_type::SOS)
     barrier_degree = get(config["barrier_settings"], "barrier_degree", SumOfSquaresAlgorithm().barrier_degree)
     lagrange_degree = get(config["barrier_settings"], "lagrange_degree", SumOfSquaresAlgorithm().lagrange_degree) 
@@ -276,7 +264,7 @@ end
 
 function print_to_txt(system_flag, barrier_type, res)
     # Print to txt                                   
-    file_path = "$(system_flag)/results/$(barrier_type)/result.txt"
+    file_path = "$(system_flag)/results/result.txt"
     open(file_path, "w") do file
         show(file, res)
     end

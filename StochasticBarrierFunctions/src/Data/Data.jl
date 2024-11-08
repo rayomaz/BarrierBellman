@@ -11,6 +11,7 @@ const MatlabFile = Union{MAT_v4.Matlabv4File, MAT_v5.Matlabv5File, MAT_HDF5.Matl
 
 export load_regions, load_dynamics, load_probabilities
 export create_probability_dataset, create_sparse_probability_dataset
+export generate_partitions
 
 function create_probability_dataset(regions::Vector{<:Hyperrectangle}, P̲::AbstractDimArray, P̅::AbstractDimArray, P̲ᵤ::AbstractDimArray, P̅ᵤ::AbstractDimArray)
     n = length(regions)
@@ -200,6 +201,29 @@ function load_dynamics(dataset::YAXArrays.Dataset)
     ]
 
     return Xs
+end
+
+function generate_partitions(state_space::Hyperrectangle{Float64, Vector{Float64}, Vector{Float64}}, ϵ::Vector{Float64})
+    # Define ranges
+    ranges = [
+    range(
+        state_space.center[i] - state_space.radius[i],
+        step=ϵ[i],
+        length=Int(ceil((2 * state_space.radius[i]) / ϵ[i])) + 1
+    )
+    for i in 1:length(ϵ)
+    ]
+
+    # Generate a flat vector of Hyperrectangle objects for n-dimensions
+    state_partitions = [
+    Hyperrectangle(
+        low=[low for (low, high) in point_pairs],
+        high=[high for (low, high) in point_pairs]
+    )
+    for point_pairs in Iterators.product([zip(r[1:end-1], r[2:end]) for r in ranges]...)
+    ] |> vec
+
+    return state_partitions
 end
 
 end # module
