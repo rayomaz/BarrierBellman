@@ -29,7 +29,7 @@ const APL{T} = MP.AbstractPolynomialLike{T}
 
 # Basic system types
 include("system.jl")
-export AdditiveGaussianLinearSystem, AdditiveGaussianUncertainPWASystem, UncertainPWARegion
+export AdditiveGaussianLinearSystem, AdditiveGaussianPolySystem, AdditiveGaussianUncertainPWASystem, UncertainPWARegion
 export dynamics, noise_distribution, dimensionality
 
 include("region.jl")
