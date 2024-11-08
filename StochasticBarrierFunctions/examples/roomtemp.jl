@@ -34,6 +34,6 @@ obstacle_region = UnionSet(obstacle1, obstacle2)
 N = 3
 
 # # Optimize: baseline 1 (sos)
-@time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(barrier_degree = 6), system, initial_region, obstacle_region; time_horizon = N)
+@time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(barrier_degree = 4), system, initial_region, obstacle_region; time_horizon = N)
 
-println("Polynomial model verified.")
+println("Room temperature model verified.")
