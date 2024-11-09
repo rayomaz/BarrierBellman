@@ -12,7 +12,7 @@ dim = 1
 # Room temperature problem
 Th = 45
 Te = -15
-θ  = 0.6
+β  = 0.6
 θ  = 0.145
 R  = 0.10
 v  = -0.0120155*x[1] + 0.8
