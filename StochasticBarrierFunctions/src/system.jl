@@ -44,7 +44,7 @@ struct AdditiveGaussianPolySystem{T, N, P <: AbstractPolynomialLike} <: Abstract
 
     state_space::Union{AbstractHyperrectangle{T}, Nothing}
 
-    function AdditiveGaussianPolySystem(f::Any, σ::AbstractVector{T}, state_space::Union{AbstractHyperrectangle{T}, Nothing}=nothing) where {T}
+    function AdditiveGaussianPolySystem(f::Vector{P}, σ::AbstractVector{T}, state_space::Union{AbstractHyperrectangle{T}, Nothing}=nothing) where {T}
         n = length(f)
 
         if length(σ) != n
