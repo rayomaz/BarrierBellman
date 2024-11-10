@@ -33,13 +33,13 @@ end
 dynamics(system::AdditiveGaussianLinearSystem) = (system.A, system.b)
 
 
-struct AdditiveGaussianPolySystem{T, N} <: AbstractAdditiveGaussianSystem{N}
+struct AdditiveGaussianPolySystem{T, N, P <: AbstractPolynomialLike} <: AbstractAdditiveGaussianSystem{N}
     # This struct represents a system with the dynamics x(k + 1) = f(x(k)) + v(k)
     # where f is polynomial in x and the set of random variables (v(k))_{k ∈ ℕ} are
     # independent and identically Gaussian distributed with zero mean and diagonal
     # covariance. The stochasticity is represented by the diagonal std.dev.'s σ.
 
-    f::Any
+    f::Vector{P}
     σ::AbstractVector{T}
 
     state_space::Union{AbstractHyperrectangle{T}, Nothing}
