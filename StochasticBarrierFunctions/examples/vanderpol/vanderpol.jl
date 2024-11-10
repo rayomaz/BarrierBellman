@@ -22,9 +22,9 @@ initial_region = Hyperrectangle(low = [-5.0, -5.0], high = [5.0, 5.0])
 obstacle_region = EmptySet(dim)
 
 # Set horizon
-N = 5
+N = 10
 
 # Optimize: baseline 1 (sos)
-@time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(barrier_degree = 6), system, initial_region, obstacle_region; time_horizon = N)
+@time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(barrier_degree = 4), system, initial_region, obstacle_region; time_horizon = N)
 
 println("Van der Pol Oscillator model verified.")
