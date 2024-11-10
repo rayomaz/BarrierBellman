@@ -31,9 +31,9 @@ obstacle2 = Hyperrectangle(low = [23.0], high = [50.0])
 obstacle_region = UnionSet(obstacle1, obstacle2)
 
 # Set horizon
-N = 3
+N = 10
 
 # # Optimize: baseline 1 (sos)
-@time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(barrier_degree = 4), system, initial_region, obstacle_region; time_horizon = N)
+@time res_sos = synthesize_barrier(SumOfSquaresAlgorithm(barrier_degree = 8), system, initial_region, obstacle_region; time_horizon = N)
 
 println("Room temperature model verified.")
