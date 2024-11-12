@@ -67,7 +67,7 @@ struct UncertainPWARegion{T, S<:LazySet{T}}
             throw(ArgumentError("The dynamics must be non-empty"))
         end
 
-        n = dimensionality(X)
+        n = LazySets.dim(X)
         for (A, b) in dyn
             m = LinearAlgebra.checksquare(A)
 
