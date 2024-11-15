@@ -45,6 +45,8 @@ stochasticbarrier contraction_pwc_cegs      # To run the stochastic contraction 
 stochasticbarrier contraction_pwc_gd        # To run the stochastic contraction map with a PWC-GD barrier
 ```
 
+The same commands can be run for other benchmarks: oscillator, roomtemperature, or pendulum.
+
 ## Run through Julia
 Use the following commands to run the optimization case studies through Julia
 
@@ -64,4 +66,4 @@ To run the Contraction Map for example, use the following command:
 ```julia 
    yaml_file = "benchmarks/linear/systems/contraction/sos.yaml"; include("benchmarks/barrier_synthesis.jl")
 ```
-The same command can be run for other benchmarks.
+The same commands can be run for other benchmarks: oscillator, roomtemperature, or pendulum.
