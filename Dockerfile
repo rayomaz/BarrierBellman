@@ -7,13 +7,13 @@ COPY ./StochasticBarrierFunctions /StochasticBarrierFunctions
 RUN chmod +x /StochasticBarrierFunctions/run.bash
 
 # Change the workdir to package root
-WORKDIR StochasticBarrierFunctions
+WORKDIR /StochasticBarrierFunctions
 
 # Precompile the Julia Package
 RUN julia -e 'using Pkg;Pkg.activate("."); Pkg.instantiate(); Pkg.precompile()'
 
 # Add Alias to run experiment 
-RUN echo 'alias barrier="/StochasticBarrierFunctions/run.bash"' >> ~/.bashrc
+RUN echo 'alias stochasticbarrier="/StochasticBarrierFunctions/run.bash"' >> ~/.bashrc
 
 # Change Entrypoint to bash (Default: Julia)
 ENTRYPOINT ["bash"]
