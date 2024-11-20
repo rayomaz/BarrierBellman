@@ -18,6 +18,6 @@ obstacle_region:
     high: [50.0]
 barrier_settings:
   barrier_type: "SOS"
-  time_horizon: 3
+  time_horizon: 10
   barrier_degree: 4
 

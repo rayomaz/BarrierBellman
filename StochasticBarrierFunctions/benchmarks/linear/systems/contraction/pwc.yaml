@@ -12,15 +12,7 @@ transition_probalities:
 initial_region:
   c: [-0.70, -0.10]
   r: [0.10]
-obstacle_region:
-  num_obstacles: 2
-  obstacle_1:
-    c:  [-0.55, 0.30]
-    r: [0.015]
-  obstacle_2:
-    c:  [-0.55, -0.15]
-    r: [0.015]
 barrier_settings:
   barrier_type: "PWC"
   time_horizon: 10
-  optimization_type: "GD_ALG"
+  optimization_type: "DUAL_ALG"
