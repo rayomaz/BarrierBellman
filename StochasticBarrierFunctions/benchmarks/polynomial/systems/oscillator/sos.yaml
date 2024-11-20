@@ -10,6 +10,6 @@ initial_region:
   high: [5.0, 5.0]
 barrier_settings:
   barrier_type: "SOS"
-  time_horizon: 5
+  time_horizon: 10
   barrier_degree: 6
 
