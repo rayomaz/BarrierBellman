@@ -68,7 +68,7 @@ function upper_bound_barrier(alg, regions::Vector{<:RegionWithProbabilities}, in
 
     # Previous distribution bounds
     for dist in distributions
-        for (index, prob) in enumerate(eachcol(dist))
+        for (index, prob) in enumerate(dist)
             P  = prob[1:end-1]
             P̅ᵤ = prob[end]
             Bⱼ = B[index]
